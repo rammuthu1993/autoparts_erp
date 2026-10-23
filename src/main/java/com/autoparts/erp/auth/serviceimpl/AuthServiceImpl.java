@@ -40,9 +40,16 @@ public class AuthServiceImpl implements AuthService {
                             request.username().trim(),
                             request.password()));
         } catch (AuthenticationException exception) {
-            logger.warn("Login attempt failed");
-            throw exception;
-        }
+            logger.warn(
+                "Login attempt failed: {}",
+                exception.getClass().getSimpleName()
+            );
+    throw exception;
+}
+        // catch (AuthenticationException exception) {
+        //     logger.warn("Login attempt failed");
+        //     throw exception;
+        // }
 
         String token = jwtService.generateAccessToken(authentication);
         logger.info("Login succeeded");

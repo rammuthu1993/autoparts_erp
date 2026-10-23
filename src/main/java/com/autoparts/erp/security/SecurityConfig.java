@@ -90,7 +90,7 @@ public class SecurityConfig {
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
             .requestCache(AbstractHttpConfigurer::disable)
-            .formLogin(AbstractHttpConfigurer::disable)
+            // .formLogin(AbstractHttpConfigurer::disable)
             .httpBasic(AbstractHttpConfigurer::disable)
             .logout(AbstractHttpConfigurer::disable)
 
