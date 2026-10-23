@@ -27,6 +27,11 @@ public class JwtService {
             @Value("${app.security.jwt.issuer}") String issuer,
             @Value("${app.security.jwt.expiration-seconds}") long expirationSeconds) {
 
+        if (issuer == null || issuer.isBlank()) {
+            throw new IllegalArgumentException(
+                    "JWT issuer must not be blank.");
+        }
+
         if (expirationSeconds <= 0) {
             throw new IllegalArgumentException(
                     "JWT expiration must be greater than zero.");
@@ -44,6 +49,7 @@ public class JwtService {
         List<String> roles = authentication.getAuthorities()
                 .stream()
                 .map(GrantedAuthority::getAuthority)
+                .filter(authority -> authority.startsWith("ROLE_"))
                 .distinct()
                 .toList();
 

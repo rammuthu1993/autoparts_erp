@@ -7,7 +7,7 @@ public class PasswordHashGenerator {
 
     public static void main(String[] args) {
 
-        String password = System.getenv("Admin@123");
+        String password = System.getenv("INITIAL_ADMIN_PASSWORD");
 
         if (password == null || password.isBlank()) {
             throw new IllegalStateException(
