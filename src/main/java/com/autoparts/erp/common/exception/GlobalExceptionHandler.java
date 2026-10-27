@@ -30,7 +30,9 @@ public class GlobalExceptionHandler {
                 request.getRequestURI()
         );
 
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(error);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -53,6 +55,28 @@ public class GlobalExceptionHandler {
                 request.getRequestURI()
         );
 
-        return ResponseEntity.badRequest().body(error);
+        return ResponseEntity
+                .badRequest()
+                .body(error);
+    }
+
+    @ExceptionHandler(ApiException.class)
+    public ResponseEntity<ApiError> handleApiException(
+            ApiException ex,
+            HttpServletRequest request) {
+
+        ApiErrorCodeDefinition error = ex.getError();
+
+        ApiError response = new ApiError(
+                Instant.now(),
+                error.getStatus().value(),
+                error.name(),
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+
+        return ResponseEntity
+                .status(error.getStatus())
+                .body(response);
     }
 }

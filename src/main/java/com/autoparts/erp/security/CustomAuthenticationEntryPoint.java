@@ -25,20 +25,20 @@ public class CustomAuthenticationEntryPoint
 
     private static final Logger logger =
             LoggerFactory.getLogger(CustomAuthenticationEntryPoint.class);
-
+  
     private final ObjectMapper objectMapper;
 
     public CustomAuthenticationEntryPoint(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
-
+    
     @Override
     public void commence(
             HttpServletRequest request,
             HttpServletResponse response,
             AuthenticationException exception)
             throws IOException {
-
+        
         logger.warn("Request rejected because authentication is missing or invalid");
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
