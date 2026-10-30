@@ -8,7 +8,7 @@ public record PurchaseProduct(
     Long id,
     UUID uuid,
     Long productId,
-    String itemId,
+    String productCode,
     String partNo,
     String productName,
     BigDecimal quantity,

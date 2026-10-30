@@ -25,7 +25,7 @@ public class ProductRepositoryImpl implements ProductRepository {
             new Product(
                     rs.getLong("id"),
                     rs.getObject("uuid", UUID.class),
-                    rs.getString("item_id"),
+                    rs.getString("product_code"),
                     rs.getString("part_no"),
                     rs.getString("name"),
                     rs.getString("description"),
@@ -50,7 +50,7 @@ public class ProductRepositoryImpl implements ProductRepository {
             );
 
     private static final String SELECT_PRODUCT = """
-            SELECT p.id, p.uuid, p.item_id, p.part_no,
+            SELECT p.id, p.uuid, p.product_code, p.part_no,
                    p.name, p.description,
                    p.category_id, c.name AS category_name,
                    p.brand_id, b.name AS brand_name,
@@ -63,15 +63,15 @@ public class ProductRepositoryImpl implements ProductRepository {
             """;
 
     @Override
-    public long nextItemNumber() {
+    public long nextProductCodeNumber() {
         Long number = jdbcTemplate.queryForObject(
-                "SELECT nextval('product_item_id_seq')",
+                "SELECT nextval('product_code_seq')",
                 Long.class
         );
 
         if (number == null) {
             throw new IllegalStateException(
-                    "Could not generate product item number"
+                    "Could not generate product code number"
             );
         }
 
@@ -115,7 +115,7 @@ public class ProductRepositoryImpl implements ProductRepository {
     @Override
     public Product create(
             UUID uuid,
-            String itemId,
+            String productCode,
             String partNo,
             String name,
             String description,
@@ -129,7 +129,7 @@ public class ProductRepositoryImpl implements ProductRepository {
     ) {
         String sql = """
                 INSERT INTO products (
-                    uuid, item_id, part_no, name, description,
+                    uuid, product_code, part_no, name, description,
                     category_id, brand_id,
                     purchase_price, selling_price, qty,
                     minimum_stock, unit
@@ -142,7 +142,7 @@ public class ProductRepositoryImpl implements ProductRepository {
                 sql,
                 Long.class,
                 uuid,
-                itemId,
+                productCode,
                 partNo,
                 name,
                 description,
@@ -279,18 +279,18 @@ public class ProductRepositoryImpl implements ProductRepository {
     }
 
     @Override
-    public boolean existsByItemId(String itemId) {
+    public boolean existsByProductCode(String productCode) {
 
         Boolean exists = jdbcTemplate.queryForObject(
                 """
                 SELECT EXISTS (
                     SELECT 1
                     FROM products
-                    WHERE item_id = ?
+                    WHERE product_code = ?
                 )
                 """,
                 Boolean.class,
-                itemId
+                productCode
         );
 
         return Boolean.TRUE.equals(exists);

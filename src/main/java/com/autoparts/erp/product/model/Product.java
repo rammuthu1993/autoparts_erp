@@ -8,7 +8,7 @@ import java.util.UUID;
 public record Product(
         Long id,
         UUID uuid,
-        String itemId,
+        String productCode,
         String partNo,
         String name,
         String description,

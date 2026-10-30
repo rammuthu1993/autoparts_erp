@@ -10,7 +10,7 @@ import java.util.UUID;
 
 public interface ProductRepository {
 
-    long nextItemNumber();
+    long nextProductCodeNumber();
 
     boolean categoryExistsAndActive(Long categoryId);
 
@@ -18,7 +18,7 @@ public interface ProductRepository {
 
     Product create(
             UUID uuid,
-            String itemId,
+            String productCode,
             String partNo,
             String name,
             String description,
@@ -54,5 +54,5 @@ public interface ProductRepository {
 
     boolean existsByPartNo(String partNo);
 
-    boolean existsByItemId(String itemId);
+    boolean existsByProductCode(String productCode);
 }

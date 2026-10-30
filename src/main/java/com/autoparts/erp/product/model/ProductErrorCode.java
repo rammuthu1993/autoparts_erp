@@ -15,9 +15,9 @@ public enum ProductErrorCode implements ApiErrorCodeDefinition {
             "Product part number already exists"
     ),
 
-    PRODUCT_ITEM_ID_ALREADY_EXISTS(
+    PRODUCT_CODE_ALREADY_EXISTS(
             HttpStatus.CONFLICT,
-            "Product item ID already exists"
+            "Product code already exists"
     ),
 
     PRODUCT_NOT_FOUND(

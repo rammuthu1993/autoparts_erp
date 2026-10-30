@@ -58,21 +58,21 @@ public class ProductServiceImpl implements ProductService {
             );
         }
 
-        // Generate a sequential business item ID
-        long number = repository.nextItemNumber();
-        String productId = "GAP-%06d".formatted(number);
+        // Generate a sequential business product code.
+        long number = repository.nextProductCodeNumber();
+        String productCode = "GAP-%06d".formatted(number);
 
-        // Check generated item ID
-        if (repository.existsByItemId(productId)) {
+        // Check generated product code.
+        if (repository.existsByProductCode(productCode)) {
             throw new ApiException(
-                    ProductErrorCode.PRODUCT_ITEM_ID_ALREADY_EXISTS
+                    ProductErrorCode.PRODUCT_CODE_ALREADY_EXISTS
             );
         }
 
         try {
             Product product = repository.create(
                     UUID.randomUUID(),
-                    productId,
+                    productCode,
                     partNo,
                     name,
                     request.description(),
@@ -189,7 +189,7 @@ public class ProductServiceImpl implements ProductService {
         return new ProductResponse(
                 product.id(),
                 product.uuid(),
-                product.itemId(),
+                product.productCode(),
                 product.partNo(),
                 product.name(),
                 product.description(),

@@ -55,8 +55,8 @@ public class PurchaseServiceImpl implements PurchaseService {
             );
         }
 
-        for (PurchaseProductRequest item : request.products()) {
-            if (!repository.productExistsAndActive(item.productId())) {
+        for (PurchaseProductRequest product : request.products()) {
+            if (!repository.productExistsAndActive(product.productId())) {
                 throw new ApiException(
                     PurchaseErrorCode.PRODUCT_NOT_FOUND
                 );
@@ -72,12 +72,12 @@ public class PurchaseServiceImpl implements PurchaseService {
         BigDecimal grandTotal = BigDecimal.ZERO;
 
         // Calculate all totals before inserting the header.
-        for (PurchaseProductRequest item : request.products()) {
-            BigDecimal gross = item.quantity()
-                .multiply(item.purchasePrice())
+        for (PurchaseProductRequest product : request.products()) {
+            BigDecimal gross = product.quantity()
+                .multiply(product.purchasePrice())
                 .setScale(2, RoundingMode.HALF_UP);
 
-            BigDecimal discount = money(item.discountAmount());
+            BigDecimal discount = money(product.discountAmount());
 
             if (discount.compareTo(gross) > 0) {
                 throw new ApiException(
@@ -88,7 +88,7 @@ public class PurchaseServiceImpl implements PurchaseService {
             BigDecimal taxable = gross.subtract(discount);
 
             BigDecimal tax = taxable
-                .multiply(item.taxPercent())
+                .multiply(product.taxPercent())
                 .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
 
             subtotal = subtotal.add(gross);
@@ -107,16 +107,16 @@ public class PurchaseServiceImpl implements PurchaseService {
                 clean(request.notes())
             );
 
-            for (PurchaseProductRequest item : request.products()) {
-                BigDecimal gross = item.quantity()
-                    .multiply(item.purchasePrice())
+            for (PurchaseProductRequest product : request.products()) {
+                BigDecimal gross = product.quantity()
+                    .multiply(product.purchasePrice())
                     .setScale(2, RoundingMode.HALF_UP);
 
-                BigDecimal discount = money(item.discountAmount());
+                BigDecimal discount = money(product.discountAmount());
                 BigDecimal taxable = gross.subtract(discount);
 
                 BigDecimal tax = taxable
-                    .multiply(item.taxPercent())
+                    .multiply(product.taxPercent())
                     .divide(
                         new BigDecimal("100"),
                         2,
@@ -128,11 +128,11 @@ public class PurchaseServiceImpl implements PurchaseService {
                 repository.createPurchaseItem(
                     UUID.randomUUID(),
                     purchaseUuid,
-                    item.productId(),
-                    item.quantity(),
-                    money(item.purchasePrice()),
+                    product.productId(),
+                    product.quantity(),
+                    money(product.purchasePrice()),
                     discount,
-                    item.taxPercent(),
+                    product.taxPercent(),
                     tax,
                     lineTotal
                 );
@@ -200,7 +200,7 @@ public class PurchaseServiceImpl implements PurchaseService {
     private PurchaseResponse toResponse(Purchase purchase) {
         List<PurchaseProductResponse> products = purchase.products()
             .stream()
-            .map(this::toItemResponse)
+            .map(this::toProductResponse)
             .toList();
 
         return new PurchaseResponse(
@@ -224,11 +224,11 @@ public class PurchaseServiceImpl implements PurchaseService {
         );
     }
 
-    private PurchaseProductResponse toItemResponse(PurchaseProduct product) {
+    private PurchaseProductResponse toProductResponse(PurchaseProduct product) {
         return new PurchaseProductResponse(
             product.uuid(),
             product.productId(),
-//            product.itemId(),
+            product.productCode(),
             product.partNo(),
             product.productName(),
             product.quantity(),

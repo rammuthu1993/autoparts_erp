@@ -1,179 +1,63 @@
-2026-10-29T13:40:29.316+05:30  INFO 24840 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Starting AutopartsErpApplication using Java 25.0.3 with PID 24840 (D:\Projects\autoparts-erp\target\classes started by Muthukumar Ramasamy in D:\Projects\autoparts-erp)
-2026-10-29T13:40:29.320+05:30  INFO 24840 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : No active profile set, falling back to 1 default profile: "default"
-2026-10-29T13:40:30.730+05:30  INFO 24840 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
-2026-10-29T13:40:30.750+05:30  INFO 24840 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-10-29T13:40:30.751+05:30  INFO 24840 --- [autoparts-erp] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
-2026-10-29T13:40:30.824+05:30  INFO 24840 --- [autoparts-erp] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1456 ms
-2026-10-29T13:40:31.829+05:30  INFO 24840 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
-2026-10-29T13:40:32.055+05:30  INFO 24840 --- [autoparts-erp] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@4c635edc
-2026-10-29T13:40:32.057+05:30  INFO 24840 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
-2026-10-29T13:40:32.089+05:30  INFO 24840 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
-2026-10-29T13:40:32.177+05:30  INFO 24840 --- [autoparts-erp] [main] o.f.core.internal.command.DbValidate     : Successfully validated 6 migrations (execution time 00:00.032s)
-2026-10-29T13:40:32.222+05:30  INFO 24840 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 5
-2026-10-29T13:40:32.241+05:30  INFO 24840 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "6 - create inventory movements"
-2026-10-29T13:40:32.301+05:30  INFO 24840 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Successfully applied 1 migration to schema "public", now at version v6 (execution time 00:00.049s)
-2026-10-29T13:40:32.598+05:30  INFO 24840 --- [autoparts-erp] [main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
-2026-10-29T13:40:32.598+05:30  WARN 24840 --- [autoparts-erp] [main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
-2026-10-29T13:40:33.306+05:30  INFO 24840 --- [autoparts-erp] [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
-2026-10-29T13:40:33.399+05:30  INFO 24840 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
-2026-10-29T13:40:33.409+05:30  INFO 24840 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Started AutopartsErpApplication in 4.51 seconds (process running for 5.013)
-2026-10-29T13:40:33.417+05:30  INFO 24840 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
-2026-10-29T13:40:33.432+05:30  INFO 24840 --- [autoparts-erp] [main] o.f.c.i.s.JdbcTableSchemaHistory         : Repair of failed migration in Schema History table "public"."flyway_schema_history" not necessary. No failed migration detected.
-2026-10-29T13:40:33.439+05:30  INFO 24840 --- [autoparts-erp] [main] o.f.core.internal.command.DbRepair       : Successfully repaired schema history table "public"."flyway_schema_history" (execution time 00:00.011s).
-2026-10-29T13:40:34.030+05:30  INFO 24840 --- [autoparts-erp] [RMI TCP Connection(5)-10.201.190.202] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-10-29T13:40:34.030+05:30  INFO 24840 --- [autoparts-erp] [RMI TCP Connection(5)-10.201.190.202] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
-2026-10-29T13:40:34.032+05:30  INFO 24840 --- [autoparts-erp] [RMI TCP Connection(5)-10.201.190.202] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
-2026-10-29T13:41:57.704+05:30  WARN 24840 --- [autoparts-erp] [http-nio-8080-exec-3] c.a.e.s.CustomAuthenticationEntryPoint   : Request rejected because authentication is missing or invalid
-2026-10-29T13:42:05.272+05:30  INFO 24840 --- [autoparts-erp] [http-nio-8080-exec-4] c.a.e.auth.serviceimpl.AuthServiceImpl   : Login succeeded
-2026-10-29T13:53:48.069+05:30  INFO 24840 --- [autoparts-erp] [RMI TCP Connection(20)-10.201.190.202] inMXBeanRegistrar$SpringApplicationAdmin : Application shutdown requested.
-2026-10-29T13:53:48.073+05:30  INFO 24840 --- [autoparts-erp] [RMI TCP Connection(20)-10.201.190.202] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
-2026-10-29T13:53:48.076+05:30  INFO 24840 --- [autoparts-erp] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
-2026-10-29T13:53:48.082+05:30  INFO 24840 --- [autoparts-erp] [RMI TCP Connection(20)-10.201.190.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
-2026-10-29T13:53:48.083+05:30  INFO 24840 --- [autoparts-erp] [RMI TCP Connection(20)-10.201.190.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
-2026-10-29T13:53:53.794+05:30  INFO 34504 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Starting AutopartsErpApplication using Java 25.0.3 with PID 34504 (D:\Projects\autoparts-erp\target\classes started by Muthukumar Ramasamy in D:\Projects\autoparts-erp)
-2026-10-29T13:53:53.796+05:30  INFO 34504 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : No active profile set, falling back to 1 default profile: "default"
-2026-10-29T13:53:54.638+05:30  INFO 34504 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
-2026-10-29T13:53:54.650+05:30  INFO 34504 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-10-29T13:53:54.650+05:30  INFO 34504 --- [autoparts-erp] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
-2026-10-29T13:53:54.686+05:30  INFO 34504 --- [autoparts-erp] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 860 ms
-2026-10-29T13:53:54.932+05:30  INFO 34504 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
-2026-10-29T13:53:55.036+05:30  INFO 34504 --- [autoparts-erp] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@12567179
-2026-10-29T13:53:55.037+05:30  INFO 34504 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
-2026-10-29T13:53:55.049+05:30  INFO 34504 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
-2026-10-29T13:53:55.102+05:30  INFO 34504 --- [autoparts-erp] [main] o.f.core.internal.command.DbValidate     : Successfully validated 6 migrations (execution time 00:00.025s)
-2026-10-29T13:53:55.140+05:30  INFO 34504 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 6
-2026-10-29T13:53:55.142+05:30  INFO 34504 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Schema "public" is up to date. No migration necessary.
-2026-10-29T13:53:55.270+05:30  INFO 34504 --- [autoparts-erp] [main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
-2026-10-29T13:53:55.271+05:30  WARN 34504 --- [autoparts-erp] [main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
-2026-10-29T13:53:55.629+05:30  INFO 34504 --- [autoparts-erp] [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
-2026-10-29T13:53:55.680+05:30  INFO 34504 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
-2026-10-29T13:53:55.685+05:30  INFO 34504 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Started AutopartsErpApplication in 2.154 seconds (process running for 2.395)
-2026-10-29T13:53:55.689+05:30  INFO 34504 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
-2026-10-29T13:53:55.696+05:30  INFO 34504 --- [autoparts-erp] [main] o.f.c.i.s.JdbcTableSchemaHistory         : Repair of failed migration in Schema History table "public"."flyway_schema_history" not necessary. No failed migration detected.
-2026-10-29T13:53:55.699+05:30  INFO 34504 --- [autoparts-erp] [main] o.f.core.internal.command.DbRepair       : Successfully repaired schema history table "public"."flyway_schema_history" (execution time 00:00.005s).
-2026-10-29T13:53:56.122+05:30  INFO 34504 --- [autoparts-erp] [RMI TCP Connection(5)-10.201.190.202] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-10-29T13:53:56.122+05:30  INFO 34504 --- [autoparts-erp] [RMI TCP Connection(5)-10.201.190.202] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
-2026-10-29T13:53:56.123+05:30  INFO 34504 --- [autoparts-erp] [RMI TCP Connection(5)-10.201.190.202] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
-2026-10-29T14:01:36.524+05:30  INFO 34504 --- [autoparts-erp] [RMI TCP Connection(14)-10.201.190.202] inMXBeanRegistrar$SpringApplicationAdmin : Application shutdown requested.
-2026-10-29T14:01:36.527+05:30  INFO 34504 --- [autoparts-erp] [RMI TCP Connection(14)-10.201.190.202] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
-2026-10-29T14:01:36.532+05:30  INFO 34504 --- [autoparts-erp] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
-2026-10-29T14:01:36.537+05:30  INFO 34504 --- [autoparts-erp] [RMI TCP Connection(14)-10.201.190.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
-2026-10-29T14:01:36.538+05:30  INFO 34504 --- [autoparts-erp] [RMI TCP Connection(14)-10.201.190.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
-2026-10-29T14:01:43.723+05:30  INFO 16260 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Starting AutopartsErpApplication using Java 25.0.3 with PID 16260 (D:\Projects\autoparts-erp\target\classes started by Muthukumar Ramasamy in D:\Projects\autoparts-erp)
-2026-10-29T14:01:43.725+05:30  INFO 16260 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : No active profile set, falling back to 1 default profile: "default"
-2026-10-29T14:01:44.549+05:30  INFO 16260 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
-2026-10-29T14:01:44.558+05:30  INFO 16260 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-10-29T14:01:44.558+05:30  INFO 16260 --- [autoparts-erp] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
-2026-10-29T14:01:44.587+05:30  INFO 16260 --- [autoparts-erp] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 828 ms
-2026-10-29T14:01:44.829+05:30  INFO 16260 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
-2026-10-29T14:01:44.920+05:30  INFO 16260 --- [autoparts-erp] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@29170a47
-2026-10-29T14:01:44.921+05:30  INFO 16260 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
-2026-10-29T14:01:44.936+05:30  INFO 16260 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
-2026-10-29T14:01:44.977+05:30  INFO 16260 --- [autoparts-erp] [main] o.f.core.internal.command.DbValidate     : Successfully validated 6 migrations (execution time 00:00.015s)
-2026-10-29T14:01:45.016+05:30  INFO 16260 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 6
-2026-10-29T14:01:45.018+05:30  INFO 16260 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Schema "public" is up to date. No migration necessary.
-2026-10-29T14:01:45.149+05:30  INFO 16260 --- [autoparts-erp] [main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
-2026-10-29T14:01:45.150+05:30  WARN 16260 --- [autoparts-erp] [main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
-2026-10-29T14:01:45.500+05:30  INFO 16260 --- [autoparts-erp] [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
-2026-10-29T14:01:45.550+05:30  INFO 16260 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
-2026-10-29T14:01:45.554+05:30  INFO 16260 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Started AutopartsErpApplication in 2.079 seconds (process running for 2.307)
-2026-10-29T14:01:45.564+05:30  INFO 16260 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
-2026-10-29T14:01:45.573+05:30  INFO 16260 --- [autoparts-erp] [main] o.f.c.i.s.JdbcTableSchemaHistory         : Repair of failed migration in Schema History table "public"."flyway_schema_history" not necessary. No failed migration detected.
-2026-10-29T14:01:45.576+05:30  INFO 16260 --- [autoparts-erp] [main] o.f.core.internal.command.DbRepair       : Successfully repaired schema history table "public"."flyway_schema_history" (execution time 00:00.005s).
-2026-10-29T14:01:46.036+05:30  INFO 16260 --- [autoparts-erp] [RMI TCP Connection(5)-10.201.190.202] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-10-29T14:01:46.036+05:30  INFO 16260 --- [autoparts-erp] [RMI TCP Connection(5)-10.201.190.202] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
-2026-10-29T14:01:46.037+05:30  INFO 16260 --- [autoparts-erp] [RMI TCP Connection(5)-10.201.190.202] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
-2026-10-29T14:01:50.048+05:30  WARN 16260 --- [autoparts-erp] [http-nio-8080-exec-4] c.a.e.s.CustomAuthenticationEntryPoint   : Request rejected because authentication is missing or invalid
-2026-10-29T14:01:58.434+05:30  INFO 16260 --- [autoparts-erp] [http-nio-8080-exec-2] c.a.e.auth.serviceimpl.AuthServiceImpl   : Login succeeded
-2026-10-29T14:04:34.073+05:30  INFO 16260 --- [autoparts-erp] [RMI TCP Connection(8)-10.201.190.202] inMXBeanRegistrar$SpringApplicationAdmin : Application shutdown requested.
-2026-10-29T14:04:34.076+05:30  INFO 16260 --- [autoparts-erp] [RMI TCP Connection(8)-10.201.190.202] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
-2026-10-29T14:04:34.079+05:30  INFO 16260 --- [autoparts-erp] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
-2026-10-29T14:04:34.083+05:30  INFO 16260 --- [autoparts-erp] [RMI TCP Connection(8)-10.201.190.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
-2026-10-29T14:04:34.084+05:30  INFO 16260 --- [autoparts-erp] [RMI TCP Connection(8)-10.201.190.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
-2026-10-29T14:04:41.628+05:30  INFO 9908 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Starting AutopartsErpApplication using Java 25.0.3 with PID 9908 (D:\Projects\autoparts-erp\target\classes started by Muthukumar Ramasamy in D:\Projects\autoparts-erp)
-2026-10-29T14:04:41.630+05:30  INFO 9908 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : No active profile set, falling back to 1 default profile: "default"
-2026-10-29T14:04:42.449+05:30  INFO 9908 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
-2026-10-29T14:04:42.463+05:30  INFO 9908 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-10-29T14:04:42.464+05:30  INFO 9908 --- [autoparts-erp] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
-2026-10-29T14:04:42.495+05:30  INFO 9908 --- [autoparts-erp] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 829 ms
-2026-10-29T14:04:42.737+05:30  INFO 9908 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
-2026-10-29T14:04:42.947+05:30  INFO 9908 --- [autoparts-erp] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@12567179
-2026-10-29T14:04:42.948+05:30  INFO 9908 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
-2026-10-29T14:04:42.962+05:30  INFO 9908 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
-2026-10-29T14:04:43.009+05:30  INFO 9908 --- [autoparts-erp] [main] o.f.core.internal.command.DbValidate     : Successfully validated 6 migrations (execution time 00:00.018s)
-2026-10-29T14:04:43.047+05:30  INFO 9908 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 6
-2026-10-29T14:04:43.049+05:30  INFO 9908 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Schema "public" is up to date. No migration necessary.
-2026-10-29T14:04:43.184+05:30  INFO 9908 --- [autoparts-erp] [main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
-2026-10-29T14:04:43.185+05:30  WARN 9908 --- [autoparts-erp] [main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
-2026-10-29T14:04:43.531+05:30  INFO 9908 --- [autoparts-erp] [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
-2026-10-29T14:04:43.582+05:30  INFO 9908 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
-2026-10-29T14:04:43.587+05:30  INFO 9908 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Started AutopartsErpApplication in 2.217 seconds (process running for 2.442)
-2026-10-29T14:04:43.591+05:30  INFO 9908 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
-2026-10-29T14:04:43.601+05:30  INFO 9908 --- [autoparts-erp] [main] o.f.c.i.s.JdbcTableSchemaHistory         : Repair of failed migration in Schema History table "public"."flyway_schema_history" not necessary. No failed migration detected.
-2026-10-29T14:04:43.605+05:30  INFO 9908 --- [autoparts-erp] [main] o.f.core.internal.command.DbRepair       : Successfully repaired schema history table "public"."flyway_schema_history" (execution time 00:00.006s).
-2026-10-29T14:04:43.940+05:30  INFO 9908 --- [autoparts-erp] [RMI TCP Connection(5)-10.201.190.202] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-10-29T14:04:43.940+05:30  INFO 9908 --- [autoparts-erp] [RMI TCP Connection(5)-10.201.190.202] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
-2026-10-29T14:04:43.941+05:30  INFO 9908 --- [autoparts-erp] [RMI TCP Connection(5)-10.201.190.202] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
-2026-10-29T14:12:49.555+05:30  INFO 9908 --- [autoparts-erp] [RMI TCP Connection(13)-10.201.190.202] inMXBeanRegistrar$SpringApplicationAdmin : Application shutdown requested.
-2026-10-29T14:12:49.559+05:30  INFO 9908 --- [autoparts-erp] [RMI TCP Connection(13)-10.201.190.202] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
-2026-10-29T14:12:49.563+05:30  INFO 9908 --- [autoparts-erp] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
-2026-10-29T14:12:49.568+05:30  INFO 9908 --- [autoparts-erp] [RMI TCP Connection(13)-10.201.190.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
-2026-10-29T14:12:49.569+05:30  INFO 9908 --- [autoparts-erp] [RMI TCP Connection(13)-10.201.190.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
-2026-10-29T14:12:58.687+05:30  INFO 8756 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Starting AutopartsErpApplication using Java 25.0.3 with PID 8756 (D:\Projects\autoparts-erp\target\classes started by Muthukumar Ramasamy in D:\Projects\autoparts-erp)
-2026-10-29T14:12:58.690+05:30  INFO 8756 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : No active profile set, falling back to 1 default profile: "default"
-2026-10-29T14:12:59.509+05:30  INFO 8756 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
-2026-10-29T14:12:59.521+05:30  INFO 8756 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-10-29T14:12:59.522+05:30  INFO 8756 --- [autoparts-erp] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
-2026-10-29T14:12:59.561+05:30  INFO 8756 --- [autoparts-erp] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 838 ms
-2026-10-29T14:12:59.803+05:30  INFO 8756 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
-2026-10-29T14:12:59.900+05:30  INFO 8756 --- [autoparts-erp] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@37d699a1
-2026-10-29T14:12:59.901+05:30  INFO 8756 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
-2026-10-29T14:12:59.915+05:30  INFO 8756 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
-2026-10-29T14:12:59.963+05:30  INFO 8756 --- [autoparts-erp] [main] o.f.core.internal.command.DbValidate     : Successfully validated 6 migrations (execution time 00:00.021s)
-2026-10-29T14:13:00.003+05:30  INFO 8756 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 6
-2026-10-29T14:13:00.006+05:30  INFO 8756 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Schema "public" is up to date. No migration necessary.
-2026-10-29T14:13:00.151+05:30  INFO 8756 --- [autoparts-erp] [main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
-2026-10-29T14:13:00.152+05:30  WARN 8756 --- [autoparts-erp] [main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
-2026-10-29T14:13:00.520+05:30  INFO 8756 --- [autoparts-erp] [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
-2026-10-29T14:13:00.574+05:30  INFO 8756 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
-2026-10-29T14:13:00.578+05:30  INFO 8756 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Started AutopartsErpApplication in 2.145 seconds (process running for 2.373)
-2026-10-29T14:13:00.582+05:30  INFO 8756 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
-2026-10-29T14:13:00.591+05:30  INFO 8756 --- [autoparts-erp] [main] o.f.c.i.s.JdbcTableSchemaHistory         : Repair of failed migration in Schema History table "public"."flyway_schema_history" not necessary. No failed migration detected.
-2026-10-29T14:13:00.595+05:30  INFO 8756 --- [autoparts-erp] [main] o.f.core.internal.command.DbRepair       : Successfully repaired schema history table "public"."flyway_schema_history" (execution time 00:00.007s).
-2026-10-29T14:13:01.012+05:30  INFO 8756 --- [autoparts-erp] [RMI TCP Connection(3)-10.201.190.202] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-10-29T14:13:01.012+05:30  INFO 8756 --- [autoparts-erp] [RMI TCP Connection(3)-10.201.190.202] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
-2026-10-29T14:13:01.013+05:30  INFO 8756 --- [autoparts-erp] [RMI TCP Connection(3)-10.201.190.202] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
-2026-10-29T14:14:32.855+05:30  INFO 8756 --- [autoparts-erp] [RMI TCP Connection(7)-10.201.190.202] inMXBeanRegistrar$SpringApplicationAdmin : Application shutdown requested.
-2026-10-29T14:14:32.860+05:30  INFO 8756 --- [autoparts-erp] [RMI TCP Connection(7)-10.201.190.202] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
-2026-10-29T14:14:32.863+05:30  INFO 8756 --- [autoparts-erp] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
-2026-10-29T14:14:32.866+05:30  INFO 8756 --- [autoparts-erp] [RMI TCP Connection(7)-10.201.190.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
-2026-10-29T14:14:32.868+05:30  INFO 8756 --- [autoparts-erp] [RMI TCP Connection(7)-10.201.190.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
-2026-10-29T14:14:43.599+05:30  INFO 24552 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Starting AutopartsErpApplication using Java 25.0.3 with PID 24552 (D:\Projects\autoparts-erp\target\classes started by Muthukumar Ramasamy in D:\Projects\autoparts-erp)
-2026-10-29T14:14:43.601+05:30  INFO 24552 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : No active profile set, falling back to 1 default profile: "default"
-2026-10-29T14:14:44.361+05:30  INFO 24552 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
-2026-10-29T14:14:44.370+05:30  INFO 24552 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-10-29T14:14:44.370+05:30  INFO 24552 --- [autoparts-erp] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
-2026-10-29T14:14:44.405+05:30  INFO 24552 --- [autoparts-erp] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 771 ms
-2026-10-29T14:14:44.637+05:30  INFO 24552 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
-2026-10-29T14:14:44.727+05:30  INFO 24552 --- [autoparts-erp] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@7f42b194
-2026-10-29T14:14:44.728+05:30  INFO 24552 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
-2026-10-29T14:14:44.742+05:30  INFO 24552 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
-2026-10-29T14:14:44.782+05:30  INFO 24552 --- [autoparts-erp] [main] o.f.core.internal.command.DbValidate     : Successfully validated 6 migrations (execution time 00:00.014s)
-2026-10-29T14:14:44.821+05:30  INFO 24552 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 6
-2026-10-29T14:14:44.823+05:30  INFO 24552 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Schema "public" is up to date. No migration necessary.
-2026-10-29T14:14:44.956+05:30  INFO 24552 --- [autoparts-erp] [main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
-2026-10-29T14:14:44.956+05:30  WARN 24552 --- [autoparts-erp] [main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
-2026-10-29T14:14:45.296+05:30  INFO 24552 --- [autoparts-erp] [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
-2026-10-29T14:14:45.344+05:30  INFO 24552 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
-2026-10-29T14:14:45.348+05:30  INFO 24552 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Started AutopartsErpApplication in 2.006 seconds (process running for 2.226)
-2026-10-29T14:14:45.353+05:30  INFO 24552 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
-2026-10-29T14:14:45.361+05:30  INFO 24552 --- [autoparts-erp] [main] o.f.c.i.s.JdbcTableSchemaHistory         : Repair of failed migration in Schema History table "public"."flyway_schema_history" not necessary. No failed migration detected.
-2026-10-29T14:14:45.365+05:30  INFO 24552 --- [autoparts-erp] [main] o.f.core.internal.command.DbRepair       : Successfully repaired schema history table "public"."flyway_schema_history" (execution time 00:00.006s).
-2026-10-29T14:14:45.830+05:30  INFO 24552 --- [autoparts-erp] [RMI TCP Connection(5)-10.201.190.202] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-10-29T14:14:45.830+05:30  INFO 24552 --- [autoparts-erp] [RMI TCP Connection(5)-10.201.190.202] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
-2026-10-29T14:14:45.831+05:30  INFO 24552 --- [autoparts-erp] [RMI TCP Connection(5)-10.201.190.202] o.s.web.servlet.DispatcherServlet        : Completed initialization in 0 ms
-2026-10-29T14:15:02.870+05:30  INFO 24552 --- [autoparts-erp] [RMI TCP Connection(4)-10.201.190.202] inMXBeanRegistrar$SpringApplicationAdmin : Application shutdown requested.
-2026-10-29T14:15:02.876+05:30  INFO 24552 --- [autoparts-erp] [RMI TCP Connection(4)-10.201.190.202] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
-2026-10-29T14:15:02.880+05:30  INFO 24552 --- [autoparts-erp] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
-2026-10-29T14:15:02.883+05:30  INFO 24552 --- [autoparts-erp] [RMI TCP Connection(4)-10.201.190.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
-2026-10-29T14:15:02.885+05:30  INFO 24552 --- [autoparts-erp] [RMI TCP Connection(4)-10.201.190.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-10-30T15:38:04.623+05:30  INFO 31868 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Starting AutopartsErpApplication using Java 25.0.3 with PID 31868 (D:\Projects\autoparts-erp\target\classes started by Muthukumar Ramasamy in D:\Projects\autoparts-erp)
+2026-10-30T15:38:04.629+05:30  INFO 31868 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : No active profile set, falling back to 1 default profile: "default"
+2026-10-30T15:38:06.275+05:30  INFO 31868 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-10-30T15:38:06.306+05:30  INFO 31868 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-10-30T15:38:06.307+05:30  INFO 31868 --- [autoparts-erp] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
+2026-10-30T15:38:06.376+05:30  INFO 31868 --- [autoparts-erp] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1680 ms
+2026-10-30T15:38:06.911+05:30  INFO 31868 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-10-30T15:38:07.080+05:30  INFO 31868 --- [autoparts-erp] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@3bbb8c16
+2026-10-30T15:38:07.081+05:30  INFO 31868 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-10-30T15:38:07.109+05:30  INFO 31868 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
+2026-10-30T15:38:07.199+05:30  INFO 31868 --- [autoparts-erp] [main] o.f.core.internal.command.DbValidate     : Successfully validated 8 migrations (execution time 00:00.038s)
+2026-10-30T15:38:07.260+05:30  INFO 31868 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 7
+2026-10-30T15:38:07.276+05:30  INFO 31868 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "8 - create gst configuration tables"
+2026-10-30T15:38:07.342+05:30  INFO 31868 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Successfully applied 1 migration to schema "public", now at version v8 (execution time 00:00.053s)
+2026-10-30T15:38:07.650+05:30  INFO 31868 --- [autoparts-erp] [main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+2026-10-30T15:38:07.651+05:30  WARN 31868 --- [autoparts-erp] [main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
+2026-10-30T15:38:08.419+05:30  INFO 31868 --- [autoparts-erp] [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
+2026-10-30T15:38:08.508+05:30  INFO 31868 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-10-30T15:38:08.518+05:30  INFO 31868 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Started AutopartsErpApplication in 4.325 seconds (process running for 4.771)
+2026-10-30T15:38:08.529+05:30  INFO 31868 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
+2026-10-30T15:38:08.545+05:30  INFO 31868 --- [autoparts-erp] [main] o.f.c.i.s.JdbcTableSchemaHistory         : Repair of failed migration in Schema History table "public"."flyway_schema_history" not necessary. No failed migration detected.
+2026-10-30T15:38:08.553+05:30  INFO 31868 --- [autoparts-erp] [main] o.f.core.internal.command.DbRepair       : Successfully repaired schema history table "public"."flyway_schema_history" (execution time 00:00.012s).
+2026-10-30T15:38:09.147+05:30  INFO 31868 --- [autoparts-erp] [RMI TCP Connection(5)-10.201.190.202] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-10-30T15:38:09.147+05:30  INFO 31868 --- [autoparts-erp] [RMI TCP Connection(5)-10.201.190.202] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-10-30T15:38:09.148+05:30  INFO 31868 --- [autoparts-erp] [RMI TCP Connection(5)-10.201.190.202] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+2026-10-30T15:44:10.335+05:30  INFO 31868 --- [autoparts-erp] [http-nio-8080-exec-3] c.a.e.auth.serviceimpl.AuthServiceImpl   : Login succeeded
+2026-10-30T16:01:59.108+05:30  WARN 31868 --- [autoparts-erp] [http-nio-8080-exec-9] c.a.e.s.CustomAuthenticationEntryPoint   : Request rejected because authentication is missing or invalid
+2026-10-30T16:02:04.049+05:30  INFO 31868 --- [autoparts-erp] [http-nio-8080-exec-8] c.a.e.auth.serviceimpl.AuthServiceImpl   : Login succeeded
+2026-10-30T16:02:54.616+05:30  INFO 31868 --- [autoparts-erp] [RMI TCP Connection(30)-10.201.190.202] inMXBeanRegistrar$SpringApplicationAdmin : Application shutdown requested.
+2026-10-30T16:02:54.620+05:30  INFO 31868 --- [autoparts-erp] [RMI TCP Connection(30)-10.201.190.202] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-10-30T16:02:54.628+05:30  INFO 31868 --- [autoparts-erp] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-10-30T16:02:54.638+05:30  INFO 31868 --- [autoparts-erp] [RMI TCP Connection(30)-10.201.190.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-10-30T16:02:54.641+05:30  INFO 31868 --- [autoparts-erp] [RMI TCP Connection(30)-10.201.190.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-10-30T16:03:00.231+05:30  INFO 20752 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Starting AutopartsErpApplication using Java 25.0.3 with PID 20752 (D:\Projects\autoparts-erp\target\classes started by Muthukumar Ramasamy in D:\Projects\autoparts-erp)
+2026-10-30T16:03:00.234+05:30  INFO 20752 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : No active profile set, falling back to 1 default profile: "default"
+2026-10-30T16:03:01.662+05:30  INFO 20752 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-10-30T16:03:01.677+05:30  INFO 20752 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-10-30T16:03:01.678+05:30  INFO 20752 --- [autoparts-erp] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
+2026-10-30T16:03:01.734+05:30  INFO 20752 --- [autoparts-erp] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1467 ms
+2026-10-30T16:03:02.147+05:30  INFO 20752 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-10-30T16:03:02.295+05:30  INFO 20752 --- [autoparts-erp] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@53d30d23
+2026-10-30T16:03:02.297+05:30  INFO 20752 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-10-30T16:03:02.323+05:30  INFO 20752 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
+2026-10-30T16:03:02.395+05:30  INFO 20752 --- [autoparts-erp] [main] o.f.core.internal.command.DbValidate     : Successfully validated 8 migrations (execution time 00:00.021s)
+2026-10-30T16:03:02.438+05:30  INFO 20752 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 8
+2026-10-30T16:03:02.442+05:30  INFO 20752 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Schema "public" is up to date. No migration necessary.
+2026-10-30T16:03:02.624+05:30  INFO 20752 --- [autoparts-erp] [main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+2026-10-30T16:03:02.624+05:30  WARN 20752 --- [autoparts-erp] [main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
+2026-10-30T16:03:03.110+05:30  INFO 20752 --- [autoparts-erp] [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
+2026-10-30T16:03:03.178+05:30  INFO 20752 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-10-30T16:03:03.185+05:30  INFO 20752 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Started AutopartsErpApplication in 3.351 seconds (process running for 3.649)
+2026-10-30T16:03:03.191+05:30  INFO 20752 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
+2026-10-30T16:03:03.202+05:30  INFO 20752 --- [autoparts-erp] [main] o.f.c.i.s.JdbcTableSchemaHistory         : Repair of failed migration in Schema History table "public"."flyway_schema_history" not necessary. No failed migration detected.
+2026-10-30T16:03:03.207+05:30  INFO 20752 --- [autoparts-erp] [main] o.f.core.internal.command.DbRepair       : Successfully repaired schema history table "public"."flyway_schema_history" (execution time 00:00.009s).
+2026-10-30T16:03:03.371+05:30  INFO 20752 --- [autoparts-erp] [RMI TCP Connection(5)-10.201.190.202] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-10-30T16:03:03.372+05:30  INFO 20752 --- [autoparts-erp] [RMI TCP Connection(5)-10.201.190.202] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-10-30T16:03:03.374+05:30  INFO 20752 --- [autoparts-erp] [RMI TCP Connection(5)-10.201.190.202] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
+2026-10-30T16:04:50.687+05:30  WARN 20752 --- [autoparts-erp] [http-nio-8080-exec-7] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.HttpRequestMethodNotSupportedException: Request method 'POST' is not supported]
+2026-10-30T16:13:29.195+05:30  INFO 20752 --- [autoparts-erp] [RMI TCP Connection(16)-10.201.190.202] inMXBeanRegistrar$SpringApplicationAdmin : Application shutdown requested.
+2026-10-30T16:13:29.198+05:30  INFO 20752 --- [autoparts-erp] [RMI TCP Connection(16)-10.201.190.202] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-10-30T16:13:29.208+05:30  INFO 20752 --- [autoparts-erp] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-10-30T16:13:29.215+05:30  INFO 20752 --- [autoparts-erp] [RMI TCP Connection(16)-10.201.190.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-10-30T16:13:29.217+05:30  INFO 20752 --- [autoparts-erp] [RMI TCP Connection(16)-10.201.190.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.

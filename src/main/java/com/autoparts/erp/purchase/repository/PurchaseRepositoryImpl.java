@@ -188,12 +188,12 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
 
         List<ProductInfo> products = jdbcTemplate.query(
             """
-            SELECT item_id, part_no, name
+            SELECT product_code, part_no, name
             FROM products
             WHERE id = ?
             """,
             (productRs, rowNum) -> new ProductInfo(
-                productRs.getString("item_id"),
+                productRs.getString("product_code"),
                 productRs.getString("part_no"),
                 productRs.getString("name")
             ),
@@ -206,7 +206,7 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
             rs.getLong("id"),
             rs.getObject("uuid", UUID.class),
             productId,
-            product.itemId(),
+            product.productCode(),
             product.partNo(),
             product.name(),
             rs.getBigDecimal("quantity"),
@@ -219,7 +219,7 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
     }
 
     private record ProductInfo(
-        String itemId,
+        String productCode,
         String partNo,
         String name
     ) {}
@@ -278,9 +278,9 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
         }
 
         Purchase purchase = purchases.getFirst();
-        List<PurchaseProduct> items = findItems(purchase.id());
+        List<PurchaseProduct> products = findProducts(purchase.id());
 
-        return Optional.of(withProducts(purchase, items));
+        return Optional.of(withProducts(purchase, products));
     }
 
     @Override
@@ -304,7 +304,7 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
         for (Purchase purchase : purchases) {
             result.add(withProducts(
                 purchase,
-                findItems(purchase.id())
+                findProducts(purchase.id())
             ));
         }
 
@@ -336,13 +336,13 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
         );
     }
 
-    private List<PurchaseProduct> findItems(Long purchaseId) {
+    private List<PurchaseProduct> findProducts(Long purchaseId) {
         return jdbcTemplate.query(
             """
             SELECT pi.id, pi.uuid, pi.product_id, pi.quantity,
                    pi.purchase_price, pi.discount_amount,
                    pi.tax_percent, pi.tax_amount, pi.line_total,
-                   pr.item_id, pr.part_no, pr.name
+                   pr.product_code, pr.part_no, pr.name
             FROM purchase_items pi
             JOIN products pr ON pr.id = pi.product_id
             WHERE pi.purchase_id = ?
@@ -352,7 +352,7 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
                 rs.getLong("id"),
                 rs.getObject("uuid", UUID.class),
                 rs.getLong("product_id"),
-                rs.getString("item_id"),
+                rs.getString("product_code"),
                 rs.getString("part_no"),
                 rs.getString("name"),
                 rs.getBigDecimal("quantity"),
@@ -368,7 +368,7 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
 
     private Purchase withProducts(
         Purchase purchase,
-        List<PurchaseProduct> items
+        List<PurchaseProduct> products
     ) {
         return new Purchase(
             purchase.id(),
@@ -384,7 +384,7 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
             purchase.taxTotal(),
             purchase.grandTotal(),
             purchase.notes(),
-            items,
+            products,
             purchase.createdAt(),
             purchase.updatedAt(),
             purchase.receivedAt()
@@ -417,7 +417,7 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
 	    Purchase purchase = purchases.getFirst();
 	
 	    return Optional.of(
-	        withProducts(purchase, findItems(purchase.id()))
+	        withProducts(purchase, findProducts(purchase.id()))
 	    );
 	}
 	
