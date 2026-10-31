@@ -58,7 +58,7 @@ public class TaxRateServiceImpl implements TaxRateService {
             null
         )) {
             throw new ApiException(
-                TaxErrorCode.TAX_RATE_ALREADY_EXISTS
+                TaxErrorCode.TAX_RATE_OVERLAPPING_PERIOD
             );
         }
 
@@ -82,7 +82,7 @@ public class TaxRateServiceImpl implements TaxRateService {
         } catch (DuplicateKeyException exception) {
 
             throw new ApiException(
-                TaxErrorCode.TAX_RATE_ALREADY_EXISTS
+                TaxErrorCode.TAX_RATE_DUPLICATE_CONSTRAINT
             );
         }
     }
