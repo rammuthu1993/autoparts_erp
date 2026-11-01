@@ -125,7 +125,7 @@ public class PurchaseServiceImpl implements PurchaseService {
 
                 BigDecimal lineTotal = taxable.add(tax);
 
-                repository.createPurchaseItem(
+                repository.createPurchaseProduct(
                     UUID.randomUUID(),
                     purchaseUuid,
                     product.productId(),
@@ -153,7 +153,7 @@ public class PurchaseServiceImpl implements PurchaseService {
                 );
             }
 
-            if (isConstraint(exception, "uq_purchase_item_product")) {
+            if (isConstraint(exception, "uq_purchase_products_product")) {
                 throw new ApiException(
                     PurchaseErrorCode.PURCHASE_PRODUCT_ALREADY_EXISTS
                 );

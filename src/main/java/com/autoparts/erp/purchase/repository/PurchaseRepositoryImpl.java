@@ -139,7 +139,7 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
     }
 
     @Override
-    public PurchaseProduct createPurchaseItem(
+    public PurchaseProduct createPurchaseProduct(
         UUID uuid,
         UUID purchaseUuid,
         Long productId,
@@ -158,7 +158,7 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
 
         return jdbcTemplate.queryForObject(
             """
-            INSERT INTO purchase_items (
+            INSERT INTO purchase_products (
                 uuid, purchase_id, product_id, quantity,
                 purchase_price, discount_amount, tax_percent,
                 tax_amount, line_total
@@ -168,7 +168,7 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
                       purchase_price, discount_amount, tax_percent,
                       tax_amount, line_total
             """,
-            (rs, rowNum) -> mapPurchaseItem(rs),
+            (rs, rowNum) -> mapPurchaseProduct(rs),
             uuid,
             purchaseId,
             productId,
@@ -181,7 +181,7 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
         );
     }
 
-    private PurchaseProduct mapPurchaseItem(ResultSet rs)
+    private PurchaseProduct mapPurchaseProduct(ResultSet rs)
         throws SQLException {
 
         Long productId = rs.getLong("product_id");
@@ -339,14 +339,14 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
     private List<PurchaseProduct> findProducts(Long purchaseId) {
         return jdbcTemplate.query(
             """
-            SELECT pi.id, pi.uuid, pi.product_id, pi.quantity,
-                   pi.purchase_price, pi.discount_amount,
-                   pi.tax_percent, pi.tax_amount, pi.line_total,
+            SELECT             pp.id, pp.uuid, pp.product_id, pp.quantity,
+            pp.purchase_price, pp.discount_amount,
+            pp.tax_percent, pp.tax_amount, pp.line_total,
                    pr.product_code, pr.part_no, pr.name
-            FROM purchase_items pi
-            JOIN products pr ON pr.id = pi.product_id
-            WHERE pi.purchase_id = ?
-            ORDER BY pi.id
+            FROM purchase_products pp
+            JOIN products pr ON pr.id = pp.product_id
+            WHERE pp.purchase_id = ?
+            ORDER BY pp.id
             """,
             (rs, rowNum) -> new PurchaseProduct(
                 rs.getLong("id"),

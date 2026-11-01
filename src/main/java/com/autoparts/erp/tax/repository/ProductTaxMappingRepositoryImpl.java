@@ -225,6 +225,12 @@ public class ProductTaxMappingRepositoryImpl
                   ptm.effective_to IS NULL
                   OR ptm.effective_to > CURRENT_DATE
               )
+              AND tr.active = TRUE
+              AND tr.effective_from <= CURRENT_DATE
+              AND (
+                  tr.effective_to IS NULL
+                  OR tr.effective_to > CURRENT_DATE
+              )
             ORDER BY ptm.effective_from DESC
             LIMIT 1
             """;
@@ -233,6 +239,59 @@ public class ProductTaxMappingRepositoryImpl
             sql,
             productTaxMappingRowMapper,
             productUuid
+        );
+
+        return results.stream().findFirst();
+    }
+
+    @Override
+    public Optional<ProductTaxMapping> findMappingByProductUuidAndDate(
+        UUID productUuid,
+        LocalDate saleDate
+    ) {
+
+        String sql = """
+            SELECT
+                ptm.id,
+                ptm.uuid,
+                ptm.product_id,
+                p.product_code,
+                p.name AS product_name,
+                tr.uuid AS tax_rate_uuid,
+                tr.tax_name,
+                ptm.hsn_code,
+                ptm.effective_from,
+                ptm.effective_to,
+                ptm.created_at
+            FROM product_tax_mapping ptm
+            INNER JOIN products p
+                ON p.id = ptm.product_id
+            INNER JOIN tax_rates tr
+                ON tr.id = ptm.tax_rate_id
+            WHERE p.uuid = ?
+              AND ptm.effective_from <= CAST(? AS DATE)
+              AND (
+                  ptm.effective_to IS NULL
+                  OR ptm.effective_to > CAST(? AS DATE)
+              )
+              AND tr.active = TRUE
+              AND tr.effective_from <= CAST(? AS DATE)
+              AND (
+                  tr.effective_to IS NULL
+                  OR tr.effective_to > CAST(? AS DATE)
+              )
+            ORDER BY ptm.effective_from DESC
+            LIMIT 1
+            """;
+
+        List<ProductTaxMapping> results = jdbcTemplate.query(
+            sql,
+            productTaxMappingRowMapper,
+            productUuid,
+            saleDate,
+            saleDate,
+            saleDate,
+            saleDate
         );
 
         return results.stream().findFirst();

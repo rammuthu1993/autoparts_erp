@@ -54,7 +54,7 @@ public enum PurchaseErrorCode implements ApiErrorCodeDefinition {
 
 	PURCHASE_PRODUCTS_NOT_FOUND(
 	    HttpStatus.CONFLICT,
-	    "Purchase has no items"
+	    "Purchase has no products"
 	),
 	
 	PURCHASE_RECEIPT_FAILED(

@@ -26,22 +26,24 @@ public interface SalesRepository {
 
     List<SalePayment> findPaymentsBySaleId(Long saleId);
 
-    void createSaleItem(SaleProduct product);
+    void createSaleProduct(SaleProduct product);
 
     void createSalePayment(SalePayment payment);
 
     Optional<Long> findActiveProductId(UUID productUuid);
+
+    Optional<ProductStock> findProductStock(Long productId);
 
     Optional<ProductStock> findProductStockForUpdate(Long productId);
 
     void updateProductStock(Long productId, BigDecimal newQuantity);
 
     void createInventoryMovement(
-        Long productId,
-        BigDecimal quantity,
-        BigDecimal beforeQuantity,
-        BigDecimal afterQuantity,
-        UUID saleUuid
+            Long productId,
+            BigDecimal quantity,
+            Long saleId,
+            BigDecimal beforeQuantity,
+            BigDecimal afterQuantity
     );
 
     boolean existsInvoiceNumber(String invoiceNumber);

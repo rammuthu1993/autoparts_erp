@@ -31,7 +31,7 @@ public interface PurchaseRepository {
         String notes
     );
 
-    PurchaseProduct createPurchaseItem(
+    PurchaseProduct createPurchaseProduct(
         UUID uuid,
         UUID purchaseUuid,
         Long productId,

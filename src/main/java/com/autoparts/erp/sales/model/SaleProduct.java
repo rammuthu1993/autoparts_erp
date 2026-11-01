@@ -9,6 +9,7 @@ public record SaleProduct(
     UUID uuid,
     Long saleId,
     Long productId,
+    UUID productUuid,
     String productCode,
     String productName,
     BigDecimal quantity,

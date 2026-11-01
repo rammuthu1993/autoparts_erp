@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -61,6 +62,7 @@ public class SalesRepositoryImpl implements SalesRepository {
     private final RowMapper<ProductStock> productStockMapper =
         (rs, rowNum) -> new ProductStock(
             rs.getLong("id"),
+            rs.getObject("uuid", UUID.class),
             rs.getBigDecimal("qty"),
             rs.getString("product_code"),
             rs.getString("name"),
@@ -226,10 +228,10 @@ public class SalesRepositoryImpl implements SalesRepository {
     }
 
     @Override
-    public void createSaleItem(SaleProduct item) {
+    public void createSaleProduct(SaleProduct product) {
 
         String sql = """
-            INSERT INTO sales_items (
+            INSERT INTO sales_products (
                 uuid,
                 sale_id,
                 product_id,
@@ -259,26 +261,26 @@ public class SalesRepositoryImpl implements SalesRepository {
 
         jdbcTemplate.update(
             sql,
-            item.uuid(),
-            item.saleId(),
-            item.productId(),
-            item.productCode(),
-            item.productName(),
-            item.quantity(),
-            item.unit(),
-            item.unitPrice(),
-            item.discountAmount(),
-            item.taxableAmount(),
-            item.hsnCode(),
-            item.gstRate(),
-            item.cgstRate(),
-            item.sgstRate(),
-            item.igstRate(),
-            item.cgstAmount(),
-            item.sgstAmount(),
-            item.igstAmount(),
-            item.totalTaxAmount(),
-            item.lineTotal()
+            product.uuid(),
+            product.saleId(),
+            product.productId(),
+            product.productCode(),
+            product.productName(),
+            product.quantity(),
+            product.unit(),
+            product.unitPrice(),
+            product.discountAmount(),
+            product.taxableAmount(),
+            product.hsnCode(),
+            product.gstRate(),
+            product.cgstRate(),
+            product.sgstRate(),
+            product.igstRate(),
+            product.cgstAmount(),
+            product.sgstAmount(),
+            product.igstAmount(),
+            product.totalTaxAmount(),
+            product.lineTotal()
         );
     }
 
@@ -287,31 +289,34 @@ public class SalesRepositoryImpl implements SalesRepository {
 
         String sql = """
             SELECT
-                si.id,
-                si.uuid,
-                si.sale_id,
-                si.product_id,
-                si.product_code,
-                si.product_name,
-                si.quantity,
-                si.unit,
-                si.unit_price,
-                si.discount_amount,
-                si.taxable_amount,
-                si.hsn_code,
-                si.gst_rate,
-                si.cgst_rate,
-                si.sgst_rate,
-                si.igst_rate,
-                si.cgst_amount,
-                si.sgst_amount,
-                si.igst_amount,
-                si.total_tax_amount,
-                si.line_total,
-                si.created_at
-            FROM sales_items si
-            WHERE si.sale_id = ?
-            ORDER BY si.id
+                sp.id,
+                sp.uuid,
+                sp.sale_id,
+                sp.product_id,
+                p.uuid AS product_uuid,
+                sp.product_code,
+                sp.product_name,
+                sp.quantity,
+                sp.unit,
+                sp.unit_price,
+                sp.discount_amount,
+                sp.taxable_amount,
+                sp.hsn_code,
+                sp.gst_rate,
+                sp.cgst_rate,
+                sp.sgst_rate,
+                sp.igst_rate,
+                sp.cgst_amount,
+                sp.sgst_amount,
+                sp.igst_amount,
+                sp.total_tax_amount,
+                sp.line_total,
+                sp.created_at
+            FROM sales_products sp
+            JOIN products p
+                ON p.id = sp.product_id
+            WHERE sp.sale_id = ?
+            ORDER BY sp.id
             """;
 
         return jdbcTemplate.query(
@@ -328,6 +333,7 @@ public class SalesRepositoryImpl implements SalesRepository {
             rs.getObject("uuid", UUID.class),
             rs.getLong("sale_id"),
             rs.getLong("product_id"),
+            rs.getObject("product_uuid", UUID.class),
             rs.getString("product_code"),
             rs.getString("product_name"),
             rs.getBigDecimal("quantity"),
@@ -412,12 +418,29 @@ public class SalesRepositoryImpl implements SalesRepository {
     }
 
     @Override
+    public Optional<ProductStock> findProductStock(Long productId) {
+
+        String sql = """
+            SELECT id, uuid, qty, product_code, name, unit
+            FROM products
+            WHERE id = ?
+              AND active = TRUE
+            """;
+
+        return jdbcTemplate.query(
+            sql,
+            productStockMapper,
+            productId
+        ).stream().findFirst();
+    }
+
+    @Override
     public Optional<ProductStock> findProductStockForUpdate(
         Long productId
     ) {
 
         String sql = """
-            SELECT id, qty, product_code, name, unit
+            SELECT id, uuid, qty, product_code, name, unit
             FROM products
             WHERE id = ?
               AND active = TRUE
@@ -449,34 +472,49 @@ public class SalesRepositoryImpl implements SalesRepository {
 
     @Override
     public void createInventoryMovement(
-        Long productId,
-        BigDecimal quantity,
-        BigDecimal beforeQuantity,
-        BigDecimal afterQuantity,
-        UUID saleUuid
+            Long productId,
+            BigDecimal quantity,
+            Long saleId,
+            BigDecimal beforeQuantity,
+            BigDecimal afterQuantity
     ) {
 
         String sql = """
             INSERT INTO inventory_movements (
+                uuid,
                 product_id,
                 movement_type,
-                quantity,
                 reference_type,
                 reference_id,
-                before_quantity,
-                after_quantity,
+                quantity_change,
+                quantity_before,
+                quantity_after,
+                notes,
                 created_at
             )
-            VALUES (?, 'SALE', ?, 'SALE', ?, ?, ?, CURRENT_TIMESTAMP)
+            VALUES (
+                ?,
+                ?,
+                'SALE',
+                'SALE',
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                CURRENT_TIMESTAMP
+            )
             """;
 
         jdbcTemplate.update(
             sql,
+            UUID.randomUUID(),
             productId,
+            saleId,
             quantity.negate(),
-            saleUuid,
             beforeQuantity,
-            afterQuantity
+            afterQuantity,
+            "Stock reduced through sales invoice"
         );
     }
 
@@ -503,21 +541,62 @@ public class SalesRepositoryImpl implements SalesRepository {
     @Override
     public String generateInvoiceNumber(LocalDate saleDate) {
 
-        String prefix = "SAL-" +
-            saleDate.toString().replace("-", "");
+        String prefix = "SAL-" + saleDate.toString().replace("-", "");
 
-        String sql = """
-            SELECT COUNT(*)
-            FROM sales
-            WHERE invoice_number LIKE ?
+        String lockSql = """
+            SELECT last_number
+            FROM sales_invoice_counters
+            WHERE invoice_prefix = ?
+            FOR UPDATE
             """;
 
-        Integer count = jdbcTemplate.queryForObject(
-            sql,
-            Integer.class,
-            prefix + "-%"
+        Long currentNumber = jdbcTemplate.query(
+            lockSql,
+            (rs, rowNum) -> rs.getLong("last_number"),
+            prefix
+        ).stream().findFirst().orElse(null);
+
+        if (currentNumber == null) {
+            try {
+                jdbcTemplate.update(
+                    """
+                        INSERT INTO sales_invoice_counters (
+                            invoice_prefix,
+                            last_number,
+                            updated_at
+                        )
+                        VALUES (?, 0, CURRENT_TIMESTAMP)
+                    """,
+                    prefix
+                );
+            } catch (DuplicateKeyException ex) {
+                currentNumber = jdbcTemplate.query(
+                    lockSql,
+                    (rs, rowNum) -> rs.getLong("last_number"),
+                    prefix
+                ).stream().findFirst().orElse(0L);
+            }
+
+            currentNumber = jdbcTemplate.query(
+                lockSql,
+                (rs, rowNum) -> rs.getLong("last_number"),
+                prefix
+            ).stream().findFirst().orElse(0L);
+        }
+
+        Long nextNumber = currentNumber + 1;
+
+        jdbcTemplate.update(
+            """
+                UPDATE sales_invoice_counters
+                SET last_number = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE invoice_prefix = ?
+            """,
+            nextNumber,
+            prefix
         );
 
-        return prefix + "-" + String.format("%05d", count + 1);
+        return prefix + "-" + String.format("%05d", nextNumber);
     }
 }

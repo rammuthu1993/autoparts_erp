@@ -34,6 +34,11 @@ public interface ProductTaxMappingRepository {
     Optional<ProductTaxMapping> findCurrentByProductUuid(
         UUID productUuid
     );
-    
+
+    Optional<ProductTaxMapping> findMappingByProductUuidAndDate(
+        UUID productUuid,
+        LocalDate saleDate
+    );
+
     Optional<UUID> findProductUuidById(Long productId);
 }

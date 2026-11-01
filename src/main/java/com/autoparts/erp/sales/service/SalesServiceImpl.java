@@ -8,6 +8,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +37,9 @@ import com.autoparts.erp.tax.repository.TaxRateRepository;
 @Service
 public class SalesServiceImpl implements SalesService {
 
+    private static final Logger logger =
+        LoggerFactory.getLogger(SalesServiceImpl.class);
+
     private static final int MONEY_SCALE = 2;
 
     private final SalesRepository salesRepository;
@@ -55,14 +60,18 @@ public class SalesServiceImpl implements SalesService {
     @Transactional
     public SalesResponse create(SalesCreateRequest request) {
 
+        logger.info("Sales draft creation started for sale date {}", request.saleDate());
+
         validateRequest(request);
 
         UUID saleUuid = UUID.randomUUID();
 
+        logger.info("Generating invoice number for sale date {}", request.saleDate());
         String invoiceNumber =
             salesRepository.generateInvoiceNumber(request.saleDate());
 
         if (salesRepository.existsInvoiceNumber(invoiceNumber)) {
+            logger.warn("Duplicate invoice number generated: {}", invoiceNumber);
             throw new ApiException(
                 SalesErrorCode.SALES_DUPLICATE_INVOICE
             );
@@ -78,33 +87,41 @@ public class SalesServiceImpl implements SalesService {
         BigDecimal taxTotal = BigDecimal.ZERO;
         BigDecimal grandTotal = BigDecimal.ZERO;
 
-        List<SaleProduct> saleItems = new ArrayList<>();
+        List<SaleProduct> saleProducts = new ArrayList<>();
 
-        for (SalesProductRequest itemRequest : request.products()) {
+        for (SalesProductRequest productRequest : request.products()) {
 
             Long productId = salesRepository
-                .findActiveProductId(itemRequest.productUuid())
-                .orElseThrow(() ->
-                    new ApiException(SalesErrorCode.PRODUCT_NOT_FOUND)
-                );
+                .findActiveProductId(productRequest.productUuid())
+                .orElseThrow(() -> {
+                    logger.warn(
+                        "Product validation failed for UUID {} during draft creation",
+                        productRequest.productUuid()
+                    );
+                    return new ApiException(SalesErrorCode.PRODUCT_NOT_FOUND);
+                });
 
             ProductStock product = salesRepository
-                .findProductStockForUpdate(productId)
-                .orElseThrow(() ->
-                    new ApiException(SalesErrorCode.PRODUCT_NOT_FOUND)
-                );
+                .findProductStock(productId)
+                .orElseThrow(() -> {
+                    logger.warn(
+                        "Product stock lookup failed for product ID {} during draft creation",
+                        productId
+                    );
+                    return new ApiException(SalesErrorCode.PRODUCT_NOT_FOUND);
+                });
 
-            BigDecimal quantity = itemRequest.quantity();
-            BigDecimal unitPrice = money(itemRequest.unitPrice());
+            BigDecimal quantity = productRequest.quantity();
+            BigDecimal unitPrice = money(productRequest.unitPrice());
 
             BigDecimal grossAmount = money(
                 quantity.multiply(unitPrice)
             );
 
             BigDecimal discount = money(
-                itemRequest.discountAmount() == null
+                productRequest.discountAmount() == null
                     ? BigDecimal.ZERO
-                    : itemRequest.discountAmount()
+                    : productRequest.discountAmount()
             );
 
             if (discount.compareTo(grossAmount) > 0) {
@@ -119,12 +136,20 @@ public class SalesServiceImpl implements SalesService {
 
             ProductTaxMapping mapping =
                 productTaxMappingRepository
-                    .findCurrentByProductUuid(itemRequest.productUuid())
-                    .orElseThrow(() ->
-                        new ApiException(
+                    .findMappingByProductUuidAndDate(
+                        productRequest.productUuid(),
+                        request.saleDate()
+                    )
+                    .orElseThrow(() -> {
+                        logger.warn(
+                            "Tax mapping not found for product UUID {} on sale date {}",
+                            productRequest.productUuid(),
+                            request.saleDate()
+                        );
+                        return new ApiException(
                             SalesErrorCode.PRODUCT_TAX_MAPPING_NOT_FOUND
-                        )
-                    );
+                        );
+                    });
 
             TaxRate taxRate = taxRateRepository
                 .findByUuid(mapping.taxRateUuid())
@@ -166,6 +191,7 @@ public class SalesServiceImpl implements SalesService {
                 UUID.randomUUID(),
                 null,
                 productId,
+                product.productUuid(),
                 product.productCode(),
                 product.productName(),
                 quantity,
@@ -186,7 +212,7 @@ public class SalesServiceImpl implements SalesService {
                 null
             );
 
-            saleItems.add(saleProduct);
+            saleProducts.add(saleProduct);
 
             subtotal = subtotal.add(grossAmount);
             totalDiscount = totalDiscount.add(discount);
@@ -214,6 +240,11 @@ public class SalesServiceImpl implements SalesService {
         );
 
         if (paidAmount.compareTo(grandTotal) > 0) {
+            logger.warn(
+                "Payment validation failed for sales draft: paid amount {} exceeds total {}",
+                paidAmount,
+                grandTotal
+            );
             throw new ApiException(
                 SalesErrorCode.SALES_PAYMENT_EXCEEDS_TOTAL
             );
@@ -252,34 +283,35 @@ public class SalesServiceImpl implements SalesService {
 
         Sale createdSale = salesRepository.createSale(sale);
 
-        for (SaleProduct item : saleItems) {
+        for (SaleProduct product : saleProducts) {
 
-            SaleProduct savedItem = new SaleProduct(
+            SaleProduct savedProduct = new SaleProduct(
                 null,
-                item.uuid(),
+                product.uuid(),
                 createdSale.id(),
-                item.productId(),
-                item.productCode(),
-                item.productName(),
-                item.quantity(),
-                item.unit(),
-                item.unitPrice(),
-                item.discountAmount(),
-                item.taxableAmount(),
-                item.hsnCode(),
-                item.gstRate(),
-                item.cgstRate(),
-                item.sgstRate(),
-                item.igstRate(),
-                item.cgstAmount(),
-                item.sgstAmount(),
-                item.igstAmount(),
-                item.totalTaxAmount(),
-                item.lineTotal(),
+                product.productId(),
+                product.productUuid(),
+                product.productCode(),
+                product.productName(),
+                product.quantity(),
+                product.unit(),
+                product.unitPrice(),
+                product.discountAmount(),
+                product.taxableAmount(),
+                product.hsnCode(),
+                product.gstRate(),
+                product.cgstRate(),
+                product.sgstRate(),
+                product.igstRate(),
+                product.cgstAmount(),
+                product.sgstAmount(),
+                product.igstAmount(),
+                product.totalTaxAmount(),
+                product.lineTotal(),
                 null
             );
 
-            salesRepository.createSaleItem(savedItem);
+            salesRepository.createSaleProduct(savedProduct);
         }
 
         if (request.payments() != null) {
@@ -302,12 +334,18 @@ public class SalesServiceImpl implements SalesService {
             }
         }
 
+        logger.info(
+            "Sales draft successfully created with invoice number {}",
+            invoiceNumber
+        );
         return findByUuid(createdSale.uuid());
     }
 
     @Override
     @Transactional
     public SalesResponse complete(UUID saleUuid) {
+
+        logger.info("Sales invoice completion started for UUID {}", saleUuid);
 
         Sale sale = salesRepository.findByUuidForUpdate(saleUuid)
             .orElseThrow(() ->
@@ -326,42 +364,52 @@ public class SalesServiceImpl implements SalesService {
             );
         }
 
-        List<SaleProduct> items =
+        List<SaleProduct> saleProducts =
             salesRepository.findProductsBySaleId(sale.id());
 
-        List<SaleProduct> sortedItems = items.stream()
+        List<SaleProduct> sortedProducts = saleProducts.stream()
             .sorted(Comparator.comparing(SaleProduct::productId))
             .toList();
 
-        for (SaleProduct item : sortedItems) {
+        for (SaleProduct product : sortedProducts) {
 
             ProductStock stock = salesRepository
-                .findProductStockForUpdate(item.productId())
-                .orElseThrow(() ->
-                    new ApiException(SalesErrorCode.PRODUCT_NOT_FOUND)
-                );
+                .findProductStockForUpdate(product.productId())
+                .orElseThrow(() -> {
+                    logger.warn(
+                        "Product stock validation failed for product ID {} during completion",
+                        product.productId()
+                    );
+                    return new ApiException(SalesErrorCode.PRODUCT_NOT_FOUND);
+                });
 
-            if (stock.quantity().compareTo(item.quantity()) < 0) {
+            if (stock.quantity().compareTo(product.quantity()) < 0) {
+                logger.warn(
+                    "Insufficient stock for product ID {}. Available: {}, required: {}",
+                    product.productId(),
+                    stock.quantity(),
+                    product.quantity()
+                );
                 throw new ApiException(
                     SalesErrorCode.INSUFFICIENT_STOCK
                 );
             }
 
             BigDecimal afterQuantity = money(
-                stock.quantity().subtract(item.quantity())
+                stock.quantity().subtract(product.quantity())
             );
 
             salesRepository.updateProductStock(
-                item.productId(),
+                product.productId(),
                 afterQuantity
             );
 
             salesRepository.createInventoryMovement(
-                item.productId(),
-                item.quantity(),
+                product.productId(),
+                product.quantity(),
+                sale.id(),
                 stock.quantity(),
-                afterQuantity,
-                sale.uuid()
+                afterQuantity
             );
         }
 
@@ -391,6 +439,7 @@ public class SalesServiceImpl implements SalesService {
 
         salesRepository.updateSale(completedSale);
 
+        logger.info("Sales invoice completion successful for UUID {}", saleUuid);
         return findByUuid(saleUuid);
     }
 
@@ -403,29 +452,29 @@ public class SalesServiceImpl implements SalesService {
                 new ApiException(SalesErrorCode.SALES_NOT_FOUND)
             );
 
-        List<SalesProductResponse> itemResponses =
+        List<SalesProductResponse> productResponses =
             salesRepository.findProductsBySaleId(sale.id())
                 .stream()
-                .map(item -> new SalesProductResponse(
-                    item.uuid(),
-                    null,
-                    item.productCode(),
-                    item.productName(),
-                    item.quantity(),
-                    item.unit(),
-                    item.unitPrice(),
-                    item.discountAmount(),
-                    item.taxableAmount(),
-                    item.hsnCode(),
-                    item.gstRate(),
-                    item.cgstRate(),
-                    item.sgstRate(),
-                    item.igstRate(),
-                    item.cgstAmount(),
-                    item.sgstAmount(),
-                    item.igstAmount(),
-                    item.totalTaxAmount(),
-                    item.lineTotal()
+                .map(product -> new SalesProductResponse(
+                    product.uuid(),
+                    product.productUuid(),
+                    product.productCode(),
+                    product.productName(),
+                    product.quantity(),
+                    product.unit(),
+                    product.unitPrice(),
+                    product.discountAmount(),
+                    product.taxableAmount(),
+                    product.hsnCode(),
+                    product.gstRate(),
+                    product.cgstRate(),
+                    product.sgstRate(),
+                    product.igstRate(),
+                    product.cgstAmount(),
+                    product.sgstAmount(),
+                    product.igstAmount(),
+                    product.totalTaxAmount(),
+                    product.lineTotal()
                 ))
                 .toList();
 
@@ -442,7 +491,7 @@ public class SalesServiceImpl implements SalesService {
                 ))
                 .toList();
 
-        return toResponse(sale, itemResponses, paymentResponses);
+        return toResponse(sale, productResponses, paymentResponses);
     }
 
     @Override
@@ -455,26 +504,26 @@ public class SalesServiceImpl implements SalesService {
                 sale,
                 salesRepository.findProductsBySaleId(sale.id())
                     .stream()
-                    .map(item -> new SalesProductResponse(
-                        item.uuid(),
-                        null,
-                        item.productCode(),
-                        item.productName(),
-                        item.quantity(),
-                        item.unit(),
-                        item.unitPrice(),
-                        item.discountAmount(),
-                        item.taxableAmount(),
-                        item.hsnCode(),
-                        item.gstRate(),
-                        item.cgstRate(),
-                        item.sgstRate(),
-                        item.igstRate(),
-                        item.cgstAmount(),
-                        item.sgstAmount(),
-                        item.igstAmount(),
-                        item.totalTaxAmount(),
-                        item.lineTotal()
+                    .map(product -> new SalesProductResponse(
+                        product.uuid(),
+                        product.productUuid(),
+                        product.productCode(),
+                        product.productName(),
+                        product.quantity(),
+                        product.unit(),
+                        product.unitPrice(),
+                        product.discountAmount(),
+                        product.taxableAmount(),
+                        product.hsnCode(),
+                        product.gstRate(),
+                        product.cgstRate(),
+                        product.sgstRate(),
+                        product.igstRate(),
+                        product.cgstAmount(),
+                        product.sgstAmount(),
+                        product.igstAmount(),
+                        product.totalTaxAmount(),
+                        product.lineTotal()
                     ))
                     .toList(),
                 salesRepository.findPaymentsBySaleId(sale.id())
@@ -495,6 +544,8 @@ public class SalesServiceImpl implements SalesService {
     @Override
     @Transactional
     public SalesResponse cancel(UUID saleUuid) {
+
+        logger.info("Sales cancellation started for UUID {}", saleUuid);
 
         Sale sale = salesRepository.findByUuidForUpdate(saleUuid)
             .orElseThrow(() ->
@@ -540,12 +591,13 @@ public class SalesServiceImpl implements SalesService {
 
         salesRepository.updateSale(cancelledSale);
 
+        logger.info("Sales cancellation successful for UUID {}", saleUuid);
         return findByUuid(saleUuid);
     }
 
     private SalesResponse toResponse(
         Sale sale,
-        List<SalesProductResponse> items,
+        List<SalesProductResponse> products,
         List<SalesPaymentResponse> payments
     ) {
 
@@ -568,7 +620,7 @@ public class SalesServiceImpl implements SalesService {
             sale.status(),
             sale.paymentStatus(),
             sale.notes(),
-            items,
+            products,
             payments,
             sale.createdAt(),
             sale.updatedAt()
