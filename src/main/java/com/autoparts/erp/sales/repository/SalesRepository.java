@@ -32,20 +32,6 @@ public interface SalesRepository {
 
     Optional<Long> findActiveProductId(UUID productUuid);
 
-    Optional<ProductStock> findProductStock(Long productId);
-
-    Optional<ProductStock> findProductStockForUpdate(Long productId);
-
-    void updateProductStock(Long productId, BigDecimal newQuantity);
-
-    void createInventoryMovement(
-            Long productId,
-            BigDecimal quantity,
-            Long saleId,
-            BigDecimal beforeQuantity,
-            BigDecimal afterQuantity
-    );
-
     boolean existsInvoiceNumber(String invoiceNumber);
 
     String generateInvoiceNumber(LocalDate saleDate);

@@ -26,7 +26,6 @@ public interface ProductRepository {
             Long brandId,
             BigDecimal purchasePrice,
             BigDecimal sellingPrice,
-            int qty,
             BigDecimal minimumStock,
             String unit
     );

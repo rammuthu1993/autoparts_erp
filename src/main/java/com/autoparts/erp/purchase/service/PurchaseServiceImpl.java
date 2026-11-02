@@ -2,23 +2,25 @@
 package com.autoparts.erp.purchase.service;
 
 import com.autoparts.erp.common.exception.ApiException;
+import com.autoparts.erp.inventory.exception.InventoryErrorCode;
+import com.autoparts.erp.inventory.service.InventoryService;
 import com.autoparts.erp.purchase.dto.PurchaseCreateRequest;
 import com.autoparts.erp.purchase.dto.PurchaseProductRequest;
 import com.autoparts.erp.purchase.dto.PurchaseProductResponse;
 import com.autoparts.erp.purchase.dto.PurchaseResponse;
+import com.autoparts.erp.purchase.exception.PurchaseErrorCode;
 import com.autoparts.erp.purchase.model.Purchase;
-import com.autoparts.erp.purchase.model.PurchaseErrorCode;
 import com.autoparts.erp.purchase.model.PurchaseProduct;
 import com.autoparts.erp.purchase.model.PurchaseStatus;
 import com.autoparts.erp.purchase.repository.PurchaseRepository;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.Comparator;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.HashSet;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -28,9 +30,14 @@ import java.util.UUID;
 public class PurchaseServiceImpl implements PurchaseService {
 
     private final PurchaseRepository repository;
+    private final InventoryService inventoryService;
 
-    public PurchaseServiceImpl(PurchaseRepository repository) {
+    public PurchaseServiceImpl(
+        PurchaseRepository repository,
+        InventoryService inventoryService
+    ) {
         this.repository = repository;
+        this.inventoryService = inventoryService;
     }
 
     @Override
@@ -295,46 +302,24 @@ public class PurchaseServiceImpl implements PurchaseService {
 	        );
 	    }
 	
-	    // Lock products in a consistent order to reduce deadlock risk.
 	    List<PurchaseProduct> products = purchase.products().stream()
-	        .sorted(Comparator.comparing(
-	            PurchaseProduct::productId
-	        ))
+	        .sorted(Comparator.comparing(PurchaseProduct::productId))
 	        .toList();
 	
 	    for (PurchaseProduct product : products) {
-	
-	        BigDecimal quantityBefore;
-	
 	        try {
-	            quantityBefore = repository.findProductQtyForUpdate(
-	                product.productId()
+	            inventoryService.increaseStock(
+	                product.productId(),
+	                product.quantity(),
+	                purchase.id()
 	            );
-	        } catch (
-	            org.springframework.dao.EmptyResultDataAccessException ex
-	        ) {
-	            throw new ApiException(
-	                PurchaseErrorCode.PRODUCT_NOT_FOUND
-	            );
+	        } catch (ApiException exception) {
+	            if (exception.getError()
+	                    == InventoryErrorCode.INVENTORY_PRODUCT_NOT_FOUND) {
+	                throw new ApiException(PurchaseErrorCode.PRODUCT_NOT_FOUND);
+	            }
+	            throw exception;
 	        }
-	
-	        BigDecimal quantityAfter = quantityBefore.add(
-	            product.quantity()
-	        );
-	
-	        repository.increaseProductQty(
-	            product.productId(),
-	            product.quantity()
-	        );
-	
-	        repository.createInventoryMovement(
-	            UUID.randomUUID(),
-	            product.productId(),
-	            purchase.id(),
-	            product.quantity(),
-	            quantityBefore,
-	            quantityAfter
-	        );
 	    }
 	
 	    if (!repository.markReceived(uuid)) {

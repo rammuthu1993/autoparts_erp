@@ -123,7 +123,6 @@ public class ProductRepositoryImpl implements ProductRepository {
             Long brandId,
             BigDecimal purchasePrice,
             BigDecimal sellingPrice,
-            int qty,
             BigDecimal minimumStock,
             String unit
     ) {
@@ -131,10 +130,9 @@ public class ProductRepositoryImpl implements ProductRepository {
                 INSERT INTO products (
                     uuid, product_code, part_no, name, description,
                     category_id, brand_id,
-                    purchase_price, selling_price, qty,
-                    minimum_stock, unit
+                    purchase_price, selling_price, minimum_stock, unit
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING id
                 """;
 
@@ -150,7 +148,6 @@ public class ProductRepositoryImpl implements ProductRepository {
                 brandId,
                 purchasePrice,
                 sellingPrice,
-                qty,
                 minimumStock,
                 unit
         );

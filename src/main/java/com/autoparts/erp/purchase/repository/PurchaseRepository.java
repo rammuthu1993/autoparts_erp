@@ -55,25 +55,8 @@ public interface PurchaseRepository {
 
     List<Purchase> findAll();
     
+    Optional<Purchase> findByUuidForUpdate(UUID uuid);
 
-	Optional<Purchase> findByUuidForUpdate(UUID uuid);
-	
-	BigDecimal findProductQtyForUpdate(Long productId);
-	
-	void increaseProductQty(
-	    Long productId,
-	    BigDecimal quantity
-	);
-	
-	void createInventoryMovement(
-	    UUID uuid,
-	    Long productId,
-	    Long purchaseId,
-	    BigDecimal quantityChange,
-	    BigDecimal quantityBefore,
-	    BigDecimal quantityAfter
-	);
-	
-	boolean markReceived(UUID purchaseUuid);
+    boolean markReceived(UUID purchaseUuid);
 
 }

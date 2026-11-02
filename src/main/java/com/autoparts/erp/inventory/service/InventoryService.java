@@ -5,12 +5,33 @@ import com.autoparts.erp.inventory.dto.InventoryPageResponse;
 import com.autoparts.erp.inventory.dto.InventoryStockResponse;
 import com.autoparts.erp.inventory.dto.StockAdjustmentRequest;
 import com.autoparts.erp.inventory.enums.InventoryMovementType;
+import com.autoparts.erp.inventory.model.InventoryStock;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
 public interface InventoryService {
+
+    InventoryStock increaseStock(
+            Long productId,
+            BigDecimal quantity,
+            Long purchaseId
+    );
+
+    InventoryStock decreaseStock(
+            Long productId,
+            BigDecimal quantity,
+            Long saleId
+    );
+
+    InventoryStock initializeOpeningStock(
+            Long productId,
+            BigDecimal quantity
+    );
+
+    InventoryStock getCurrentStock(Long productId);
 
     InventoryStockResponse findStockByProductUuid(UUID productUuid);
 

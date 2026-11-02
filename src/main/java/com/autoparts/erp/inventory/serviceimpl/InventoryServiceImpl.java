@@ -6,6 +6,7 @@ import com.autoparts.erp.inventory.dto.InventoryPageResponse;
 import com.autoparts.erp.inventory.dto.InventoryStockResponse;
 import com.autoparts.erp.inventory.dto.StockAdjustmentRequest;
 import com.autoparts.erp.inventory.enums.InventoryMovementType;
+import com.autoparts.erp.inventory.enums.InventoryReferenceType;
 import com.autoparts.erp.inventory.exception.InventoryErrorCode;
 import com.autoparts.erp.inventory.model.InventoryMovement;
 import com.autoparts.erp.inventory.model.InventoryStock;
@@ -32,6 +33,77 @@ public class InventoryServiceImpl implements InventoryService {
 
     public InventoryServiceImpl(InventoryRepository repository) {
         this.repository = repository;
+    }
+
+    @Override
+    @Transactional
+    public InventoryStock increaseStock(
+            Long productId,
+            BigDecimal quantity,
+            Long purchaseId
+    ) {
+        validateStockQuantity(quantity);
+        InventoryStock stock = getStockForUpdate(productId);
+        return applyStockChange(
+                stock,
+                quantity,
+                InventoryMovementType.PURCHASE_RECEIPT,
+                InventoryReferenceType.PURCHASE,
+                purchaseId,
+                "Stock received from purchase"
+        );
+    }
+
+    @Override
+    @Transactional
+    public InventoryStock decreaseStock(
+            Long productId,
+            BigDecimal quantity,
+            Long saleId
+    ) {
+        validateStockQuantity(quantity);
+        InventoryStock stock = getStockForUpdate(productId);
+        return applyStockChange(
+                stock,
+                quantity.negate(),
+                InventoryMovementType.SALE,
+                InventoryReferenceType.SALE,
+                saleId,
+                "Stock reduced through sales invoice"
+        );
+    }
+
+    @Override
+    @Transactional
+    public InventoryStock initializeOpeningStock(
+            Long productId,
+            BigDecimal quantity
+    ) {
+        validateStockQuantity(quantity);
+        InventoryStock stock = getStockForUpdate(productId);
+        if (stock.quantity().compareTo(BigDecimal.ZERO) != 0) {
+            throw new IllegalStateException(
+                    "Opening stock can only be initialized for an empty product"
+            );
+        }
+        return applyStockChange(
+                stock,
+                quantity,
+                InventoryMovementType.OPENING_STOCK,
+                InventoryReferenceType.OPENING_STOCK,
+                productId,
+                "Initial product stock"
+        );
+    }
+
+    @Override
+    public InventoryStock getCurrentStock(Long productId) {
+        return repository.findStockById(productId)
+                .orElseThrow(() ->
+                        new ApiException(
+                                InventoryErrorCode.INVENTORY_PRODUCT_NOT_FOUND
+                        )
+                );
     }
 
     @Override
@@ -133,6 +205,12 @@ public class InventoryServiceImpl implements InventoryService {
 
         BigDecimal quantityChange = request.quantityChange();
 
+        if (quantityChange == null) {
+            throw new ApiException(
+                    InventoryErrorCode.INVALID_STOCK_QUANTITY
+            );
+        }
+
         if (quantityChange.compareTo(BigDecimal.ZERO) == 0) {
             throw new ApiException(
                     InventoryErrorCode.INVALID_STOCK_ADJUSTMENT
@@ -146,7 +224,6 @@ public class InventoryServiceImpl implements InventoryService {
                 ? null
                 : request.notes().trim();
 
-        // Lock the Product row before calculating the new quantity.
         InventoryStock stock = repository
                 .findStockByUuidForUpdate(productUuid)
                 .orElseThrow(() ->
@@ -155,70 +232,113 @@ public class InventoryServiceImpl implements InventoryService {
                         )
                 );
 
-        BigDecimal quantityBefore = stock.quantity();
-
-        BigDecimal quantityAfter = quantityBefore.add(quantityChange);
-
-        if (quantityAfter.compareTo(BigDecimal.ZERO) < 0) {
-            throw new ApiException(
-                    InventoryErrorCode.INSUFFICIENT_STOCK
-            );
-        }
-
+        validateStockQuantity(quantityChange.abs());
         UUID adjustmentUuid = UUID.randomUUID();
-
-        // Create an adjustment header to provide a valid reference ID.
         Long adjustmentId = repository.createAdjustment(
                 adjustmentUuid,
                 reason,
                 notes
         );
-
-        // Update current stock.
-        repository.updateProductQuantity(
-                stock.productId(),
-                quantityAfter
-        );
-
-        // Record the stock movement in the existing V6 table.
-        repository.createAdjustmentMovement(
-                UUID.randomUUID(),
-                stock.productId(),
-                adjustmentId,
+        InventoryStock updatedStock = applyStockChange(
+                stock,
                 quantityChange,
-                quantityBefore,
-                quantityAfter,
+                InventoryMovementType.ADJUSTMENT,
+                InventoryReferenceType.ADJUSTMENT,
+                adjustmentId,
                 reason
         );
-//        repository.createAdjustmentMovement(
-//                UUID.randomUUID(),
-//                stock.productId(),
-//                adjustmentId,
-//                quantityChange,
-//                quantityBefore,
-//                quantityAfter,
-//                reason + (notes == null ? "" : " - " + notes)
-//        );
 
         log.info(
                 "Inventory stock adjusted. Product UUID: {}, Adjustment UUID: {}, Change: {}, Before: {}, After: {}",
                 productUuid,
                 adjustmentUuid,
                 quantityChange,
+                stock.quantity(),
+                updatedStock.quantity()
+        );
+
+        return new InventoryStockResponse(
+                updatedStock.productUuid(),
+                updatedStock.productCode(),
+                updatedStock.partNo(),
+                updatedStock.productName(),
+                updatedStock.quantity(),
+                updatedStock.minimumStock(),
+                updatedStock.unit(),
+                updatedStock.quantity().compareTo(updatedStock.minimumStock()) <= 0
+        );
+    }
+
+    private InventoryStock getStockForUpdate(Long productId) {
+        return repository.findStockByIdForUpdate(productId)
+                .orElseThrow(() ->
+                        new ApiException(
+                                InventoryErrorCode.INVENTORY_PRODUCT_NOT_FOUND
+                        )
+                );
+    }
+
+    private InventoryStock applyStockChange(
+            InventoryStock stock,
+            BigDecimal quantityChange,
+            InventoryMovementType movementType,
+            InventoryReferenceType referenceType,
+            Long referenceId,
+            String notes
+    ) {
+        BigDecimal quantityBefore = stock.quantity();
+        BigDecimal quantityAfter = quantityBefore.add(quantityChange);
+
+        if (quantityAfter.compareTo(BigDecimal.ZERO) < 0) {
+            log.warn(
+                    "Insufficient stock for product ID {}. Available: {}, change: {}",
+                    stock.productId(),
+                    quantityBefore,
+                    quantityChange
+            );
+            throw new ApiException(InventoryErrorCode.INSUFFICIENT_STOCK);
+        }
+
+        repository.updateProductQuantity(stock.productId(), quantityAfter);
+        repository.createMovement(
+                UUID.randomUUID(),
+                stock.productId(),
+                movementType,
+                referenceType,
+                referenceId,
+                quantityChange,
+                quantityBefore,
+                quantityAfter,
+                notes
+        );
+
+        log.info(
+                "Stock changed. Product ID: {}, movement: {}, change: {}, before: {}, after: {}",
+                stock.productId(),
+                movementType,
+                quantityChange,
                 quantityBefore,
                 quantityAfter
         );
 
-        return new InventoryStockResponse(
+        return new InventoryStock(
+                stock.productId(),
                 stock.productUuid(),
                 stock.productCode(),
                 stock.partNo(),
                 stock.productName(),
                 quantityAfter,
                 stock.minimumStock(),
-                stock.unit(),
-                quantityAfter.compareTo(stock.minimumStock()) <= 0
+                stock.unit()
         );
+    }
+
+    private void validateStockQuantity(BigDecimal quantity) {
+        if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ApiException(
+                    InventoryErrorCode.INVALID_STOCK_QUANTITY
+            );
+        }
     }
 
     private InventoryStockResponse toStockResponse(

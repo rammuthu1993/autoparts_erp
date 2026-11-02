@@ -71,6 +71,16 @@ public class InventoryRepositoryImpl implements InventoryRepository {
     }
 
     @Override
+    public Optional<InventoryStock> findStockById(Long productId) {
+
+        return jdbcTemplate.query(
+                STOCK_SELECT + " AND p.id = ?",
+                stockRowMapper,
+                productId
+        ).stream().findFirst();
+    }
+
+    @Override
     public Optional<InventoryStock> findStockByUuidForUpdate(
             UUID productUuid
     ) {
@@ -82,6 +92,19 @@ public class InventoryRepositoryImpl implements InventoryRepository {
                         """,
                 stockRowMapper,
                 productUuid
+        ).stream().findFirst();
+    }
+
+    @Override
+    public Optional<InventoryStock> findStockByIdForUpdate(Long productId) {
+
+        return jdbcTemplate.query(
+                STOCK_SELECT + """
+                         AND p.id = ?
+                         FOR UPDATE
+                        """,
+                stockRowMapper,
+                productId
         ).stream().findFirst();
     }
 
@@ -156,10 +179,12 @@ public class InventoryRepositoryImpl implements InventoryRepository {
     }
 
     @Override
-    public void createAdjustmentMovement(
+    public void createMovement(
             UUID uuid,
             Long productId,
-            Long adjustmentId,
+            InventoryMovementType movementType,
+            InventoryReferenceType referenceType,
+            Long referenceId,
             BigDecimal quantityChange,
             BigDecimal quantityBefore,
             BigDecimal quantityAfter,
@@ -179,14 +204,13 @@ public class InventoryRepositoryImpl implements InventoryRepository {
                     quantity_after,
                     notes
                 )
-                VALUES (
-                    ?, ?, 'ADJUSTMENT', 'ADJUSTMENT',
-                    ?, ?, ?, ?, ?
-                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 uuid,
                 productId,
-                adjustmentId,
+                movementType.name(),
+                referenceType.name(),
+                referenceId,
                 quantityChange,
                 quantityBefore,
                 quantityAfter,

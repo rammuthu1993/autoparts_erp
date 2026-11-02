@@ -20,7 +20,7 @@ import com.autoparts.erp.sales.enums.SalesStatus;
 import com.autoparts.erp.sales.model.Sale;
 import com.autoparts.erp.sales.model.SaleProduct;
 import com.autoparts.erp.sales.model.SalePayment;
-import com.autoparts.erp.sales.repository.ProductStock;
+//import com.autoparts.erp.sales.repository.ProductStock;
 import com.autoparts.erp.sales.repository.SalesRepository;
 
 @Repository
@@ -37,6 +37,7 @@ public class SalesRepositoryImpl implements SalesRepository {
             rs.getLong("id"),
             rs.getObject("uuid", UUID.class),
             rs.getString("invoice_number"),
+            rs.getObject("customer_id", Long.class),
             rs.getString("customer_name"),
             rs.getString("customer_phone"),
             rs.getObject("sale_date", LocalDate.class),
@@ -59,16 +60,6 @@ public class SalesRepositoryImpl implements SalesRepository {
             rs.getObject("updated_at", OffsetDateTime.class)
         );
 
-    private final RowMapper<ProductStock> productStockMapper =
-        (rs, rowNum) -> new ProductStock(
-            rs.getLong("id"),
-            rs.getObject("uuid", UUID.class),
-            rs.getBigDecimal("qty"),
-            rs.getString("product_code"),
-            rs.getString("name"),
-            rs.getString("unit")
-        );
-
     private final RowMapper<SalePayment> paymentRowMapper =
         (rs, rowNum) -> new SalePayment(
             rs.getLong("id"),
@@ -89,6 +80,7 @@ public class SalesRepositoryImpl implements SalesRepository {
             INSERT INTO sales (
                 uuid,
                 invoice_number,
+                customer_id,
                 customer_name,
                 customer_phone,
                 sale_date,
@@ -110,7 +102,7 @@ public class SalesRepositoryImpl implements SalesRepository {
             )
             VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?, ?,
                 CURRENT_TIMESTAMP,
                 CURRENT_TIMESTAMP
             )
@@ -122,6 +114,7 @@ public class SalesRepositoryImpl implements SalesRepository {
             saleRowMapper,
             sale.uuid(),
             sale.invoiceNumber(),
+            sale.customerId(),
             sale.customerName(),
             sale.customerPhone(),
             sale.saleDate(),
@@ -415,107 +408,6 @@ public class SalesRepositoryImpl implements SalesRepository {
             (rs, rowNum) -> rs.getLong("id"),
             productUuid
         ).stream().findFirst();
-    }
-
-    @Override
-    public Optional<ProductStock> findProductStock(Long productId) {
-
-        String sql = """
-            SELECT id, uuid, qty, product_code, name, unit
-            FROM products
-            WHERE id = ?
-              AND active = TRUE
-            """;
-
-        return jdbcTemplate.query(
-            sql,
-            productStockMapper,
-            productId
-        ).stream().findFirst();
-    }
-
-    @Override
-    public Optional<ProductStock> findProductStockForUpdate(
-        Long productId
-    ) {
-
-        String sql = """
-            SELECT id, uuid, qty, product_code, name, unit
-            FROM products
-            WHERE id = ?
-              AND active = TRUE
-            FOR UPDATE
-            """;
-
-        return jdbcTemplate.query(
-            sql,
-            productStockMapper,
-            productId
-        ).stream().findFirst();
-    }
-
-    @Override
-    public void updateProductStock(
-        Long productId,
-        BigDecimal newQuantity
-    ) {
-
-        String sql = """
-            UPDATE products
-            SET qty = ?,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            """;
-
-        jdbcTemplate.update(sql, newQuantity, productId);
-    }
-
-    @Override
-    public void createInventoryMovement(
-            Long productId,
-            BigDecimal quantity,
-            Long saleId,
-            BigDecimal beforeQuantity,
-            BigDecimal afterQuantity
-    ) {
-
-        String sql = """
-            INSERT INTO inventory_movements (
-                uuid,
-                product_id,
-                movement_type,
-                reference_type,
-                reference_id,
-                quantity_change,
-                quantity_before,
-                quantity_after,
-                notes,
-                created_at
-            )
-            VALUES (
-                ?,
-                ?,
-                'SALE',
-                'SALE',
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                CURRENT_TIMESTAMP
-            )
-            """;
-
-        jdbcTemplate.update(
-            sql,
-            UUID.randomUUID(),
-            productId,
-            saleId,
-            quantity.negate(),
-            beforeQuantity,
-            afterQuantity,
-            "Stock reduced through sales invoice"
-        );
     }
 
     @Override

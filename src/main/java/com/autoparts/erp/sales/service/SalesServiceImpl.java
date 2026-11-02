@@ -14,6 +14,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.autoparts.erp.common.exception.ApiException;
+import com.autoparts.erp.inventory.exception.InventoryErrorCode;
+import com.autoparts.erp.inventory.model.InventoryStock;
+import com.autoparts.erp.inventory.service.InventoryService;
+import com.autoparts.erp.customer.repository.CustomerRepository;
 import com.autoparts.erp.sales.dto.SalesCreateRequest;
 import com.autoparts.erp.sales.dto.SalesProductRequest;
 import com.autoparts.erp.sales.dto.SalesProductResponse;
@@ -26,13 +30,14 @@ import com.autoparts.erp.sales.exception.SalesErrorCode;
 import com.autoparts.erp.sales.model.Sale;
 import com.autoparts.erp.sales.model.SaleProduct;
 import com.autoparts.erp.sales.model.SalePayment;
-import com.autoparts.erp.sales.repository.ProductStock;
 import com.autoparts.erp.sales.repository.SalesRepository;
 import com.autoparts.erp.sales.service.SalesService;
 import com.autoparts.erp.tax.model.ProductTaxMapping;
 import com.autoparts.erp.tax.model.TaxRate;
 import com.autoparts.erp.tax.repository.ProductTaxMappingRepository;
 import com.autoparts.erp.tax.repository.TaxRateRepository;
+import com.autoparts.erp.customer.exception.CustomerErrorCode;
+import com.autoparts.erp.customer.model.Customer;
 
 @Service
 public class SalesServiceImpl implements SalesService {
@@ -43,17 +48,23 @@ public class SalesServiceImpl implements SalesService {
     private static final int MONEY_SCALE = 2;
 
     private final SalesRepository salesRepository;
+    private final InventoryService inventoryService;
     private final ProductTaxMappingRepository productTaxMappingRepository;
     private final TaxRateRepository taxRateRepository;
+    private final CustomerRepository customerRepository;
 
     public SalesServiceImpl(
         SalesRepository salesRepository,
+        InventoryService inventoryService,
         ProductTaxMappingRepository productTaxMappingRepository,
-        TaxRateRepository taxRateRepository
+        TaxRateRepository taxRateRepository,
+        CustomerRepository customerRepository
     ) {
         this.salesRepository = salesRepository;
+        this.inventoryService = inventoryService;
         this.productTaxMappingRepository = productTaxMappingRepository;
         this.taxRateRepository = taxRateRepository;
+        this.customerRepository = customerRepository;
     }
 
     @Override
@@ -101,15 +112,20 @@ public class SalesServiceImpl implements SalesService {
                     return new ApiException(SalesErrorCode.PRODUCT_NOT_FOUND);
                 });
 
-            ProductStock product = salesRepository
-                .findProductStock(productId)
-                .orElseThrow(() -> {
+            InventoryStock product;
+            try {
+                product = inventoryService.getCurrentStock(productId);
+            } catch (ApiException exception) {
+                if (exception.getError()
+                        == InventoryErrorCode.INVENTORY_PRODUCT_NOT_FOUND) {
                     logger.warn(
                         "Product stock lookup failed for product ID {} during draft creation",
                         productId
                     );
-                    return new ApiException(SalesErrorCode.PRODUCT_NOT_FOUND);
-                });
+                    throw new ApiException(SalesErrorCode.PRODUCT_NOT_FOUND);
+                }
+                throw exception;
+            }
 
             BigDecimal quantity = productRequest.quantity();
             BigDecimal unitPrice = money(productRequest.unitPrice());
@@ -256,13 +272,33 @@ public class SalesServiceImpl implements SalesService {
 
         SalesPaymentStatus paymentStatus =
             calculatePaymentStatus(paidAmount, grandTotal);
+        
+        Long customerId = null;
+        String customerName = null;
+        String customerPhone = null;
+
+        if (request.customerUuid() != null) {
+
+            Customer customer = customerRepository
+                    .findByUuid(request.customerUuid())
+                    .orElseThrow(() ->
+                            new ApiException(
+                                    CustomerErrorCode.CUSTOMER_NOT_FOUND
+                            )
+                    );
+
+            customerId = customer.id();
+            customerName = customer.customerName();
+            customerPhone = customer.phone();
+        }
 
         Sale sale = new Sale(
             null,
             saleUuid,
             invoiceNumber,
-            request.customerName(),
-            request.customerPhone(),
+            customerId,
+            customerName,
+            customerPhone,
             request.saleDate(),
             subtotal,
             totalDiscount,
@@ -372,51 +408,34 @@ public class SalesServiceImpl implements SalesService {
             .toList();
 
         for (SaleProduct product : sortedProducts) {
-
-            ProductStock stock = salesRepository
-                .findProductStockForUpdate(product.productId())
-                .orElseThrow(() -> {
+            try {
+                inventoryService.decreaseStock(
+                    product.productId(),
+                    product.quantity(),
+                    sale.id()
+                );
+            } catch (ApiException exception) {
+                if (exception.getError()
+                        == InventoryErrorCode.INVENTORY_PRODUCT_NOT_FOUND) {
                     logger.warn(
                         "Product stock validation failed for product ID {} during completion",
                         product.productId()
                     );
-                    return new ApiException(SalesErrorCode.PRODUCT_NOT_FOUND);
-                });
-
-            if (stock.quantity().compareTo(product.quantity()) < 0) {
-                logger.warn(
-                    "Insufficient stock for product ID {}. Available: {}, required: {}",
-                    product.productId(),
-                    stock.quantity(),
-                    product.quantity()
-                );
-                throw new ApiException(
-                    SalesErrorCode.INSUFFICIENT_STOCK
-                );
+                    throw new ApiException(SalesErrorCode.PRODUCT_NOT_FOUND);
+                }
+                if (exception.getError()
+                        == InventoryErrorCode.INSUFFICIENT_STOCK) {
+                    throw new ApiException(SalesErrorCode.INSUFFICIENT_STOCK);
+                }
+                throw exception;
             }
-
-            BigDecimal afterQuantity = money(
-                stock.quantity().subtract(product.quantity())
-            );
-
-            salesRepository.updateProductStock(
-                product.productId(),
-                afterQuantity
-            );
-
-            salesRepository.createInventoryMovement(
-                product.productId(),
-                product.quantity(),
-                sale.id(),
-                stock.quantity(),
-                afterQuantity
-            );
         }
 
         Sale completedSale = new Sale(
             sale.id(),
             sale.uuid(),
             sale.invoiceNumber(),
+            sale.customerId(),
             sale.customerName(),
             sale.customerPhone(),
             sale.saleDate(),
@@ -569,6 +588,7 @@ public class SalesServiceImpl implements SalesService {
             sale.id(),
             sale.uuid(),
             sale.invoiceNumber(),
+            sale.customerId(),
             sale.customerName(),
             sale.customerPhone(),
             sale.saleDate(),

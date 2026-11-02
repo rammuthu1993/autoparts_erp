@@ -15,6 +15,11 @@ public enum InventoryErrorCode implements ApiErrorCodeDefinition {
             "Stock adjustment quantity must not be zero"
     ),
 
+    INVALID_STOCK_QUANTITY(
+            HttpStatus.BAD_REQUEST,
+            "Stock quantity must be greater than zero"
+    ),
+
     INSUFFICIENT_STOCK(
             HttpStatus.BAD_REQUEST,
             "Stock adjustment would result in negative inventory"

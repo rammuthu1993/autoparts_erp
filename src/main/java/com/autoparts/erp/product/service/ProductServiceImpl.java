@@ -2,6 +2,7 @@
 package com.autoparts.erp.product.service;
 
 import com.autoparts.erp.common.exception.ApiException;
+import com.autoparts.erp.inventory.service.InventoryService;
 import com.autoparts.erp.product.dto.ProductCreateRequest;
 import com.autoparts.erp.product.dto.ProductResponse;
 import com.autoparts.erp.product.dto.ProductUpdateRequest;
@@ -13,6 +14,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,9 +23,14 @@ import java.util.UUID;
 public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository repository;
+    private final InventoryService inventoryService;
 
-    public ProductServiceImpl(ProductRepository repository) {
+    public ProductServiceImpl(
+            ProductRepository repository,
+            InventoryService inventoryService
+    ) {
         this.repository = repository;
+        this.inventoryService = inventoryService;
     }
 
     @Override
@@ -80,12 +87,16 @@ public class ProductServiceImpl implements ProductService {
                     request.brandId(),
                     request.purchasePrice(),
                     request.sellingPrice(),
-                    request.qty(),
                     request.minimumStock(),
                     unit
             );
 
-            return toResponse(product);
+            inventoryService.initializeOpeningStock(
+                    product.id(),
+                    BigDecimal.valueOf(request.qty())
+            );
+
+            return findByUuid(product.uuid());
 
         } catch (DuplicateKeyException ex) {
             // Protect against concurrent requests and database constraints.

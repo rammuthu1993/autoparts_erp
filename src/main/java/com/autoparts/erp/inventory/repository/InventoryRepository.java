@@ -1,6 +1,7 @@
 package com.autoparts.erp.inventory.repository;
 
 import com.autoparts.erp.inventory.enums.InventoryMovementType;
+import com.autoparts.erp.inventory.enums.InventoryReferenceType;
 import com.autoparts.erp.inventory.model.InventoryMovement;
 import com.autoparts.erp.inventory.model.InventoryStock;
 
@@ -14,7 +15,11 @@ public interface InventoryRepository {
 
     Optional<InventoryStock> findStockByUuid(UUID productUuid);
 
+    Optional<InventoryStock> findStockById(Long productId);
+
     Optional<InventoryStock> findStockByUuidForUpdate(UUID productUuid);
+
+    Optional<InventoryStock> findStockByIdForUpdate(Long productId);
 
     List<InventoryStock> findAllStock();
 
@@ -31,10 +36,12 @@ public interface InventoryRepository {
             BigDecimal quantity
     );
 
-    void createAdjustmentMovement(
+    void createMovement(
             UUID uuid,
             Long productId,
-            Long adjustmentId,
+            InventoryMovementType movementType,
+            InventoryReferenceType referenceType,
+            Long referenceId,
             BigDecimal quantityChange,
             BigDecimal quantityBefore,
             BigDecimal quantityAfter,
