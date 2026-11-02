@@ -6,14 +6,14 @@ import java.util.UUID;
 
 import com.autoparts.erp.sales.enums.PaymentMethod;
 
-public record SalePayment(
+public record SalesRefund(
     Long id,
     UUID uuid,
-    Long saleId,
+    Long salesReturnId,
     PaymentMethod paymentMethod,
     BigDecimal amount,
     String referenceNumber,
-    OffsetDateTime paymentDate,
+    OffsetDateTime refundDate,
     String notes,
     OffsetDateTime createdAt
 ) {}

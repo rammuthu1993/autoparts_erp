@@ -27,9 +27,9 @@ import com.autoparts.erp.sales.enums.PaymentMethod;
 import com.autoparts.erp.sales.enums.SalesPaymentStatus;
 import com.autoparts.erp.sales.enums.SalesStatus;
 import com.autoparts.erp.sales.exception.SalesErrorCode;
-import com.autoparts.erp.sales.model.Sale;
-import com.autoparts.erp.sales.model.SaleProduct;
-import com.autoparts.erp.sales.model.SalePayment;
+import com.autoparts.erp.sales.model.Sales;
+import com.autoparts.erp.sales.model.SalesProduct;
+import com.autoparts.erp.sales.model.SalesPayment;
 import com.autoparts.erp.sales.repository.SalesRepository;
 import com.autoparts.erp.sales.service.SalesService;
 import com.autoparts.erp.tax.model.ProductTaxMapping;
@@ -38,6 +38,7 @@ import com.autoparts.erp.tax.repository.ProductTaxMappingRepository;
 import com.autoparts.erp.tax.repository.TaxRateRepository;
 import com.autoparts.erp.customer.exception.CustomerErrorCode;
 import com.autoparts.erp.customer.model.Customer;
+import com.autoparts.erp.sales.dto.SalesPaymentRequest;
 
 @Service
 public class SalesServiceImpl implements SalesService {
@@ -98,7 +99,7 @@ public class SalesServiceImpl implements SalesService {
         BigDecimal taxTotal = BigDecimal.ZERO;
         BigDecimal grandTotal = BigDecimal.ZERO;
 
-        List<SaleProduct> saleProducts = new ArrayList<>();
+        List<SalesProduct> saleProducts = new ArrayList<>();
 
         for (SalesProductRequest productRequest : request.products()) {
 
@@ -202,7 +203,7 @@ public class SalesServiceImpl implements SalesService {
                 taxableAmount.add(lineTax)
             );
 
-            SaleProduct saleProduct = new SaleProduct(
+            SalesProduct saleProduct = new SalesProduct(
                 null,
                 UUID.randomUUID(),
                 null,
@@ -292,7 +293,7 @@ public class SalesServiceImpl implements SalesService {
             customerPhone = customer.phone();
         }
 
-        Sale sale = new Sale(
+        Sales sale = new Sales(
             null,
             saleUuid,
             invoiceNumber,
@@ -317,11 +318,11 @@ public class SalesServiceImpl implements SalesService {
             null
         );
 
-        Sale createdSale = salesRepository.createSale(sale);
+        Sales createdSale = salesRepository.createSale(sale);
 
-        for (SaleProduct product : saleProducts) {
+        for (SalesProduct product : saleProducts) {
 
-            SaleProduct savedProduct = new SaleProduct(
+            SalesProduct savedProduct = new SalesProduct(
                 null,
                 product.uuid(),
                 createdSale.id(),
@@ -354,7 +355,7 @@ public class SalesServiceImpl implements SalesService {
 
             for (var paymentRequest : request.payments()) {
 
-                SalePayment payment = new SalePayment(
+                SalesPayment payment = new SalesPayment(
                     null,
                     UUID.randomUUID(),
                     createdSale.id(),
@@ -383,7 +384,7 @@ public class SalesServiceImpl implements SalesService {
 
         logger.info("Sales invoice completion started for UUID {}", saleUuid);
 
-        Sale sale = salesRepository.findByUuidForUpdate(saleUuid)
+        Sales sale = salesRepository.findByUuidForUpdate(saleUuid)
             .orElseThrow(() ->
                 new ApiException(SalesErrorCode.SALES_NOT_FOUND)
             );
@@ -400,14 +401,14 @@ public class SalesServiceImpl implements SalesService {
             );
         }
 
-        List<SaleProduct> saleProducts =
+        List<SalesProduct> saleProducts =
             salesRepository.findProductsBySaleId(sale.id());
 
-        List<SaleProduct> sortedProducts = saleProducts.stream()
-            .sorted(Comparator.comparing(SaleProduct::productId))
+        List<SalesProduct> sortedProducts = saleProducts.stream()
+            .sorted(Comparator.comparing(SalesProduct::productId))
             .toList();
 
-        for (SaleProduct product : sortedProducts) {
+        for (SalesProduct product : sortedProducts) {
             try {
                 inventoryService.decreaseStock(
                     product.productId(),
@@ -431,7 +432,7 @@ public class SalesServiceImpl implements SalesService {
             }
         }
 
-        Sale completedSale = new Sale(
+        Sales completedSale = new Sales(
             sale.id(),
             sale.uuid(),
             sale.invoiceNumber(),
@@ -466,7 +467,7 @@ public class SalesServiceImpl implements SalesService {
     @Transactional(readOnly = true)
     public SalesResponse findByUuid(UUID saleUuid) {
 
-        Sale sale = salesRepository.findByUuid(saleUuid)
+        Sales sale = salesRepository.findByUuid(saleUuid)
             .orElseThrow(() ->
                 new ApiException(SalesErrorCode.SALES_NOT_FOUND)
             );
@@ -566,7 +567,7 @@ public class SalesServiceImpl implements SalesService {
 
         logger.info("Sales cancellation started for UUID {}", saleUuid);
 
-        Sale sale = salesRepository.findByUuidForUpdate(saleUuid)
+        Sales sale = salesRepository.findByUuidForUpdate(saleUuid)
             .orElseThrow(() ->
                 new ApiException(SalesErrorCode.SALES_NOT_FOUND)
             );
@@ -584,7 +585,7 @@ public class SalesServiceImpl implements SalesService {
             );
         }
 
-        Sale cancelledSale = new Sale(
+        Sales cancelledSale = new Sales(
             sale.id(),
             sale.uuid(),
             sale.invoiceNumber(),
@@ -616,7 +617,7 @@ public class SalesServiceImpl implements SalesService {
     }
 
     private SalesResponse toResponse(
-        Sale sale,
+        Sales sale,
         List<SalesProductResponse> products,
         List<SalesPaymentResponse> payments
     ) {
@@ -705,5 +706,115 @@ public class SalesServiceImpl implements SalesService {
             MONEY_SCALE,
             RoundingMode.HALF_UP
         );
+    }
+    
+    @Override
+    @Transactional
+    public SalesResponse recordPayment(
+        UUID saleUuid,
+        SalesPaymentRequest request
+    ) {
+
+        logger.info(
+            "Recording payment for sales invoice UUID {}",
+            saleUuid
+        );
+
+        // 1. Lock the invoice to prevent concurrent payment updates.
+        Sales sale = salesRepository.findByUuidForUpdate(saleUuid)
+            .orElseThrow(() ->
+                new ApiException(SalesErrorCode.SALES_NOT_FOUND)
+            );
+
+        // 2. Only completed invoices can receive additional payments.
+        if (sale.status() != SalesStatus.COMPLETED) {
+            throw new ApiException(
+                SalesErrorCode.SALES_PAYMENT_NOT_ALLOWED
+            );
+        }
+
+        // 3. Validate payment amount.
+        if (request.amount() == null ||
+            request.amount().compareTo(BigDecimal.ZERO) <= 0) {
+
+            throw new ApiException(
+                SalesErrorCode.INVALID_SALES_PAYMENT
+            );
+        }
+
+        BigDecimal paymentAmount = money(request.amount());
+
+        // 4. Prevent overpayment.
+        if (paymentAmount.compareTo(sale.balanceAmount()) > 0) {
+            throw new ApiException(
+                SalesErrorCode.SALES_PAYMENT_EXCEEDS_BALANCE
+            );
+        }
+
+        // 5. Calculate updated invoice amounts.
+        BigDecimal paidAmount = money(
+            sale.paidAmount().add(paymentAmount)
+        );
+
+        BigDecimal balanceAmount = money(
+            sale.grandTotal().subtract(paidAmount)
+        );
+
+        SalesPaymentStatus paymentStatus =
+            calculatePaymentStatus(
+                paidAmount,
+                sale.grandTotal()
+            );
+
+        // 6. Create payment record.
+        SalesPayment payment = new SalesPayment(
+            null,
+            UUID.randomUUID(),
+            sale.id(),
+            request.paymentMethod(),
+            paymentAmount,
+            request.referenceNumber(),
+            OffsetDateTime.now(),
+            request.notes(),
+            null
+        );
+
+        salesRepository.createSalePayment(payment);
+
+        // 7. Update invoice payment information.
+        Sales updatedSale = new Sales(
+            sale.id(),
+            sale.uuid(),
+            sale.invoiceNumber(),
+            sale.customerId(),
+            sale.customerName(),
+            sale.customerPhone(),
+            sale.saleDate(),
+            sale.subtotal(),
+            sale.discountAmount(),
+            sale.taxableAmount(),
+            sale.cgstAmount(),
+            sale.sgstAmount(),
+            sale.igstAmount(),
+            sale.totalTaxAmount(),
+            sale.grandTotal(),
+            paidAmount,
+            balanceAmount,
+            sale.status(),
+            paymentStatus,
+            sale.notes(),
+            sale.createdAt(),
+            sale.updatedAt()
+        );
+
+        salesRepository.updateSale(updatedSale);
+
+        logger.info(
+            "Payment recorded successfully for invoice {}",
+            sale.invoiceNumber()
+        );
+
+        // 8. Return updated invoice with payment history.
+        return findByUuid(saleUuid);
     }
 }

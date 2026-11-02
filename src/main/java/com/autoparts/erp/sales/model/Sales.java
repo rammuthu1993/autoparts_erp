@@ -8,7 +8,7 @@ import java.util.UUID;
 import com.autoparts.erp.sales.enums.SalesPaymentStatus;
 import com.autoparts.erp.sales.enums.SalesStatus;
 
-public record Sale(
+public record Sales(
 	    Long id,
 	    UUID uuid,
 	    String invoiceNumber,

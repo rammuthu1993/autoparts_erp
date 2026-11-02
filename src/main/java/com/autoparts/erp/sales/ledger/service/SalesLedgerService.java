@@ -1,8 +1,8 @@
-package com.autoparts.erp.salesledger.service;
+package com.autoparts.erp.sales.ledger.service;
 
 import java.time.LocalDate;
 
-import com.autoparts.erp.salesledger.dto.SalesLedgerPageResponse;
+import com.autoparts.erp.sales.ledger.dto.SalesLedgerPageResponse;
 
 public interface SalesLedgerService {
 

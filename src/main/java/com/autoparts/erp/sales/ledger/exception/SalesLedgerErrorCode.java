@@ -1,4 +1,4 @@
-package com.autoparts.erp.salesledger.exception;
+package com.autoparts.erp.sales.ledger.exception;
 
 import org.springframework.http.HttpStatus;
 

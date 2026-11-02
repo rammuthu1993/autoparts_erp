@@ -17,9 +17,9 @@ import org.springframework.stereotype.Repository;
 import com.autoparts.erp.sales.enums.PaymentMethod;
 import com.autoparts.erp.sales.enums.SalesPaymentStatus;
 import com.autoparts.erp.sales.enums.SalesStatus;
-import com.autoparts.erp.sales.model.Sale;
-import com.autoparts.erp.sales.model.SaleProduct;
-import com.autoparts.erp.sales.model.SalePayment;
+import com.autoparts.erp.sales.model.Sales;
+import com.autoparts.erp.sales.model.SalesProduct;
+import com.autoparts.erp.sales.model.SalesPayment;
 //import com.autoparts.erp.sales.repository.ProductStock;
 import com.autoparts.erp.sales.repository.SalesRepository;
 
@@ -32,8 +32,8 @@ public class SalesRepositoryImpl implements SalesRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    private final RowMapper<Sale> saleRowMapper = (rs, rowNum) ->
-        new Sale(
+    private final RowMapper<Sales> saleRowMapper = (rs, rowNum) ->
+        new Sales(
             rs.getLong("id"),
             rs.getObject("uuid", UUID.class),
             rs.getString("invoice_number"),
@@ -60,8 +60,8 @@ public class SalesRepositoryImpl implements SalesRepository {
             rs.getObject("updated_at", OffsetDateTime.class)
         );
 
-    private final RowMapper<SalePayment> paymentRowMapper =
-        (rs, rowNum) -> new SalePayment(
+    private final RowMapper<SalesPayment> paymentRowMapper =
+        (rs, rowNum) -> new SalesPayment(
             rs.getLong("id"),
             rs.getObject("uuid", UUID.class),
             rs.getLong("sale_id"),
@@ -74,7 +74,7 @@ public class SalesRepositoryImpl implements SalesRepository {
         );
 
     @Override
-    public Sale createSale(Sale sale) {
+    public Sales createSale(Sales sale) {
 
         String sql = """
             INSERT INTO sales (
@@ -135,7 +135,7 @@ public class SalesRepositoryImpl implements SalesRepository {
     }
 
     @Override
-    public Sale updateSale(Sale sale) {
+    public Sales updateSale(Sales sale) {
 
         String sql = """
             UPDATE sales
@@ -176,7 +176,7 @@ public class SalesRepositoryImpl implements SalesRepository {
     }
 
     @Override
-    public Optional<Sale> findByUuid(UUID uuid) {
+    public Optional<Sales> findByUuid(UUID uuid) {
 
         String sql = """
             SELECT *
@@ -192,7 +192,7 @@ public class SalesRepositoryImpl implements SalesRepository {
     }
 
     @Override
-    public Optional<Sale> findByUuidForUpdate(UUID uuid) {
+    public Optional<Sales> findByUuidForUpdate(UUID uuid) {
 
         String sql = """
             SELECT *
@@ -209,7 +209,7 @@ public class SalesRepositoryImpl implements SalesRepository {
     }
 
     @Override
-    public List<Sale> findAll() {
+    public List<Sales> findAll() {
 
         String sql = """
             SELECT *
@@ -221,7 +221,7 @@ public class SalesRepositoryImpl implements SalesRepository {
     }
 
     @Override
-    public void createSaleProduct(SaleProduct product) {
+    public void createSaleProduct(SalesProduct product) {
 
         String sql = """
             INSERT INTO sales_products (
@@ -278,7 +278,7 @@ public class SalesRepositoryImpl implements SalesRepository {
     }
 
     @Override
-    public List<SaleProduct> findProductsBySaleId(Long saleId) {
+    public List<SalesProduct> findProductsBySaleId(Long saleId) {
 
         String sql = """
             SELECT
@@ -319,9 +319,9 @@ public class SalesRepositoryImpl implements SalesRepository {
         );
     }
 
-    private SaleProduct mapSaleProduct(ResultSet rs) throws SQLException {
+    private SalesProduct mapSaleProduct(ResultSet rs) throws SQLException {
 
-        return new SaleProduct(
+        return new SalesProduct(
             rs.getLong("id"),
             rs.getObject("uuid", UUID.class),
             rs.getLong("sale_id"),
@@ -349,7 +349,7 @@ public class SalesRepositoryImpl implements SalesRepository {
     }
 
     @Override
-    public void createSalePayment(SalePayment payment) {
+    public void createSalePayment(SalesPayment payment) {
 
         String sql = """
             INSERT INTO sales_payments (
@@ -377,7 +377,7 @@ public class SalesRepositoryImpl implements SalesRepository {
     }
 
     @Override
-    public List<SalePayment> findPaymentsBySaleId(Long saleId) {
+    public List<SalesPayment> findPaymentsBySaleId(Long saleId) {
 
         String sql = """
             SELECT *
@@ -490,5 +490,21 @@ public class SalesRepositoryImpl implements SalesRepository {
         );
 
         return prefix + "-" + String.format("%05d", nextNumber);
+    }
+    
+    @Override
+    public Optional<UUID> findUuidById(Long saleId) {
+
+        String sql = """
+                SELECT uuid
+                FROM sales
+                WHERE id = ?
+                """;
+
+        return jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> rs.getObject("uuid", UUID.class),
+                saleId
+        ).stream().findFirst();
     }
 }

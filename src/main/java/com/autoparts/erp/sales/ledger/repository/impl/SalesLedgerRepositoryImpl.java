@@ -1,4 +1,4 @@
-package com.autoparts.erp.salesledger.repository.impl;
+package com.autoparts.erp.sales.ledger.repository.impl;
 
 import java.math.BigDecimal;
 import java.sql.ResultSet;
@@ -11,9 +11,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
-import com.autoparts.erp.salesledger.dto.SalesLedgerEntryResponse;
-import com.autoparts.erp.salesledger.dto.SalesLedgerSummaryResponse;
-import com.autoparts.erp.salesledger.repository.SalesLedgerRepository;
+import com.autoparts.erp.sales.ledger.dto.SalesLedgerEntryResponse;
+import com.autoparts.erp.sales.ledger.dto.SalesLedgerSummaryResponse;
+import com.autoparts.erp.sales.ledger.repository.SalesLedgerRepository;
 
 @Repository
 public class SalesLedgerRepositoryImpl implements SalesLedgerRepository {

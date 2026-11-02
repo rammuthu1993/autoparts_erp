@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import com.autoparts.erp.sales.dto.SalesCreateRequest;
 import com.autoparts.erp.sales.dto.SalesResponse;
 import com.autoparts.erp.sales.service.SalesService;
+import com.autoparts.erp.sales.dto.SalesPaymentRequest;
 
 import jakarta.validation.Valid;
 
@@ -63,6 +64,16 @@ public class SalesController {
     ) {
         return ResponseEntity.ok(
             salesService.cancel(saleUuid)
+        );
+    }
+    
+    @PostMapping("/{saleUuid}/payments")
+    public ResponseEntity<SalesResponse> recordPayment(
+        @PathVariable UUID saleUuid,
+        @Valid @RequestBody SalesPaymentRequest request
+    ) {
+        return ResponseEntity.ok(
+            salesService.recordPayment(saleUuid, request)
         );
     }
 }

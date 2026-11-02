@@ -393,4 +393,25 @@ public class InventoryServiceImpl implements InventoryService {
             );
         }
     }
+    
+    @Override
+    @Transactional
+    public InventoryStock restoreStockFromSalesReturn(
+            Long productId,
+            BigDecimal quantity,
+            Long salesReturnId
+    ) {
+        validateStockQuantity(quantity);
+
+        InventoryStock stock = getStockForUpdate(productId);
+
+        return applyStockChange(
+            stock,
+            quantity,
+            InventoryMovementType.SALES_RETURN,
+            InventoryReferenceType.SALES_RETURN,
+            salesReturnId,
+            "Stock restored from sales return"
+        );
+    }
 }

@@ -52,4 +52,10 @@ public interface InventoryService {
             UUID productUuid,
             StockAdjustmentRequest request
     );
+    
+    InventoryStock restoreStockFromSalesReturn(
+    	    Long productId,
+    	    BigDecimal quantity,
+    	    Long salesReturnId
+    	);
 }

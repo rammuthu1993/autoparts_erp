@@ -1,4 +1,4 @@
-package com.autoparts.erp.salesledger.service.impl;
+package com.autoparts.erp.sales.ledger.service.impl;
 
 import java.time.LocalDate;
 
@@ -8,11 +8,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.autoparts.erp.common.exception.ApiException;
-import com.autoparts.erp.salesledger.dto.SalesLedgerPageResponse;
-import com.autoparts.erp.salesledger.dto.SalesLedgerSummaryResponse;
-import com.autoparts.erp.salesledger.exception.SalesLedgerErrorCode;
-import com.autoparts.erp.salesledger.repository.SalesLedgerRepository;
-import com.autoparts.erp.salesledger.service.SalesLedgerService;
+import com.autoparts.erp.sales.ledger.dto.SalesLedgerPageResponse;
+import com.autoparts.erp.sales.ledger.dto.SalesLedgerSummaryResponse;
+import com.autoparts.erp.sales.ledger.exception.SalesLedgerErrorCode;
+import com.autoparts.erp.sales.ledger.repository.SalesLedgerRepository;
+import com.autoparts.erp.sales.ledger.service.SalesLedgerService;
 
 @Service
 @Transactional(readOnly = true)

@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-public record SaleProduct(
+public record SalesProduct(
     Long id,
     UUID uuid,
     Long saleId,

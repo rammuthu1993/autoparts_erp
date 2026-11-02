@@ -1,4 +1,4 @@
-package com.autoparts.erp.salesledger.dto;
+package com.autoparts.erp.sales.ledger.dto;
 
 import java.util.List;
 

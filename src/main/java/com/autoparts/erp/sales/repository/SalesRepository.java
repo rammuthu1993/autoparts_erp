@@ -6,33 +6,35 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import com.autoparts.erp.sales.model.Sale;
-import com.autoparts.erp.sales.model.SaleProduct;
-import com.autoparts.erp.sales.model.SalePayment;
+import com.autoparts.erp.sales.model.Sales;
+import com.autoparts.erp.sales.model.SalesProduct;
+import com.autoparts.erp.sales.model.SalesPayment;
 
 public interface SalesRepository {
 
-    Sale createSale(Sale sale);
+    Sales createSale(Sales sale);
 
-    Sale updateSale(Sale sale);
+    Sales updateSale(Sales sale);
 
-    Optional<Sale> findByUuid(UUID uuid);
+    Optional<Sales> findByUuid(UUID uuid);
 
-    Optional<Sale> findByUuidForUpdate(UUID uuid);
+    Optional<Sales> findByUuidForUpdate(UUID uuid);
 
-    List<Sale> findAll();
+    List<Sales> findAll();
 
-    List<SaleProduct> findProductsBySaleId(Long saleId);
+    List<SalesProduct> findProductsBySaleId(Long saleId);
 
-    List<SalePayment> findPaymentsBySaleId(Long saleId);
+    List<SalesPayment> findPaymentsBySaleId(Long saleId);
 
-    void createSaleProduct(SaleProduct product);
+    void createSaleProduct(SalesProduct product);
 
-    void createSalePayment(SalePayment payment);
+    void createSalePayment(SalesPayment payment);
 
     Optional<Long> findActiveProductId(UUID productUuid);
 
     boolean existsInvoiceNumber(String invoiceNumber);
 
     String generateInvoiceNumber(LocalDate saleDate);
+    
+    Optional<UUID> findUuidById(Long saleId);
 }

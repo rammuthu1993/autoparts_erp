@@ -1,10 +1,10 @@
-package com.autoparts.erp.salesledger.repository;
+package com.autoparts.erp.sales.ledger.repository;
 
 import java.time.LocalDate;
 import java.util.List;
 
-import com.autoparts.erp.salesledger.dto.SalesLedgerEntryResponse;
-import com.autoparts.erp.salesledger.dto.SalesLedgerSummaryResponse;
+import com.autoparts.erp.sales.ledger.dto.SalesLedgerEntryResponse;
+import com.autoparts.erp.sales.ledger.dto.SalesLedgerSummaryResponse;
 
 public interface SalesLedgerRepository {
 

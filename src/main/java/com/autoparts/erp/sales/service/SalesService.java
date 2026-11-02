@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import com.autoparts.erp.sales.dto.SalesCreateRequest;
 import com.autoparts.erp.sales.dto.SalesResponse;
+import com.autoparts.erp.sales.dto.SalesPaymentRequest;
 
 public interface SalesService {
 
@@ -17,4 +18,9 @@ public interface SalesService {
     List<SalesResponse> findAll();
 
     SalesResponse cancel(UUID saleUuid);
+    
+    SalesResponse recordPayment(
+    	    UUID saleUuid,
+    	    SalesPaymentRequest request
+    	);
 }

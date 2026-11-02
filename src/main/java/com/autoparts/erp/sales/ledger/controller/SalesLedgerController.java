@@ -1,4 +1,4 @@
-package com.autoparts.erp.salesledger.controller;
+package com.autoparts.erp.sales.ledger.controller;
 
 import java.time.LocalDate;
 
@@ -10,8 +10,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.autoparts.erp.salesledger.dto.SalesLedgerPageResponse;
-import com.autoparts.erp.salesledger.service.SalesLedgerService;
+import com.autoparts.erp.sales.ledger.dto.SalesLedgerPageResponse;
+import com.autoparts.erp.sales.ledger.service.SalesLedgerService;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
