@@ -13,7 +13,7 @@ public interface SalesReturnRepository {
 
     SalesReturn createReturn(SalesReturn salesReturn);
 
-    SalesReturnProduct createReturnProduct(
+    void createReturnProduct(
         SalesReturnProduct product
     );
 

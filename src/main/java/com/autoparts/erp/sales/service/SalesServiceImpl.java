@@ -1,3 +1,4 @@
+
 package com.autoparts.erp.sales.service;
 
 import java.math.BigDecimal;
@@ -13,32 +14,35 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.autoparts.erp.cashregister.enums.CashMovementSourceType;
+import com.autoparts.erp.cashregister.enums.CashMovementType;
+import com.autoparts.erp.cashregister.service.CashRegisterService;
 import com.autoparts.erp.common.exception.ApiException;
+import com.autoparts.erp.customer.exception.CustomerErrorCode;
+import com.autoparts.erp.customer.model.Customer;
+import com.autoparts.erp.customer.repository.CustomerRepository;
 import com.autoparts.erp.inventory.exception.InventoryErrorCode;
 import com.autoparts.erp.inventory.model.InventoryStock;
 import com.autoparts.erp.inventory.service.InventoryService;
-import com.autoparts.erp.customer.repository.CustomerRepository;
 import com.autoparts.erp.sales.dto.SalesCreateRequest;
+import com.autoparts.erp.sales.dto.SalesPaymentRequest;
+import com.autoparts.erp.sales.dto.SalesPaymentResponse;
 import com.autoparts.erp.sales.dto.SalesProductRequest;
 import com.autoparts.erp.sales.dto.SalesProductResponse;
-import com.autoparts.erp.sales.dto.SalesPaymentResponse;
 import com.autoparts.erp.sales.dto.SalesResponse;
 import com.autoparts.erp.sales.enums.PaymentMethod;
 import com.autoparts.erp.sales.enums.SalesPaymentStatus;
 import com.autoparts.erp.sales.enums.SalesStatus;
 import com.autoparts.erp.sales.exception.SalesErrorCode;
 import com.autoparts.erp.sales.model.Sales;
-import com.autoparts.erp.sales.model.SalesProduct;
 import com.autoparts.erp.sales.model.SalesPayment;
+import com.autoparts.erp.sales.model.SalesProduct;
 import com.autoparts.erp.sales.repository.SalesRepository;
 import com.autoparts.erp.sales.service.SalesService;
 import com.autoparts.erp.tax.model.ProductTaxMapping;
 import com.autoparts.erp.tax.model.TaxRate;
 import com.autoparts.erp.tax.repository.ProductTaxMappingRepository;
 import com.autoparts.erp.tax.repository.TaxRateRepository;
-import com.autoparts.erp.customer.exception.CustomerErrorCode;
-import com.autoparts.erp.customer.model.Customer;
-import com.autoparts.erp.sales.dto.SalesPaymentRequest;
 
 @Service
 public class SalesServiceImpl implements SalesService {
@@ -53,37 +57,55 @@ public class SalesServiceImpl implements SalesService {
     private final ProductTaxMappingRepository productTaxMappingRepository;
     private final TaxRateRepository taxRateRepository;
     private final CustomerRepository customerRepository;
+    private final CashRegisterService cashRegisterService;
 
     public SalesServiceImpl(
         SalesRepository salesRepository,
         InventoryService inventoryService,
         ProductTaxMappingRepository productTaxMappingRepository,
         TaxRateRepository taxRateRepository,
-        CustomerRepository customerRepository
+        CustomerRepository customerRepository,
+        CashRegisterService cashRegisterService
     ) {
         this.salesRepository = salesRepository;
         this.inventoryService = inventoryService;
         this.productTaxMappingRepository = productTaxMappingRepository;
         this.taxRateRepository = taxRateRepository;
         this.customerRepository = customerRepository;
+        this.cashRegisterService = cashRegisterService;
     }
+
+    // ---------------------------------------------------------
+    // CREATE SALES DRAFT
+    // ---------------------------------------------------------
 
     @Override
     @Transactional
     public SalesResponse create(SalesCreateRequest request) {
 
-        logger.info("Sales draft creation started for sale date {}", request.saleDate());
+        logger.info(
+            "Sales draft creation started for sale date {}",
+            request.saleDate()
+        );
 
         validateRequest(request);
 
         UUID saleUuid = UUID.randomUUID();
 
-        logger.info("Generating invoice number for sale date {}", request.saleDate());
+        logger.info(
+            "Generating invoice number for sale date {}",
+            request.saleDate()
+        );
+
         String invoiceNumber =
             salesRepository.generateInvoiceNumber(request.saleDate());
 
         if (salesRepository.existsInvoiceNumber(invoiceNumber)) {
-            logger.warn("Duplicate invoice number generated: {}", invoiceNumber);
+            logger.warn(
+                "Duplicate invoice number generated: {}",
+                invoiceNumber
+            );
+
             throw new ApiException(
                 SalesErrorCode.SALES_DUPLICATE_INVOICE
             );
@@ -110,21 +132,31 @@ public class SalesServiceImpl implements SalesService {
                         "Product validation failed for UUID {} during draft creation",
                         productRequest.productUuid()
                     );
-                    return new ApiException(SalesErrorCode.PRODUCT_NOT_FOUND);
+
+                    return new ApiException(
+                        SalesErrorCode.PRODUCT_NOT_FOUND
+                    );
                 });
 
             InventoryStock product;
+
             try {
                 product = inventoryService.getCurrentStock(productId);
             } catch (ApiException exception) {
+
                 if (exception.getError()
-                        == InventoryErrorCode.INVENTORY_PRODUCT_NOT_FOUND) {
+                    == InventoryErrorCode.INVENTORY_PRODUCT_NOT_FOUND) {
+
                     logger.warn(
                         "Product stock lookup failed for product ID {} during draft creation",
                         productId
                     );
-                    throw new ApiException(SalesErrorCode.PRODUCT_NOT_FOUND);
+
+                    throw new ApiException(
+                        SalesErrorCode.PRODUCT_NOT_FOUND
+                    );
                 }
+
                 throw exception;
             }
 
@@ -163,6 +195,7 @@ public class SalesServiceImpl implements SalesService {
                             productRequest.productUuid(),
                             request.saleDate()
                         );
+
                         return new ApiException(
                             SalesErrorCode.PRODUCT_TAX_MAPPING_NOT_FOUND
                         );
@@ -262,6 +295,7 @@ public class SalesServiceImpl implements SalesService {
                 paidAmount,
                 grandTotal
             );
+
             throw new ApiException(
                 SalesErrorCode.SALES_PAYMENT_EXCEEDS_TOTAL
             );
@@ -273,7 +307,7 @@ public class SalesServiceImpl implements SalesService {
 
         SalesPaymentStatus paymentStatus =
             calculatePaymentStatus(paidAmount, grandTotal);
-        
+
         Long customerId = null;
         String customerName = null;
         String customerPhone = null;
@@ -281,12 +315,12 @@ public class SalesServiceImpl implements SalesService {
         if (request.customerUuid() != null) {
 
             Customer customer = customerRepository
-                    .findByUuid(request.customerUuid())
-                    .orElseThrow(() ->
-                            new ApiException(
-                                    CustomerErrorCode.CUSTOMER_NOT_FOUND
-                            )
-                    );
+                .findByUuid(request.customerUuid())
+                .orElseThrow(() ->
+                    new ApiException(
+                        CustomerErrorCode.CUSTOMER_NOT_FOUND
+                    )
+                );
 
             customerId = customer.id();
             customerName = customer.customerName();
@@ -351,6 +385,8 @@ public class SalesServiceImpl implements SalesService {
             salesRepository.createSaleProduct(savedProduct);
         }
 
+        // Save draft payments only.
+        // Cash Register movements are posted when the sale is completed.
         if (request.payments() != null) {
 
             for (var paymentRequest : request.payments()) {
@@ -375,14 +411,22 @@ public class SalesServiceImpl implements SalesService {
             "Sales draft successfully created with invoice number {}",
             invoiceNumber
         );
+
         return findByUuid(createdSale.uuid());
     }
+
+    // ---------------------------------------------------------
+    // COMPLETE SALES
+    // ---------------------------------------------------------
 
     @Override
     @Transactional
     public SalesResponse complete(UUID saleUuid) {
 
-        logger.info("Sales invoice completion started for UUID {}", saleUuid);
+        logger.info(
+            "Sales invoice completion started for UUID {}",
+            saleUuid
+        );
 
         Sales sale = salesRepository.findByUuidForUpdate(saleUuid)
             .orElseThrow(() ->
@@ -404,30 +448,69 @@ public class SalesServiceImpl implements SalesService {
         List<SalesProduct> saleProducts =
             salesRepository.findProductsBySaleId(sale.id());
 
+        if (saleProducts == null || saleProducts.isEmpty()) {
+            throw new ApiException(
+                SalesErrorCode.INVALID_SALES_AMOUNT
+            );
+        }
+
         List<SalesProduct> sortedProducts = saleProducts.stream()
             .sorted(Comparator.comparing(SalesProduct::productId))
             .toList();
 
+        // Initial payments were stored during draft creation.
+        // Post CASH payments only when the sale is being completed.
+        List<SalesPayment> payments =
+            salesRepository.findPaymentsBySaleId(sale.id());
+
+        for (SalesPayment payment : payments) {
+
+            if (payment.paymentMethod() != PaymentMethod.CASH) {
+                continue;
+            }
+
+            cashRegisterService.recordTransactionMovement(
+                CashMovementType.IN,
+                CashMovementSourceType.SALE_PAYMENT,
+                payment.uuid(),
+                payment.amount(),
+                "Cash received for invoice " + sale.invoiceNumber()
+            );
+        }
+
+        // Update inventory.
         for (SalesProduct product : sortedProducts) {
+
             try {
                 inventoryService.decreaseStock(
                     product.productId(),
                     product.quantity(),
                     sale.id()
                 );
+
             } catch (ApiException exception) {
+
                 if (exception.getError()
-                        == InventoryErrorCode.INVENTORY_PRODUCT_NOT_FOUND) {
+                    == InventoryErrorCode.INVENTORY_PRODUCT_NOT_FOUND) {
+
                     logger.warn(
                         "Product stock validation failed for product ID {} during completion",
                         product.productId()
                     );
-                    throw new ApiException(SalesErrorCode.PRODUCT_NOT_FOUND);
+
+                    throw new ApiException(
+                        SalesErrorCode.PRODUCT_NOT_FOUND
+                    );
                 }
+
                 if (exception.getError()
-                        == InventoryErrorCode.INSUFFICIENT_STOCK) {
-                    throw new ApiException(SalesErrorCode.INSUFFICIENT_STOCK);
+                    == InventoryErrorCode.INSUFFICIENT_STOCK) {
+
+                    throw new ApiException(
+                        SalesErrorCode.INSUFFICIENT_STOCK
+                    );
                 }
+
                 throw exception;
             }
         }
@@ -459,9 +542,17 @@ public class SalesServiceImpl implements SalesService {
 
         salesRepository.updateSale(completedSale);
 
-        logger.info("Sales invoice completion successful for UUID {}", saleUuid);
+        logger.info(
+            "Sales invoice completion successful for UUID {}",
+            saleUuid
+        );
+
         return findByUuid(saleUuid);
     }
+
+    // ---------------------------------------------------------
+    // FIND SALES BY UUID
+    // ---------------------------------------------------------
 
     @Override
     @Transactional(readOnly = true)
@@ -514,6 +605,10 @@ public class SalesServiceImpl implements SalesService {
         return toResponse(sale, productResponses, paymentResponses);
     }
 
+    // ---------------------------------------------------------
+    // FIND ALL SALES
+    // ---------------------------------------------------------
+
     @Override
     @Transactional(readOnly = true)
     public List<SalesResponse> findAll() {
@@ -561,11 +656,18 @@ public class SalesServiceImpl implements SalesService {
             .toList();
     }
 
+    // ---------------------------------------------------------
+    // CANCEL SALES DRAFT
+    // ---------------------------------------------------------
+
     @Override
     @Transactional
     public SalesResponse cancel(UUID saleUuid) {
 
-        logger.info("Sales cancellation started for UUID {}", saleUuid);
+        logger.info(
+            "Sales cancellation started for UUID {}",
+            saleUuid
+        );
 
         Sales sale = salesRepository.findByUuidForUpdate(saleUuid)
             .orElseThrow(() ->
@@ -612,9 +714,17 @@ public class SalesServiceImpl implements SalesService {
 
         salesRepository.updateSale(cancelledSale);
 
-        logger.info("Sales cancellation successful for UUID {}", saleUuid);
+        logger.info(
+            "Sales cancellation successful for UUID {}",
+            saleUuid
+        );
+
         return findByUuid(saleUuid);
     }
+
+    // ---------------------------------------------------------
+    // BUILD SALES RESPONSE
+    // ---------------------------------------------------------
 
     private SalesResponse toResponse(
         Sales sale,
@@ -648,17 +758,27 @@ public class SalesServiceImpl implements SalesService {
         );
     }
 
+    // ---------------------------------------------------------
+    // VALIDATE SALES REQUEST
+    // ---------------------------------------------------------
+
     private void validateRequest(SalesCreateRequest request) {
 
-        if (request.products() == null || request.products().isEmpty()) {
+        if (request.products() == null ||
+            request.products().isEmpty()) {
+
             throw new ApiException(
                 SalesErrorCode.INVALID_SALES_AMOUNT
             );
         }
     }
 
+    // ---------------------------------------------------------
+    // CALCULATE PAYMENT TOTAL
+    // ---------------------------------------------------------
+
     private BigDecimal calculatePaymentTotal(
-        List<com.autoparts.erp.sales.dto.SalesPaymentRequest> payments
+        List<SalesPaymentRequest> payments
     ) {
 
         if (payments == null || payments.isEmpty()) {
@@ -671,6 +791,10 @@ public class SalesServiceImpl implements SalesService {
 
         return money(total);
     }
+
+    // ---------------------------------------------------------
+    // CALCULATE PAYMENT STATUS
+    // ---------------------------------------------------------
 
     private SalesPaymentStatus calculatePaymentStatus(
         BigDecimal paidAmount,
@@ -688,6 +812,10 @@ public class SalesServiceImpl implements SalesService {
         return SalesPaymentStatus.PARTIALLY_PAID;
     }
 
+    // ---------------------------------------------------------
+    // CALCULATE GST
+    // ---------------------------------------------------------
+
     private BigDecimal calculateTax(
         BigDecimal taxableAmount,
         BigDecimal taxRate
@@ -696,9 +824,17 @@ public class SalesServiceImpl implements SalesService {
         return money(
             taxableAmount
                 .multiply(taxRate)
-                .divide(new BigDecimal("100"), 6, RoundingMode.HALF_UP)
+                .divide(
+                    new BigDecimal("100"),
+                    6,
+                    RoundingMode.HALF_UP
+                )
         );
     }
+
+    // ---------------------------------------------------------
+    // MONEY ROUNDING
+    // ---------------------------------------------------------
 
     private BigDecimal money(BigDecimal amount) {
 
@@ -707,7 +843,11 @@ public class SalesServiceImpl implements SalesService {
             RoundingMode.HALF_UP
         );
     }
-    
+
+    // ---------------------------------------------------------
+    // RECORD ADDITIONAL SALES PAYMENT
+    // ---------------------------------------------------------
+
     @Override
     @Transactional
     public SalesResponse recordPayment(
@@ -737,6 +877,12 @@ public class SalesServiceImpl implements SalesService {
         if (request.amount() == null ||
             request.amount().compareTo(BigDecimal.ZERO) <= 0) {
 
+            throw new ApiException(
+                SalesErrorCode.INVALID_SALES_PAYMENT
+            );
+        }
+
+        if (request.paymentMethod() == null) {
             throw new ApiException(
                 SalesErrorCode.INVALID_SALES_PAYMENT
             );
@@ -781,7 +927,20 @@ public class SalesServiceImpl implements SalesService {
 
         salesRepository.createSalePayment(payment);
 
-        // 7. Update invoice payment information.
+        // 7. Record physical cash only for CASH payments.
+        // This is part of the same database transaction.
+        if (payment.paymentMethod() == PaymentMethod.CASH) {
+
+            cashRegisterService.recordTransactionMovement(
+                CashMovementType.IN,
+                CashMovementSourceType.SALE_PAYMENT,
+                payment.uuid(),
+                payment.amount(),
+                "Cash received for invoice " + sale.invoiceNumber()
+            );
+        }
+
+        // 8. Update invoice payment information.
         Sales updatedSale = new Sales(
             sale.id(),
             sale.uuid(),
@@ -814,7 +973,7 @@ public class SalesServiceImpl implements SalesService {
             sale.invoiceNumber()
         );
 
-        // 8. Return updated invoice with payment history.
+        // 9. Return updated invoice with payment history.
         return findByUuid(saleUuid);
     }
 }

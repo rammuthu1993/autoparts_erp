@@ -176,7 +176,7 @@ public class SalesReturnRepositoryImpl implements SalesReturnRepository {
     // ---------------------------------------------------------
 
     @Override
-    public SalesReturnProduct createReturnProduct(
+    public void createReturnProduct(
             SalesReturnProduct product
     ) {
 
@@ -208,38 +208,10 @@ public class SalesReturnRepositoryImpl implements SalesReturnRepository {
                     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )
-                RETURNING *
                 """;
 
-        return jdbcTemplate.queryForObject(
+        jdbcTemplate.update(
                 sql,
-                (rs, rowNum) -> new SalesReturnProduct(
-                        rs.getLong("id"),
-                        rs.getObject("uuid", UUID.class),
-                        rs.getLong("sales_return_id"),
-                        rs.getLong("sales_product_id"),
-                        rs.getLong("product_id"),
-                        rs.getObject("product_uuid", UUID.class),
-                        rs.getObject("sales_product_uuid", UUID.class),
-                        rs.getString("product_code"),
-                        rs.getString("product_name"),
-                        rs.getBigDecimal("quantity"),
-                        rs.getString("unit"),
-                        rs.getBigDecimal("unit_price"),
-                        rs.getBigDecimal("discount_amount"),
-                        rs.getBigDecimal("taxable_amount"),
-                        rs.getString("hsn_code"),
-                        rs.getBigDecimal("gst_rate"),
-                        rs.getBigDecimal("cgst_rate"),
-                        rs.getBigDecimal("sgst_rate"),
-                        rs.getBigDecimal("igst_rate"),
-                        rs.getBigDecimal("cgst_amount"),
-                        rs.getBigDecimal("sgst_amount"),
-                        rs.getBigDecimal("igst_amount"),
-                        rs.getBigDecimal("total_tax_amount"),
-                        rs.getBigDecimal("line_total"),
-                        rs.getObject("created_at", OffsetDateTime.class)
-                ),
                 product.uuid(),
                 product.salesReturnId(),
                 product.salesProductId(),
@@ -307,7 +279,15 @@ public class SalesReturnRepositoryImpl implements SalesReturnRepository {
 
         String sql = """
             UPDATE sales_returns
-            SET status = ?,
+            SET subtotal = ?,
+                discount_amount = ?,
+                taxable_amount = ?,
+                cgst_amount = ?,
+                sgst_amount = ?,
+                igst_amount = ?,
+                total_tax_amount = ?,
+                total_return_amount = ?,
+                status = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             RETURNING *
@@ -316,6 +296,14 @@ public class SalesReturnRepositoryImpl implements SalesReturnRepository {
         return jdbcTemplate.queryForObject(
             sql,
             returnRowMapper,
+            salesReturn.subtotal(),
+            salesReturn.discountAmount(),
+            salesReturn.taxableAmount(),
+            salesReturn.cgstAmount(),
+            salesReturn.sgstAmount(),
+            salesReturn.igstAmount(),
+            salesReturn.totalTaxAmount(),
+            salesReturn.totalReturnAmount(),
             salesReturn.status().name(),
             salesReturn.id()
         );

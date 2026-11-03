@@ -11,6 +11,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.autoparts.erp.common.response.ApiError;
 
@@ -57,6 +58,31 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .badRequest()
+                .body(error);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiError> handleResponseStatusException(
+            ResponseStatusException exception,
+            HttpServletRequest request) {
+
+        HttpStatus status = HttpStatus.resolve(
+                exception.getStatusCode().value()
+        );
+        String message = exception.getReason() == null
+                ? "Request failed."
+                : exception.getReason();
+
+        ApiError error = new ApiError(
+                Instant.now(),
+                exception.getStatusCode().value(),
+                status == null ? "HTTP Error" : status.getReasonPhrase(),
+                message,
+                request.getRequestURI()
+        );
+
+        return ResponseEntity
+                .status(exception.getStatusCode())
                 .body(error);
     }
 
