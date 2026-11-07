@@ -7,6 +7,8 @@ import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -104,5 +106,42 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(error.getStatus())
                 .body(response);
+    }
+    
+    @ExceptionHandler(LockedException.class)
+    public ResponseEntity<ApiError> handleLockedException(
+            LockedException exception,
+            HttpServletRequest request) {
+
+        ApiError error = new ApiError(
+                Instant.now(),
+                HttpStatus.UNAUTHORIZED.value(),
+                "Account Locked",
+                "Your account is locked. Please wait 15 minutes before trying again.",
+                request.getRequestURI()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(error);
+    }
+    
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ApiError> handleBadCredentials(
+            BadCredentialsException exception,
+            HttpServletRequest request
+    ) {
+
+        ApiError error = new ApiError(
+                Instant.now(),
+                HttpStatus.UNAUTHORIZED.value(),
+                "Unauthorized",
+                "The refresh token is invalid or expired.",
+                request.getRequestURI()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(error);
     }
 }

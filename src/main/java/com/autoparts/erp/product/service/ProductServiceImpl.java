@@ -1,6 +1,9 @@
 
 package com.autoparts.erp.product.service;
 
+import com.autoparts.erp.auth.security.annotation.AdminOnly;
+import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.AuthenticatedUser;
 import com.autoparts.erp.common.exception.ApiException;
 import com.autoparts.erp.inventory.service.InventoryService;
 import com.autoparts.erp.product.dto.ProductCreateRequest;
@@ -35,6 +38,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
+    @AdminOrManager
     public ProductResponse create(ProductCreateRequest request) {
 
         String name = request.name().trim();
@@ -108,6 +112,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @AuthenticatedUser
     public List<ProductResponse> findAll() {
         return repository.findAll()
                 .stream()
@@ -116,6 +121,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @AuthenticatedUser
     public ProductResponse findByUuid(UUID uuid) {
         Product product = repository.findByUuid(uuid)
                 .orElseThrow(() ->
@@ -127,6 +133,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
+    @AdminOrManager
     public ProductResponse update(
             UUID uuid,
             ProductUpdateRequest request
@@ -188,6 +195,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
+    @AdminOnly
     public void deactivate(UUID uuid) {
         boolean deactivated = repository.deactivate(uuid);
 

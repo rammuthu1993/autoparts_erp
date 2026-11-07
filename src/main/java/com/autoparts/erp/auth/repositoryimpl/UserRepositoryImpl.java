@@ -29,6 +29,12 @@ public class UserRepositoryImpl implements UserRepository {
             u.username,
             u.password_hash,
             u.enabled,
+            CASE
+                WHEN u.locked_until IS NULL
+                    OR u.locked_until <= CURRENT_TIMESTAMP
+                THEN TRUE
+                ELSE FALSE
+            END AS account_non_locked,
             r.name AS role_name
         FROM users u
         LEFT JOIN user_roles ur ON ur.user_id = u.id
@@ -37,13 +43,50 @@ public class UserRepositoryImpl implements UserRepository {
         ORDER BY r.name
         """;
 
+    private static final String RECORD_FAILED_LOGIN_SQL = """
+        UPDATE users AS u
+        SET
+            failed_login_attempts = CASE
+                WHEN u.locked_until IS NOT NULL
+                     AND u.locked_until <= CURRENT_TIMESTAMP
+                THEN 1
+                ELSE u.failed_login_attempts + 1
+            END,
+
+            locked_until = CASE
+                WHEN (
+                    CASE
+                        WHEN u.locked_until IS NOT NULL
+                             AND u.locked_until <= CURRENT_TIMESTAMP
+                        THEN 1
+                        ELSE u.failed_login_attempts + 1
+                    END
+                ) >= ?
+                THEN CURRENT_TIMESTAMP + (? * INTERVAL '1 second')
+                ELSE NULL
+            END,
+
+            updated_at = CURRENT_TIMESTAMP
+
+        WHERE LOWER(u.username) = LOWER(?)
+        """;
+
+    private static final String RESET_FAILED_LOGIN_SQL = """
+        UPDATE users
+        SET
+            failed_login_attempts = 0,
+            locked_until = NULL,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE LOWER(username) = LOWER(?)
+        """;
+
     @Override
     public Optional<UserAccount> findByUsername(String username) {
 
         List<UserAccount> results = jdbcTemplate.query(
                 FIND_BY_USERNAME_SQL,
                 (ResultSetExtractor<List<UserAccount>>) rs ->
-                        extractUser(rs, username),
+                        extractUser(rs),
                 username
         );
 
@@ -54,18 +97,46 @@ public class UserRepositoryImpl implements UserRepository {
         return Optional.of(results.get(0));
     }
 
-    private List<UserAccount> extractUser(
-            ResultSet rs,
-            String username) throws SQLException {
+    @Override
+    public int recordFailedLoginAttempt(
+            String username,
+            int maxFailedAttempts,
+            long lockDurationSeconds) {
+
+        return jdbcTemplate.update(
+                RECORD_FAILED_LOGIN_SQL,
+                maxFailedAttempts,
+                lockDurationSeconds,
+                username
+        );
+    }
+
+    @Override
+    public int resetFailedLoginAttempts(String username) {
+
+        return jdbcTemplate.update(
+                RESET_FAILED_LOGIN_SQL,
+                username
+        );
+    }
+
+    private List<UserAccount> extractUser(ResultSet rs)
+            throws SQLException {
 
         if (!rs.next()) {
             return List.of();
         }
 
         Long id = rs.getLong("id");
+
         String dbUsername = rs.getString("username");
+
         String passwordHash = rs.getString("password_hash");
+
         boolean enabled = rs.getBoolean("enabled");
+
+        boolean accountNonLocked =
+                rs.getBoolean("account_non_locked");
 
         List<String> roles = new ArrayList<>();
 
@@ -75,6 +146,7 @@ public class UserRepositoryImpl implements UserRepository {
             if (roleName != null && !roleName.isBlank()) {
                 roles.add("ROLE_" + roleName);
             }
+
         } while (rs.next());
 
         UserAccount user = new UserAccount(
@@ -82,6 +154,7 @@ public class UserRepositoryImpl implements UserRepository {
                 dbUsername,
                 passwordHash,
                 enabled,
+                accountNonLocked,
                 List.copyOf(roles)
         );
 

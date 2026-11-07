@@ -8,6 +8,7 @@ public record UserAccount(
         String username,
         String passwordHash,
         boolean enabled,
+        boolean accountNonLocked,
         List<String> roles
 ) {
 }
