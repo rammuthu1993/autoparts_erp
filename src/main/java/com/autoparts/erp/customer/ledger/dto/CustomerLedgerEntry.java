@@ -11,5 +11,6 @@ public record CustomerLedgerEntry(
         LocalDate transactionDate,
         BigDecimal salesAmount,
         BigDecimal paymentAmount,
+        BigDecimal salesReturnAmount,
         BigDecimal balance
 ) {}

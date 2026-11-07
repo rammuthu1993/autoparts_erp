@@ -1,3 +1,4 @@
+
 package com.autoparts.erp.purchase.payment.service.impl;
 
 import java.math.BigDecimal;
@@ -12,6 +13,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.autoparts.erp.auth.security.CurrentUserService;
+import com.autoparts.erp.cashregister.enums.CashMovementSourceType;
+import com.autoparts.erp.cashregister.enums.CashMovementType;
+import com.autoparts.erp.cashregister.service.CashRegisterService;
 import com.autoparts.erp.common.exception.ApiException;
 import com.autoparts.erp.purchase.exception.PurchaseErrorCode;
 import com.autoparts.erp.purchase.model.PurchasePayment;
@@ -22,7 +27,6 @@ import com.autoparts.erp.purchase.payment.dto.PurchasePaymentSummaryResponse;
 import com.autoparts.erp.purchase.payment.repository.PurchasePaymentRepository;
 import com.autoparts.erp.purchase.payment.repository.PurchasePaymentRepository.PurchasePaymentContext;
 import com.autoparts.erp.purchase.payment.service.PurchasePaymentService;
-import com.autoparts.erp.auth.security.CurrentUserService;
 
 @Service
 @Transactional(readOnly = true)
@@ -36,13 +40,16 @@ public class PurchasePaymentServiceImpl
 
     private final PurchasePaymentRepository repository;
     private final CurrentUserService currentUserService;
+    private final CashRegisterService cashRegisterService;
 
     public PurchasePaymentServiceImpl(
             PurchasePaymentRepository repository,
-            CurrentUserService currentUserService
+            CurrentUserService currentUserService,
+            CashRegisterService cashRegisterService
     ) {
         this.repository = repository;
         this.currentUserService = currentUserService;
+        this.cashRegisterService = cashRegisterService;
     }
 
     @Override
@@ -52,7 +59,13 @@ public class PurchasePaymentServiceImpl
             PurchasePaymentRequest request
     ) {
 
-        // Lock the purchase row to prevent concurrent overpayments.
+        log.info(
+            "Purchase payment recording started. Purchase UUID: {}",
+            purchaseUuid
+        );
+
+        // 1. Lock purchase to prevent concurrent overpayments.
+
         PurchasePaymentContext purchase =
             repository.findPurchaseForUpdate(purchaseUuid)
                 .orElseThrow(() ->
@@ -61,11 +74,15 @@ public class PurchasePaymentServiceImpl
                     )
                 );
 
+        // 2. Validate purchase status.
+
         if (!"RECEIVED".equals(purchase.status())) {
             throw new ApiException(
                 PurchaseErrorCode.PURCHASE_NOT_RECEIVED_FOR_PAYMENT
             );
         }
+
+        // 3. Validate payment amount.
 
         BigDecimal paymentAmount = money(request.amount());
 
@@ -75,17 +92,24 @@ public class PurchasePaymentServiceImpl
             );
         }
 
+        // 4. Calculate existing paid amount.
+
         BigDecimal paidAmount = money(
             repository.getTotalPaid(purchase.purchaseId())
         );
+
+        // 5. Calculate outstanding balance.
 
         BigDecimal balanceAmount = money(
             purchase.grandTotal().subtract(paidAmount)
         );
 
+        // 6. Prevent overpayment.
+
         if (paymentAmount.compareTo(balanceAmount) > 0) {
+
             log.warn(
-                "Purchase payment rejected because amount exceeds outstanding balance. Purchase UUID: {}",
+                "Purchase payment exceeds outstanding balance. Purchase UUID: {}",
                 purchaseUuid
             );
 
@@ -94,7 +118,12 @@ public class PurchasePaymentServiceImpl
             );
         }
 
-        Long currentUserId = currentUserService.getCurrentUserId();
+        // 7. Get authenticated user.
+
+        Long currentUserId =
+            currentUserService.getCurrentUserId();
+
+        // 8. Create payment.
 
         PurchasePayment payment = new PurchasePayment(
             null,
@@ -111,13 +140,38 @@ public class PurchasePaymentServiceImpl
             null
         );
 
-        repository.create(payment);
+        // 9. Save payment.
+
+        PurchasePayment savedPayment =
+            repository.create(payment);
+
+        // 10. Update Cash Register only for CASH payments.
+
+        if ("CASH".equals(request.paymentMethod().name())) {
+
+            cashRegisterService.recordTransactionMovement(
+                CashMovementType.OUT,
+                CashMovementSourceType.PURCHASE_PAYMENT,
+                savedPayment.uuid(),
+                savedPayment.amount(),
+                "Cash paid to supplier for purchase "
+                    + purchase.purchaseNumber()
+            );
+
+            log.info(
+                "Cash register OUT movement recorded. Payment UUID: {}, Amount: {}",
+                savedPayment.uuid(),
+                savedPayment.amount()
+            );
+        }
 
         log.info(
             "Purchase payment recorded successfully. Purchase UUID: {}, Payment UUID: {}",
             purchaseUuid,
-            payment.uuid()
+            savedPayment.uuid()
         );
+
+        // 11. Return updated payment summary.
 
         return buildSummary(purchase);
     }
@@ -143,12 +197,13 @@ public class PurchasePaymentServiceImpl
             UUID paymentUuid
     ) {
 
-        PurchasePayment payment = repository.findByUuid(paymentUuid)
-            .orElseThrow(() ->
-                new ApiException(
-                    PurchaseErrorCode.PURCHASE_PAYMENT_NOT_FOUND
-                )
-            );
+        PurchasePayment payment =
+            repository.findByUuid(paymentUuid)
+                .orElseThrow(() ->
+                    new ApiException(
+                        PurchaseErrorCode.PURCHASE_PAYMENT_NOT_FOUND
+                    )
+                );
 
         return toResponse(payment);
     }
@@ -165,10 +220,11 @@ public class PurchasePaymentServiceImpl
             purchase.grandTotal().subtract(paidAmount)
         );
 
-        PurchasePaymentStatus status = calculateStatus(
-            paidAmount,
-            purchase.grandTotal()
-        );
+        PurchasePaymentStatus status =
+            calculateStatus(
+                paidAmount,
+                purchase.grandTotal()
+            );
 
         List<PurchasePaymentResponse> payments =
             repository.findByPurchaseId(purchase.purchaseId())
@@ -219,6 +275,7 @@ public class PurchasePaymentServiceImpl
     }
 
     private BigDecimal money(BigDecimal value) {
+
         return value.setScale(
             MONEY_SCALE,
             RoundingMode.HALF_UP
@@ -226,6 +283,7 @@ public class PurchasePaymentServiceImpl
     }
 
     private String clean(String value) {
+
         return value == null || value.isBlank()
             ? null
             : value.trim();

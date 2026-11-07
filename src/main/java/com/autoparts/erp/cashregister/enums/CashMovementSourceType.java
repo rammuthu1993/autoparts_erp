@@ -7,5 +7,6 @@ public enum CashMovementSourceType {
     EXPENSE,
     SALES_REFUND,
     CUSTOMER_COLLECTION,
-    ADJUSTMENT
+    ADJUSTMENT,
+    SUPPLIER_REFUND
 }

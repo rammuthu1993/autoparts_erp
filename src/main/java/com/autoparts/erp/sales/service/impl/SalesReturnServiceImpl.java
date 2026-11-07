@@ -34,6 +34,9 @@ import com.autoparts.erp.sales.model.SalesReturnProduct;
 import com.autoparts.erp.sales.repository.SalesRepository;
 import com.autoparts.erp.sales.repository.SalesReturnRepository;
 import com.autoparts.erp.sales.service.SalesReturnService;
+import com.autoparts.erp.cashregister.service.CashRegisterService;
+import com.autoparts.erp.cashregister.enums.CashMovementSourceType;
+import com.autoparts.erp.cashregister.enums.CashMovementType;
 
 @Service
 public class SalesReturnServiceImpl implements SalesReturnService {
@@ -49,15 +52,18 @@ public class SalesReturnServiceImpl implements SalesReturnService {
     private final SalesRepository salesRepository;
     private final SalesReturnRepository returnRepository;
     private final InventoryService inventoryService;
+    private final CashRegisterService cashRegisterService;
 
     public SalesReturnServiceImpl(
             SalesRepository salesRepository,
             SalesReturnRepository returnRepository,
-            InventoryService inventoryService
+            InventoryService inventoryService,
+            CashRegisterService cashRegisterService
     ) {
         this.salesRepository = salesRepository;
         this.returnRepository = returnRepository;
         this.inventoryService = inventoryService;
+        this.cashRegisterService = cashRegisterService;
     }
 
     @Override
@@ -419,7 +425,7 @@ public class SalesReturnServiceImpl implements SalesReturnService {
                     "Refund amount exceeds the remaining refundable amount"
             );
         }
-
+        
         SalesRefund refund = new SalesRefund(
                 null,
                 UUID.randomUUID(),
@@ -432,7 +438,35 @@ public class SalesReturnServiceImpl implements SalesReturnService {
                 null
         );
 
-        returnRepository.createRefund(refund);
+        // Save refund
+        refund = returnRepository.createRefund(refund);
+
+        // Record cash movement only for CASH refunds
+        if (refund.paymentMethod() == PaymentMethod.CASH) {
+
+            cashRegisterService.recordTransactionMovement(
+                    CashMovementType.OUT,
+                    CashMovementSourceType.SALES_REFUND,
+                    refund.uuid(),
+                    refund.amount(),
+                    "Sales refund - Return UUID: "
+                            + salesReturn.uuid()
+            );
+        }
+
+//        SalesRefund refund = new SalesRefund(
+//                null,
+//                UUID.randomUUID(),
+//                salesReturn.id(),
+//                request.paymentMethod(),
+//                money(request.amount()),
+//                request.referenceNumber(),
+//                OffsetDateTime.now(),
+//                request.notes(),
+//                null
+//        );
+
+//        returnRepository.createRefund(refund);
 
         BigDecimal newRefundedAmount =
                 refundedAmount.add(request.amount());

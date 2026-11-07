@@ -11,5 +11,6 @@ public record SupplierLedgerEntry(
         LocalDate transactionDate,
         BigDecimal purchaseAmount,
         BigDecimal paymentAmount,
+        BigDecimal purchaseReturnAmount,
         BigDecimal balance
 ) {}

@@ -12,5 +12,6 @@ public record SupplierLedgerSummary(
         BigDecimal openingBalance,
         BigDecimal totalPurchases,
         BigDecimal totalPayments,
+        BigDecimal totalPurchaseReturns,
         BigDecimal closingBalance
 ) {}

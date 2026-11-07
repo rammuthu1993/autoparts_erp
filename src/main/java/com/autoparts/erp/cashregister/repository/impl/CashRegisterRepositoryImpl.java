@@ -55,7 +55,7 @@ public class CashRegisterRepositoryImpl implements CashRegisterRepository {
             rs.getObject("closed_at", OffsetDateTime.class),
             rs.getBigDecimal("expected_closing_balance"),
             rs.getBigDecimal("actual_closing_balance"),
-            rs.getBigDecimal("difference"),
+            rs.getBigDecimal("difference_amount"),
             CashSessionStatus.valueOf(rs.getString("status"))
         );
 
@@ -208,7 +208,7 @@ public class CashRegisterRepositoryImpl implements CashRegisterRepository {
         Long userId,
         BigDecimal expectedBalance,
         BigDecimal actualBalance,
-        BigDecimal difference
+        BigDecimal differenceAmount
     ) {
 
         return jdbcTemplate.update(
@@ -219,14 +219,14 @@ public class CashRegisterRepositoryImpl implements CashRegisterRepository {
                 closed_at = CURRENT_TIMESTAMP,
                 expected_closing_balance = ?,
                 actual_closing_balance = ?,
-                difference = ?
+                differenceAmount = ?
             WHERE id = ?
               AND status = 'OPEN'
             """,
             userId,
             expectedBalance,
             actualBalance,
-            difference,
+            differenceAmount,
             sessionId
         ) == 1;
     }

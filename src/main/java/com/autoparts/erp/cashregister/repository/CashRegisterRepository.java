@@ -35,7 +35,7 @@ public interface CashRegisterRepository {
         Long userId,
         BigDecimal expectedBalance,
         BigDecimal actualBalance,
-        BigDecimal difference
+        BigDecimal differenceAmount
     );
 
     CashRegisterMovement createMovement(CashRegisterMovement movement);

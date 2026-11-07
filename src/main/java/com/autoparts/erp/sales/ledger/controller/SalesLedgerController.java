@@ -1,6 +1,7 @@
 package com.autoparts.erp.sales.ledger.controller;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -24,45 +25,24 @@ public class SalesLedgerController {
 
     private final SalesLedgerService salesLedgerService;
 
-    public SalesLedgerController(
-        SalesLedgerService salesLedgerService
-    ) {
+    public SalesLedgerController(SalesLedgerService salesLedgerService) {
         this.salesLedgerService = salesLedgerService;
     }
 
     @GetMapping
     public ResponseEntity<SalesLedgerPageResponse> getSalesLedger(
-
-        @RequestParam
-        @NotNull
-        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-        LocalDate fromDate,
-
-        @RequestParam
-        @NotNull
-        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-        LocalDate toDate,
-
-        @RequestParam(required = false)
-        String search,
-
-        @RequestParam(defaultValue = "0")
-        @Min(0)
-        int page,
-
-        @RequestParam(defaultValue = "20")
-        @Min(1)
-        @Max(100)
-        int size
+        @RequestParam @NotNull UUID customerUuid,
+        @RequestParam @NotNull
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+        @RequestParam @NotNull
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+        @RequestParam(required = false) String search,
+        @RequestParam(defaultValue = "0") @Min(0) int page,
+        @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size
     ) {
-
         return ResponseEntity.ok(
             salesLedgerService.getSalesLedger(
-                fromDate,
-                toDate,
-                search,
-                page,
-                size
+                customerUuid, fromDate, toDate, search, page, size
             )
         );
     }

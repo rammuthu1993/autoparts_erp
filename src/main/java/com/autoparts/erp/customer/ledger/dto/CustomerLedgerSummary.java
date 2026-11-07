@@ -12,5 +12,6 @@ public record CustomerLedgerSummary(
         BigDecimal openingBalance,
         BigDecimal totalSales,
         BigDecimal totalPayments,
+        BigDecimal totalSalesReturns,
         BigDecimal closingBalance
 ) {}

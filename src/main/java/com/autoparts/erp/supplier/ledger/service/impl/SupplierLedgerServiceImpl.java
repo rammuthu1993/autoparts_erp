@@ -40,6 +40,7 @@ public class SupplierLedgerServiceImpl implements SupplierLedgerService {
             int page,
             int size
     ) {
+
         validateFilters(fromDate, toDate, page, size);
 
         SupplierLedgerRepository.SupplierInfo supplier =
@@ -66,7 +67,7 @@ public class SupplierLedgerServiceImpl implements SupplierLedgerService {
                 toDate
         );
 
-        int offset = page * size;
+        int offset = Math.multiplyExact(page, size);
 
         List<SupplierLedgerEntry> entries = repository.findEntries(
                 supplier.id(),
@@ -79,7 +80,15 @@ public class SupplierLedgerServiceImpl implements SupplierLedgerService {
 
         int totalPages = totalElements == 0
                 ? 0
-                : (int) Math.ceil((double) totalElements / size);
+                : Math.toIntExact(((totalElements - 1) / size) + 1);
+
+        log.debug(
+                "Supplier ledger retrieved. Supplier UUID: {}, " +
+                "total entries: {}, page: {}",
+                supplierUuid,
+                totalElements,
+                page
+        );
 
         return new SupplierLedgerResponse(
                 summary,
@@ -97,14 +106,21 @@ public class SupplierLedgerServiceImpl implements SupplierLedgerService {
             int page,
             int size
     ) {
-        if (fromDate != null && toDate != null
+
+        if (fromDate != null
+                && toDate != null
                 && fromDate.isAfter(toDate)) {
+
             throw new ApiException(
                     SupplierErrorCode.INVALID_SUPPLIER_LEDGER_FILTER
             );
         }
 
-        if (page < 0 || size < 1 || size > 100) {
+        if (page < 0
+                || size < 1
+                || size > 100
+                || page > Integer.MAX_VALUE / size) {
+
             throw new ApiException(
                     SupplierErrorCode.INVALID_SUPPLIER_LEDGER_FILTER
             );

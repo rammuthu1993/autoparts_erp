@@ -1,23 +1,28 @@
+
 package com.autoparts.erp.expense.management.service.impl;
 
 import com.autoparts.erp.auth.security.CurrentUserService;
+import com.autoparts.erp.cashregister.enums.CashMovementSourceType;
+import com.autoparts.erp.cashregister.enums.CashMovementType;
+import com.autoparts.erp.cashregister.service.CashRegisterService;
 import com.autoparts.erp.common.exception.ApiException;
 import com.autoparts.erp.expense.category.model.ExpenseCategory;
 import com.autoparts.erp.expense.category.repository.ExpenseCategoryRepository;
 import com.autoparts.erp.expense.management.dto.CreateExpenseRequest;
 import com.autoparts.erp.expense.management.dto.UpdateExpenseRequest;
-import com.autoparts.erp.expense.management.model.Expense;
 import com.autoparts.erp.expense.management.enums.ExpenseErrorCode;
+import com.autoparts.erp.expense.management.model.Expense;
 import com.autoparts.erp.expense.management.model.ExpensePaymentMethod;
+import com.autoparts.erp.expense.management.model.ExpenseStatus;
 import com.autoparts.erp.expense.management.repository.ExpenseRepository;
 import com.autoparts.erp.expense.management.service.ExpenseService;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -31,15 +36,18 @@ public class ExpenseServiceImpl implements ExpenseService {
     private final ExpenseRepository expenseRepository;
     private final ExpenseCategoryRepository categoryRepository;
     private final CurrentUserService currentUserService;
+    private final CashRegisterService cashRegisterService;
 
     public ExpenseServiceImpl(
         ExpenseRepository expenseRepository,
         ExpenseCategoryRepository categoryRepository,
-        CurrentUserService currentUserService
+        CurrentUserService currentUserService,
+        CashRegisterService cashRegisterService
     ) {
         this.expenseRepository = expenseRepository;
         this.categoryRepository = categoryRepository;
         this.currentUserService = currentUserService;
+        this.cashRegisterService = cashRegisterService;
     }
 
     @Override
@@ -63,7 +71,7 @@ public class ExpenseServiceImpl implements ExpenseService {
             request.paymentMethod(),
             clean(request.referenceNumber()),
             clean(request.notes()),
-            com.autoparts.erp.expense.management.model.ExpenseStatus.ACTIVE,
+            ExpenseStatus.ACTIVE,
             currentUserId,
             null,
             null,
@@ -72,8 +80,21 @@ public class ExpenseServiceImpl implements ExpenseService {
 
         Expense created = expenseRepository.create(expense);
 
-        log.info("Expense created successfully. Expense UUID: {}",
-            created.uuid());
+        // Record cash outflow only for CASH expenses.
+        if (created.paymentMethod() == ExpensePaymentMethod.CASH) {
+            cashRegisterService.recordTransactionMovement(
+                CashMovementType.OUT,
+                CashMovementSourceType.EXPENSE,
+                created.uuid(),
+                created.amount(),
+                "Cash expense: " + created.title()
+            );
+        }
+
+        log.info(
+            "Expense created successfully. Expense UUID: {}",
+            created.uuid()
+        );
 
         return created;
     }
@@ -98,9 +119,7 @@ public class ExpenseServiceImpl implements ExpenseService {
 
         Expense existing = findByUuid(uuid);
 
-        if (existing.status() !=
-            com.autoparts.erp.expense.management.model.ExpenseStatus.ACTIVE) {
-
+        if (existing.status() != ExpenseStatus.ACTIVE) {
             throw new ApiException(
                 ExpenseErrorCode.EXPENSE_UPDATE_NOT_ALLOWED
             );
@@ -135,7 +154,13 @@ public class ExpenseServiceImpl implements ExpenseService {
                 )
             );
 
-        log.info("Expense updated successfully. Expense UUID: {}", uuid);
+        // Adjust cash register after successfully updating the expense.
+        adjustCashMovement(existing, updated);
+
+        log.info(
+            "Expense updated successfully. Expense UUID: {}",
+            uuid
+        );
 
         return updated;
     }
@@ -146,9 +171,7 @@ public class ExpenseServiceImpl implements ExpenseService {
 
         Expense existing = findByUuid(uuid);
 
-        if (existing.status() !=
-            com.autoparts.erp.expense.management.model.ExpenseStatus.ACTIVE) {
-
+        if (existing.status() != ExpenseStatus.ACTIVE) {
             throw new ApiException(
                 ExpenseErrorCode.EXPENSE_ALREADY_CANCELLED
             );
@@ -162,17 +185,131 @@ public class ExpenseServiceImpl implements ExpenseService {
             );
         }
 
-        log.info("Expense cancelled successfully. Expense UUID: {}", uuid);
+        // Reverse the original cash outflow when cancelling a cash expense.
+        if (existing.paymentMethod() == ExpensePaymentMethod.CASH) {
+            recordCashAdjustment(
+                CashMovementType.IN,
+                existing.amount(),
+                existing.uuid(),
+                "Cash expense cancelled and reversed"
+            );
+        }
+
+        log.info(
+            "Expense cancelled successfully. Expense UUID: {}",
+            uuid
+        );
+    }
+
+    /**
+     * Compares the old and updated expense and records
+     * only the required cash difference.
+     */
+    private void adjustCashMovement(
+        Expense existing,
+        Expense updated
+    ) {
+
+        boolean wasCash =
+            existing.paymentMethod() == ExpensePaymentMethod.CASH;
+
+        boolean isCash =
+            updated.paymentMethod() == ExpensePaymentMethod.CASH;
+
+        // CASH -> CASH
+        if (wasCash && isCash) {
+
+            int comparison =
+                updated.amount().compareTo(existing.amount());
+
+            if (comparison > 0) {
+
+                BigDecimal difference =
+                    updated.amount().subtract(existing.amount());
+
+                recordCashAdjustment(
+                    CashMovementType.OUT,
+                    difference,
+                    existing.uuid(),
+                    "Additional cash expense amount"
+                );
+
+            } else if (comparison < 0) {
+
+                BigDecimal difference =
+                    existing.amount().subtract(updated.amount());
+
+                recordCashAdjustment(
+                    CashMovementType.IN,
+                    difference,
+                    existing.uuid(),
+                    "Cash expense amount reduced"
+                );
+            }
+
+            return;
+        }
+
+        // CASH -> UPI / CARD / BANK
+        if (wasCash) {
+
+            recordCashAdjustment(
+                CashMovementType.IN,
+                existing.amount(),
+                existing.uuid(),
+                "Cash expense reversed due to payment method change"
+            );
+
+            return;
+        }
+
+        // UPI / CARD / BANK -> CASH
+        if (isCash) {
+
+            recordCashAdjustment(
+                CashMovementType.OUT,
+                updated.amount(),
+                existing.uuid(),
+                "Expense changed to CASH payment"
+            );
+        }
+    }
+
+    /**
+     * Records an immutable compensating movement.
+     *
+     * A new UUID is used for every adjustment because the
+     * cash movement table enforces unique source_type/source_uuid.
+     */
+    private void recordCashAdjustment(
+        CashMovementType movementType,
+        BigDecimal amount,
+        UUID expenseUuid,
+        String description
+    ) {
+
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+
+        cashRegisterService.recordTransactionMovement(
+            movementType,
+            CashMovementSourceType.ADJUSTMENT,
+            UUID.randomUUID(),
+            amount,
+            description + " - Expense UUID: " + expenseUuid
+        );
     }
 
     private ExpenseCategory getActiveCategory(UUID categoryUuid) {
 
-        ExpenseCategory category = categoryRepository.findByUuid(categoryUuid)
-            .orElseThrow(() ->
-                new ApiException(
-                    ExpenseErrorCode.EXPENSE_CATEGORY_NOT_FOUND
-                )
-            );
+        ExpenseCategory category =
+            categoryRepository.findByUuid(categoryUuid)
+                .orElseThrow(() ->
+                    new ApiException(
+                        ExpenseErrorCode.EXPENSE_CATEGORY_NOT_FOUND
+                    )
+                );
 
         if (!category.active()) {
             throw new ApiException(

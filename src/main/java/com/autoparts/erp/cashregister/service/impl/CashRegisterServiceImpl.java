@@ -38,18 +38,15 @@ public class CashRegisterServiceImpl implements CashRegisterService {
 
     private static final int MONEY_SCALE = 2;
 
-    private final CashRegisterRepository repository;
     private final CurrentUserService currentUserService;
     private static final Logger logger =
     	    LoggerFactory.getLogger(CashRegisterServiceImpl.class);
     private final CashRegisterRepository cashRegisterRepository;
 
     public CashRegisterServiceImpl(
-        CashRegisterRepository repository,
         CurrentUserService currentUserService,
         CashRegisterRepository cashRegisterRepository
     ) {
-        this.repository = repository;
         this.currentUserService = currentUserService;
         this.cashRegisterRepository = cashRegisterRepository;
     }
@@ -72,7 +69,7 @@ public class CashRegisterServiceImpl implements CashRegisterService {
         );
 
         try {
-            CashRegister saved = repository.createRegister(register);
+            CashRegister saved = cashRegisterRepository.createRegister(register);
             return toRegisterResponse(saved);
         } catch (DuplicateKeyException ex) {
             throw new ResponseStatusException(
@@ -85,7 +82,7 @@ public class CashRegisterServiceImpl implements CashRegisterService {
     @Override
     public List<CashRegisterResponse> findAllRegisters() {
 
-        return repository.findAllRegisters()
+        return cashRegisterRepository.findAllRegisters()
             .stream()
             .map(this::toRegisterResponse)
             .toList();
@@ -98,7 +95,7 @@ public class CashRegisterServiceImpl implements CashRegisterService {
         OpenCashSessionRequest request
     ) {
 
-        CashRegister register = repository
+        CashRegister register = cashRegisterRepository
             .findRegisterByUuid(registerUuid)
             .orElseThrow(() -> notFound("Cash register not found"));
 
@@ -111,7 +108,7 @@ public class CashRegisterServiceImpl implements CashRegisterService {
             throw badRequest("Invalid opening balance");
         }
 
-        if (repository.findOpenSessionForUpdate(registerUuid).isPresent()) {
+        if (cashRegisterRepository.findOpenSessionForUpdate(registerUuid).isPresent()) {
             throw new ResponseStatusException(
                 HttpStatus.CONFLICT,
                 "This register already has an open session"
@@ -121,7 +118,7 @@ public class CashRegisterServiceImpl implements CashRegisterService {
         CashRegisterSession session;
 
         try {
-            session = repository.openSession(
+            session = cashRegisterRepository.openSession(
                 UUID.randomUUID(),
                 register.id(),
                 currentUserService.getCurrentUserId(),
@@ -144,7 +141,7 @@ public class CashRegisterServiceImpl implements CashRegisterService {
         CloseCashSessionRequest request
     ) {
 
-        CashRegisterSession session = repository
+        CashRegisterSession session = cashRegisterRepository
             .findSessionByUuidForUpdate(sessionUuid)
             .orElseThrow(() -> notFound("Cash session not found"));
 
@@ -152,12 +149,12 @@ public class CashRegisterServiceImpl implements CashRegisterService {
             throw badRequest("Cash session is already closed");
         }
 
-        BigDecimal cashIn = repository.calculateTotalByType(
+        BigDecimal cashIn = cashRegisterRepository.calculateTotalByType(
             session.id(),
             CashMovementType.IN.name()
         );
 
-        BigDecimal cashOut = repository.calculateTotalByType(
+        BigDecimal cashOut = cashRegisterRepository.calculateTotalByType(
             session.id(),
             CashMovementType.OUT.name()
         );
@@ -176,7 +173,7 @@ public class CashRegisterServiceImpl implements CashRegisterService {
 
         BigDecimal difference = money(actual.subtract(expected));
 
-        boolean closed = repository.closeSession(
+        boolean closed = cashRegisterRepository.closeSession(
             session.id(),
             currentUserService.getCurrentUserId(),
             expected,
@@ -194,7 +191,7 @@ public class CashRegisterServiceImpl implements CashRegisterService {
     @Override
     public CashSessionResponse findLatestSession(UUID registerUuid) {
 
-        CashRegisterSession session = repository
+        CashRegisterSession session = cashRegisterRepository
             .findLatestSession(registerUuid)
             .orElseThrow(() -> notFound("No cash session found"));
 
@@ -208,7 +205,7 @@ public class CashRegisterServiceImpl implements CashRegisterService {
         CreateCashMovementRequest request
     ) {
 
-        CashRegisterSession session = repository
+        CashRegisterSession session = cashRegisterRepository
             .findSessionByUuidForUpdate(sessionUuid)
             .orElseThrow(() -> notFound("Cash session not found"));
 
@@ -233,7 +230,7 @@ public class CashRegisterServiceImpl implements CashRegisterService {
 
         if (request.sourceType() != CashMovementSourceType.MANUAL &&
             request.sourceType() != CashMovementSourceType.ADJUSTMENT &&
-            repository.existsMovement(
+            		cashRegisterRepository.existsMovement(
                 request.sourceType().name(),
                 request.sourceUuid()
             )) {
@@ -257,7 +254,7 @@ public class CashRegisterServiceImpl implements CashRegisterService {
         );
 
         try {
-            return toMovementResponse(repository.createMovement(movement));
+            return toMovementResponse(cashRegisterRepository.createMovement(movement));
         } catch (DuplicateKeyException ex) {
             throw new ResponseStatusException(
                 HttpStatus.CONFLICT,
@@ -269,11 +266,11 @@ public class CashRegisterServiceImpl implements CashRegisterService {
     @Override
     public List<CashMovementResponse> findMovements(UUID sessionUuid) {
 
-        CashRegisterSession session = repository
+        CashRegisterSession session = cashRegisterRepository
             .findSessionByUuid(sessionUuid)
             .orElseThrow(() -> notFound("Cash session not found"));
 
-        return repository.findMovements(session.id())
+        return cashRegisterRepository.findMovements(session.id())
             .stream()
             .map(this::toMovementResponse)
             .toList();
@@ -281,7 +278,7 @@ public class CashRegisterServiceImpl implements CashRegisterService {
 
     private CashSessionResponse findLatestSessionForSession(UUID uuid) {
 
-        CashRegisterSession session = repository
+        CashRegisterSession session = cashRegisterRepository
             .findSessionByUuid(uuid)
             .orElseThrow(() -> notFound("Cash session not found"));
 
@@ -292,12 +289,12 @@ public class CashRegisterServiceImpl implements CashRegisterService {
         CashRegisterSession session
     ) {
 
-        BigDecimal cashIn = repository.calculateTotalByType(
+        BigDecimal cashIn = cashRegisterRepository.calculateTotalByType(
             session.id(),
             CashMovementType.IN.name()
         );
 
-        BigDecimal cashOut = repository.calculateTotalByType(
+        BigDecimal cashOut = cashRegisterRepository.calculateTotalByType(
             session.id(),
             CashMovementType.OUT.name()
         );
@@ -319,7 +316,7 @@ public class CashRegisterServiceImpl implements CashRegisterService {
             money(cashOut),
             expected,
             session.actualClosingBalance(),
-            session.difference(),
+            session.differenceAmount(),
             session.status(),
             session.openedAt(),
             session.closedAt()

@@ -9,12 +9,13 @@ import com.autoparts.erp.sales.ledger.dto.SalesLedgerSummaryResponse;
 public interface SalesLedgerRepository {
 
     SalesLedgerSummaryResponse getSummary(
+        Long customerId,
         LocalDate fromDate,
-        LocalDate toDate,
-        String search
+        LocalDate toDate
     );
 
     List<SalesLedgerEntryResponse> findEntries(
+        Long customerId,
         LocalDate fromDate,
         LocalDate toDate,
         String search,
@@ -23,6 +24,7 @@ public interface SalesLedgerRepository {
     );
 
     long countEntries(
+        Long customerId,
         LocalDate fromDate,
         LocalDate toDate,
         String search

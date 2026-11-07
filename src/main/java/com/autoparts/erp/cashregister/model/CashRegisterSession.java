@@ -18,6 +18,6 @@ public record CashRegisterSession(
     OffsetDateTime closedAt,
     BigDecimal expectedClosingBalance,
     BigDecimal actualClosingBalance,
-    BigDecimal difference,
+    BigDecimal differenceAmount,
     CashSessionStatus status
 ) {}
