@@ -3,7 +3,6 @@ package com.autoparts.erp.reports.controller;
 import java.time.LocalDate;
 
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,6 +30,7 @@ import com.autoparts.erp.reports.dto.ScenarioAnalysisResponse;
 import com.autoparts.erp.reports.dto.TargetActualReportResponse;
 import com.autoparts.erp.reports.dto.SupplierAnalyticsResponse;
 import com.autoparts.erp.reports.service.AdvancedReportService;
+import com.autoparts.erp.auth.security.annotation.AdminOnly;
 
 @RestController
 @Validated
@@ -53,7 +53,7 @@ public class AdvancedReportController {
     }
 
     @PatchMapping("/data-quality/issues/{issueKey}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @AdminOnly
     public void updateIssueResolution(
             @PathVariable String issueKey,
             @Valid @RequestBody IssueResolutionRequest request,
@@ -96,7 +96,7 @@ public class AdvancedReportController {
     }
 
     @PostMapping("/targets")
-    @PreAuthorize("hasRole('ADMIN')")
+    @AdminOnly
     @ResponseStatus(HttpStatus.CREATED)
     public java.util.UUID createTarget(
             @Valid @RequestBody ReportTargetRequest request,

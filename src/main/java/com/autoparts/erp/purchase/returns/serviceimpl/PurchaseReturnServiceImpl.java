@@ -1,6 +1,8 @@
 package com.autoparts.erp.purchase.returns.serviceimpl;
 
 import com.autoparts.erp.auth.security.CurrentUserService;
+import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.AuthenticatedUser;
 import com.autoparts.erp.cashregister.enums.CashMovementSourceType;
 import com.autoparts.erp.cashregister.enums.CashMovementType;
 import com.autoparts.erp.cashregister.service.CashRegisterService;
@@ -45,6 +47,7 @@ public class PurchaseReturnServiceImpl implements PurchaseReturnService {
 
     @Override
     @Transactional
+    @AdminOrManager
     public PurchaseReturnResponse createReturn(
             UUID purchaseUuid,
             PurchaseReturnRequest request
@@ -293,6 +296,7 @@ public class PurchaseReturnServiceImpl implements PurchaseReturnService {
     }
 
     @Override
+    @AuthenticatedUser
     public PurchaseReturnResponse findReturnByUuid(UUID returnUuid) {
 
         PurchaseReturn purchaseReturn = repository
@@ -312,6 +316,7 @@ public class PurchaseReturnServiceImpl implements PurchaseReturnService {
 
     @Override
     @Transactional
+    @AdminOrManager
     public SupplierCreditResponse recordRefund(
             UUID creditUuid,
             SupplierRefundRequest request
@@ -373,6 +378,7 @@ public class PurchaseReturnServiceImpl implements PurchaseReturnService {
 
     @Override
     @Transactional
+    @AdminOrManager
     public SupplierCreditResponse applyCredit(
             UUID creditUuid,
             SupplierCreditApplicationRequest request

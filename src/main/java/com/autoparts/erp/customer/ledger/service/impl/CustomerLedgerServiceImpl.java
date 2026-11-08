@@ -1,5 +1,7 @@
+
 package com.autoparts.erp.customer.ledger.service.impl;
 
+import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.common.exception.ApiException;
 import com.autoparts.erp.customer.ledger.dto.CustomerLedgerEntry;
 import com.autoparts.erp.customer.ledger.dto.CustomerLedgerResponse;
@@ -23,87 +25,92 @@ public class CustomerLedgerServiceImpl implements CustomerLedgerService {
     private final CustomerLedgerRepository repository;
 
     public CustomerLedgerServiceImpl(
-            CustomerLedgerRepository repository
+        CustomerLedgerRepository repository
     ) {
         this.repository = repository;
     }
 
     @Override
+    @SalesAccess
     public CustomerLedgerResponse getCustomerLedger(
-            UUID customerUuid,
-            LocalDate fromDate,
-            LocalDate toDate,
-            int page,
-            int size
+        UUID customerUuid,
+        LocalDate fromDate,
+        LocalDate toDate,
+        int page,
+        int size
     ) {
+
         validateFilters(fromDate, toDate, page, size);
 
         CustomerLedgerRepository.CustomerInfo customer =
-                repository.findCustomerByUuid(customerUuid)
-                        .orElseThrow(() -> new ApiException(
-                                CustomerErrorCode.CUSTOMER_LEDGER_NOT_FOUND
-                        ));
+            repository.findCustomerByUuid(customerUuid)
+                .orElseThrow(() -> new ApiException(
+                    CustomerErrorCode.CUSTOMER_LEDGER_NOT_FOUND
+                ));
 
         BigDecimal openingBalance = repository.getOpeningBalance(
-                customer.id(),
-                fromDate
+            customer.id(),
+            fromDate
         );
 
         CustomerLedgerSummary summary = repository.getSummary(
-                customer,
-                fromDate,
-                toDate,
-                openingBalance
+            customer,
+            fromDate,
+            toDate,
+            openingBalance
         );
 
         long totalElements = repository.countEntries(
-                customer.id(),
-                fromDate,
-                toDate
+            customer.id(),
+            fromDate,
+            toDate
         );
 
         int offset = Math.multiplyExact(page, size);
 
         List<CustomerLedgerEntry> entries = repository.findEntries(
-                customer.id(),
-                fromDate,
-                toDate,
-                openingBalance,
-                size,
-                offset
+            customer.id(),
+            fromDate,
+            toDate,
+            openingBalance,
+            size,
+            offset
         );
 
         int totalPages = totalElements == 0
-                ? 0
-                : (int) Math.ceil((double) totalElements / size);
+            ? 0
+            : (int) Math.ceil((double) totalElements / size);
 
         return new CustomerLedgerResponse(
-                summary,
-                entries,
-                page,
-                size,
-                totalElements,
-                totalPages
+            summary,
+            entries,
+            page,
+            size,
+            totalElements,
+            totalPages
         );
     }
 
     private void validateFilters(
-            LocalDate fromDate,
-            LocalDate toDate,
-            int page,
-            int size
+        LocalDate fromDate,
+        LocalDate toDate,
+        int page,
+        int size
     ) {
+
         if (fromDate != null && toDate != null
-                && fromDate.isAfter(toDate)) {
+            && fromDate.isAfter(toDate)) {
+
             throw new ApiException(
-                    CustomerErrorCode.INVALID_CUSTOMER_LEDGER_FILTER
+                CustomerErrorCode.INVALID_CUSTOMER_LEDGER_FILTER
             );
         }
 
         if (page < 0 || size < 1 || size > 100
-                || (long) page * size > Integer.MAX_VALUE) {
+            || (long) page * size > Integer.MAX_VALUE) {
+
             throw new ApiException(
-                    CustomerErrorCode.INVALID_CUSTOMER_LEDGER_FILTER
+                CustomerErrorCode.INVALID_CUSTOMER_LEDGER_FILTER
             );
         }
     }

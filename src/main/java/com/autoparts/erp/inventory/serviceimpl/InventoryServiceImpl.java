@@ -1,5 +1,10 @@
+
 package com.autoparts.erp.inventory.serviceimpl;
 
+import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.AuthenticatedUser;
+import com.autoparts.erp.auth.security.annotation.SalesAccess;
+import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.common.exception.ApiException;
 import com.autoparts.erp.inventory.dto.InventoryMovementResponse;
 import com.autoparts.erp.inventory.dto.InventoryPageResponse;
@@ -20,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -30,20 +36,34 @@ public class InventoryServiceImpl implements InventoryService {
             LoggerFactory.getLogger(InventoryServiceImpl.class);
 
     private final InventoryRepository repository;
+    private final AuditLogService auditLogService;
 
-    public InventoryServiceImpl(InventoryRepository repository) {
+    public InventoryServiceImpl(
+            InventoryRepository repository,
+            AuditLogService auditLogService
+    ) {
         this.repository = repository;
+        this.auditLogService = auditLogService;
     }
+
+    // ---------------------------------------------------------
+    // INCREASE STOCK - PURCHASE RECEIPT
+    // ADMIN / MANAGER
+    // ---------------------------------------------------------
 
     @Override
     @Transactional
+    @AdminOrManager
     public InventoryStock increaseStock(
             Long productId,
             BigDecimal quantity,
             Long purchaseId
     ) {
+
         validateStockQuantity(quantity);
+
         InventoryStock stock = getStockForUpdate(productId);
+
         return applyStockChange(
                 stock,
                 quantity,
@@ -54,15 +74,24 @@ public class InventoryServiceImpl implements InventoryService {
         );
     }
 
+    // ---------------------------------------------------------
+    // DECREASE STOCK - SALES
+    // ADMIN / MANAGER / CASHIER
+    // ---------------------------------------------------------
+
     @Override
     @Transactional
+    @SalesAccess
     public InventoryStock decreaseStock(
             Long productId,
             BigDecimal quantity,
             Long saleId
     ) {
+
         validateStockQuantity(quantity);
+
         InventoryStock stock = getStockForUpdate(productId);
+
         return applyStockChange(
                 stock,
                 quantity.negate(),
@@ -73,19 +102,29 @@ public class InventoryServiceImpl implements InventoryService {
         );
     }
 
+    // ---------------------------------------------------------
+    // INITIALIZE OPENING STOCK
+    // ADMIN / MANAGER
+    // ---------------------------------------------------------
+
     @Override
     @Transactional
+    @AdminOrManager
     public InventoryStock initializeOpeningStock(
             Long productId,
             BigDecimal quantity
     ) {
+
         validateStockQuantity(quantity);
+
         InventoryStock stock = getStockForUpdate(productId);
+
         if (stock.quantity().compareTo(BigDecimal.ZERO) != 0) {
             throw new IllegalStateException(
                     "Opening stock can only be initialized for an empty product"
             );
         }
+
         return applyStockChange(
                 stock,
                 quantity,
@@ -96,8 +135,15 @@ public class InventoryServiceImpl implements InventoryService {
         );
     }
 
+    // ---------------------------------------------------------
+    // GET CURRENT STOCK
+    // ALL AUTHENTICATED USERS
+    // ---------------------------------------------------------
+
     @Override
+    @AuthenticatedUser
     public InventoryStock getCurrentStock(Long productId) {
+
         return repository.findStockById(productId)
                 .orElseThrow(() ->
                         new ApiException(
@@ -106,7 +152,13 @@ public class InventoryServiceImpl implements InventoryService {
                 );
     }
 
+    // ---------------------------------------------------------
+    // FIND STOCK BY PRODUCT UUID
+    // ALL AUTHENTICATED USERS
+    // ---------------------------------------------------------
+
     @Override
+    @AuthenticatedUser
     public InventoryStockResponse findStockByProductUuid(
             UUID productUuid
     ) {
@@ -121,7 +173,13 @@ public class InventoryServiceImpl implements InventoryService {
         return toStockResponse(stock);
     }
 
+    // ---------------------------------------------------------
+    // FIND ALL STOCK
+    // ALL AUTHENTICATED USERS
+    // ---------------------------------------------------------
+
     @Override
+    @AuthenticatedUser
     public List<InventoryStockResponse> findAllStock() {
 
         return repository.findAllStock()
@@ -130,7 +188,13 @@ public class InventoryServiceImpl implements InventoryService {
                 .toList();
     }
 
+    // ---------------------------------------------------------
+    // FIND LOW STOCK
+    // ALL AUTHENTICATED USERS
+    // ---------------------------------------------------------
+
     @Override
+    @AuthenticatedUser
     public List<InventoryStockResponse> findLowStock() {
 
         return repository.findLowStock()
@@ -139,7 +203,13 @@ public class InventoryServiceImpl implements InventoryService {
                 .toList();
     }
 
+    // ---------------------------------------------------------
+    // FIND INVENTORY MOVEMENTS
+    // ALL AUTHENTICATED USERS
+    // ---------------------------------------------------------
+
     @Override
+    @AuthenticatedUser
     public InventoryPageResponse<InventoryMovementResponse> findMovements(
             UUID productUuid,
             InventoryMovementType movementType,
@@ -196,8 +266,14 @@ public class InventoryServiceImpl implements InventoryService {
         );
     }
 
+    // ---------------------------------------------------------
+    // MANUAL STOCK ADJUSTMENT
+    // ADMIN / MANAGER
+    // ---------------------------------------------------------
+
     @Override
     @Transactional
+    @AdminOrManager
     public InventoryStockResponse adjustStock(
             UUID productUuid,
             StockAdjustmentRequest request
@@ -212,6 +288,12 @@ public class InventoryServiceImpl implements InventoryService {
         }
 
         if (quantityChange.compareTo(BigDecimal.ZERO) == 0) {
+            throw new ApiException(
+                    InventoryErrorCode.INVALID_STOCK_ADJUSTMENT
+            );
+        }
+
+        if (request.reason() == null || request.reason().isBlank()) {
             throw new ApiException(
                     InventoryErrorCode.INVALID_STOCK_ADJUSTMENT
             );
@@ -233,12 +315,15 @@ public class InventoryServiceImpl implements InventoryService {
                 );
 
         validateStockQuantity(quantityChange.abs());
+
         UUID adjustmentUuid = UUID.randomUUID();
+
         Long adjustmentId = repository.createAdjustment(
                 adjustmentUuid,
                 reason,
                 notes
         );
+
         InventoryStock updatedStock = applyStockChange(
                 stock,
                 quantityChange,
@@ -246,6 +331,26 @@ public class InventoryServiceImpl implements InventoryService {
                 InventoryReferenceType.ADJUSTMENT,
                 adjustmentId,
                 reason
+        );
+
+        // Audit manual inventory adjustment.
+        auditLogService.log(
+                "ADJUST",
+                "INVENTORY",
+                updatedStock.productCode(),
+                "Manual inventory stock adjustment",
+                Map.of(
+                        "productUuid", productUuid.toString(),
+                        "productCode", stock.productCode(),
+                        "quantity", stock.quantity()
+                ),
+                Map.of(
+                        "adjustmentUuid", adjustmentUuid.toString(),
+                        "reason", reason,
+                        "quantityChange", quantityChange,
+                        "quantityBefore", stock.quantity(),
+                        "quantityAfter", updatedStock.quantity()
+                )
         );
 
         log.info(
@@ -257,19 +362,15 @@ public class InventoryServiceImpl implements InventoryService {
                 updatedStock.quantity()
         );
 
-        return new InventoryStockResponse(
-                updatedStock.productUuid(),
-                updatedStock.productCode(),
-                updatedStock.partNo(),
-                updatedStock.productName(),
-                updatedStock.quantity(),
-                updatedStock.minimumStock(),
-                updatedStock.unit(),
-                updatedStock.quantity().compareTo(updatedStock.minimumStock()) <= 0
-        );
+        return toStockResponse(updatedStock);
     }
 
+    // ---------------------------------------------------------
+    // GET STOCK FOR UPDATE
+    // ---------------------------------------------------------
+
     private InventoryStock getStockForUpdate(Long productId) {
+
         return repository.findStockByIdForUpdate(productId)
                 .orElseThrow(() ->
                         new ApiException(
@@ -277,6 +378,10 @@ public class InventoryServiceImpl implements InventoryService {
                         )
                 );
     }
+
+    // ---------------------------------------------------------
+    // APPLY STOCK CHANGE
+    // ---------------------------------------------------------
 
     private InventoryStock applyStockChange(
             InventoryStock stock,
@@ -286,20 +391,30 @@ public class InventoryServiceImpl implements InventoryService {
             Long referenceId,
             String notes
     ) {
+
         BigDecimal quantityBefore = stock.quantity();
+
         BigDecimal quantityAfter = quantityBefore.add(quantityChange);
 
         if (quantityAfter.compareTo(BigDecimal.ZERO) < 0) {
+
             log.warn(
                     "Insufficient stock for product ID {}. Available: {}, change: {}",
                     stock.productId(),
                     quantityBefore,
                     quantityChange
             );
-            throw new ApiException(InventoryErrorCode.INSUFFICIENT_STOCK);
+
+            throw new ApiException(
+                    InventoryErrorCode.INSUFFICIENT_STOCK
+            );
         }
 
-        repository.updateProductQuantity(stock.productId(), quantityAfter);
+        repository.updateProductQuantity(
+                stock.productId(),
+                quantityAfter
+        );
+
         repository.createMovement(
                 UUID.randomUUID(),
                 stock.productId(),
@@ -333,13 +448,24 @@ public class InventoryServiceImpl implements InventoryService {
         );
     }
 
+    // ---------------------------------------------------------
+    // VALIDATE STOCK QUANTITY
+    // ---------------------------------------------------------
+
     private void validateStockQuantity(BigDecimal quantity) {
-        if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
+
+        if (quantity == null
+                || quantity.compareTo(BigDecimal.ZERO) <= 0) {
+
             throw new ApiException(
                     InventoryErrorCode.INVALID_STOCK_QUANTITY
             );
         }
     }
+
+    // ---------------------------------------------------------
+    // BUILD STOCK RESPONSE
+    // ---------------------------------------------------------
 
     private InventoryStockResponse toStockResponse(
             InventoryStock stock
@@ -356,6 +482,10 @@ public class InventoryServiceImpl implements InventoryService {
                 stock.quantity().compareTo(stock.minimumStock()) <= 0
         );
     }
+
+    // ---------------------------------------------------------
+    // BUILD MOVEMENT RESPONSE
+    // ---------------------------------------------------------
 
     private InventoryMovementResponse toMovementResponse(
             InventoryMovement movement
@@ -377,6 +507,10 @@ public class InventoryServiceImpl implements InventoryService {
         );
     }
 
+    // ---------------------------------------------------------
+    // VALIDATE PAGINATION
+    // ---------------------------------------------------------
+
     private void validatePagination(int page, int size) {
 
         if (page < 0 || size < 1 || size > 100) {
@@ -387,15 +521,23 @@ public class InventoryServiceImpl implements InventoryService {
 
         try {
             Math.multiplyExact(page, size);
+
         } catch (ArithmeticException exception) {
+
             throw new ApiException(
                     InventoryErrorCode.INVALID_INVENTORY_PAGINATION
             );
         }
     }
-    
+
+    // ---------------------------------------------------------
+    // RESTORE STOCK FROM SALES RETURN
+    // ADMIN / MANAGER
+    // ---------------------------------------------------------
+
     @Override
     @Transactional
+    @SalesAccess
     public InventoryStock restoreStockFromSalesReturn(
             Long productId,
             BigDecimal quantity,
@@ -406,12 +548,12 @@ public class InventoryServiceImpl implements InventoryService {
         InventoryStock stock = getStockForUpdate(productId);
 
         return applyStockChange(
-            stock,
-            quantity,
-            InventoryMovementType.SALES_RETURN,
-            InventoryReferenceType.SALES_RETURN,
-            salesReturnId,
-            "Stock restored from sales return"
+                stock,
+                quantity,
+                InventoryMovementType.SALES_RETURN,
+                InventoryReferenceType.SALES_RETURN,
+                salesReturnId,
+                "Stock restored from sales return"
         );
     }
 }

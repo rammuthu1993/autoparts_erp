@@ -1,7 +1,10 @@
 
 package com.autoparts.erp.expense.management.service.impl;
 
+import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.auth.security.CurrentUserService;
+import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.cashregister.enums.CashMovementSourceType;
 import com.autoparts.erp.cashregister.enums.CashMovementType;
 import com.autoparts.erp.cashregister.service.CashRegisterService;
@@ -23,7 +26,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -37,21 +42,25 @@ public class ExpenseServiceImpl implements ExpenseService {
     private final ExpenseCategoryRepository categoryRepository;
     private final CurrentUserService currentUserService;
     private final CashRegisterService cashRegisterService;
+    private final AuditLogService auditLogService;
 
     public ExpenseServiceImpl(
         ExpenseRepository expenseRepository,
         ExpenseCategoryRepository categoryRepository,
         CurrentUserService currentUserService,
-        CashRegisterService cashRegisterService
+        CashRegisterService cashRegisterService,
+        AuditLogService auditLogService
     ) {
         this.expenseRepository = expenseRepository;
         this.categoryRepository = categoryRepository;
         this.currentUserService = currentUserService;
         this.cashRegisterService = cashRegisterService;
+        this.auditLogService = auditLogService;
     }
 
     @Override
     @Transactional
+    @AdminOrManager
     public Expense create(CreateExpenseRequest request) {
 
         ExpenseCategory category =
@@ -91,6 +100,15 @@ public class ExpenseServiceImpl implements ExpenseService {
             );
         }
 
+        auditLogService.log(
+            "CREATE",
+            "EXPENSE",
+            created.uuid().toString(),
+            "Expense created: " + created.title(),
+            null,
+            toAuditValues(created)
+        );
+
         log.info(
             "Expense created successfully. Expense UUID: {}",
             created.uuid()
@@ -100,6 +118,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
+    @SalesAccess
     public Expense findByUuid(UUID uuid) {
 
         return expenseRepository.findByUuid(uuid)
@@ -109,12 +128,14 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
+    @SalesAccess
     public List<Expense> findAll() {
         return expenseRepository.findAll();
     }
 
     @Override
     @Transactional
+    @AdminOrManager
     public Expense update(UUID uuid, UpdateExpenseRequest request) {
 
         Expense existing = findByUuid(uuid);
@@ -157,6 +178,15 @@ public class ExpenseServiceImpl implements ExpenseService {
         // Adjust cash register after successfully updating the expense.
         adjustCashMovement(existing, updated);
 
+        auditLogService.log(
+            "UPDATE",
+            "EXPENSE",
+            updated.uuid().toString(),
+            "Expense updated: " + updated.title(),
+            toAuditValues(existing),
+            toAuditValues(updated)
+        );
+
         log.info(
             "Expense updated successfully. Expense UUID: {}",
             uuid
@@ -167,6 +197,7 @@ public class ExpenseServiceImpl implements ExpenseService {
 
     @Override
     @Transactional
+    @AdminOrManager
     public void cancel(UUID uuid) {
 
         Expense existing = findByUuid(uuid);
@@ -194,6 +225,20 @@ public class ExpenseServiceImpl implements ExpenseService {
                 "Cash expense cancelled and reversed"
             );
         }
+
+        Map<String, Object> newValues = new LinkedHashMap<>();
+        newValues.put("status", "CANCELLED");
+        newValues.put("amount", existing.amount());
+        newValues.put("paymentMethod", existing.paymentMethod().name());
+
+        auditLogService.log(
+            "CANCEL",
+            "EXPENSE",
+            existing.uuid().toString(),
+            "Expense cancelled: " + existing.title(),
+            toAuditValues(existing),
+            newValues
+        );
 
         log.info(
             "Expense cancelled successfully. Expense UUID: {}",
@@ -318,6 +363,21 @@ public class ExpenseServiceImpl implements ExpenseService {
         }
 
         return category;
+    }
+
+    private Map<String, Object> toAuditValues(Expense expense) {
+
+        Map<String, Object> values = new LinkedHashMap<>();
+
+        values.put("categoryId", expense.categoryId());
+        values.put("categoryName", expense.categoryName());
+        values.put("expenseDate", expense.expenseDate());
+        values.put("title", expense.title());
+        values.put("amount", expense.amount());
+        values.put("paymentMethod", expense.paymentMethod().name());
+        values.put("status", expense.status().name());
+
+        return values;
     }
 
     private String clean(String value) {

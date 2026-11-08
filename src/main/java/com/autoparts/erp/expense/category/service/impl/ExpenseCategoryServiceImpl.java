@@ -1,5 +1,9 @@
+
 package com.autoparts.erp.expense.category.service.impl;
 
+import com.autoparts.erp.auth.security.annotation.AdminOnly;
+import com.autoparts.erp.auth.security.annotation.SalesAccess;
+import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.common.exception.ApiException;
 import com.autoparts.erp.expense.category.dto.ExpenseCategoryCreateRequest;
 import com.autoparts.erp.expense.category.dto.ExpenseCategoryResponse;
@@ -15,29 +19,35 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
 @Transactional(readOnly = true)
 public class ExpenseCategoryServiceImpl
-        implements ExpenseCategoryService {
+    implements ExpenseCategoryService {
 
     private static final Logger log =
         LoggerFactory.getLogger(ExpenseCategoryServiceImpl.class);
 
     private final ExpenseCategoryRepository repository;
+    private final AuditLogService auditLogService;
 
     public ExpenseCategoryServiceImpl(
-            ExpenseCategoryRepository repository
+        ExpenseCategoryRepository repository,
+        AuditLogService auditLogService
     ) {
         this.repository = repository;
+        this.auditLogService = auditLogService;
     }
 
     @Override
     @Transactional
+    @AdminOnly
     public ExpenseCategoryResponse create(
-            ExpenseCategoryCreateRequest request
+        ExpenseCategoryCreateRequest request
     ) {
 
         String name = clean(request.name());
@@ -61,6 +71,15 @@ public class ExpenseCategoryServiceImpl
         try {
             ExpenseCategory saved = repository.create(category);
 
+            auditLogService.log(
+                "CREATE",
+                "EXPENSE_CATEGORY",
+                saved.uuid().toString(),
+                "Expense category created: " + saved.name(),
+                null,
+                toAuditValues(saved)
+            );
+
             log.info(
                 "Expense category created successfully. categoryUuid={}",
                 saved.uuid()
@@ -83,6 +102,7 @@ public class ExpenseCategoryServiceImpl
     }
 
     @Override
+    @SalesAccess
     public List<ExpenseCategoryResponse> findAll() {
 
         return repository.findAll()
@@ -92,6 +112,7 @@ public class ExpenseCategoryServiceImpl
     }
 
     @Override
+    @SalesAccess
     public ExpenseCategoryResponse findByUuid(UUID uuid) {
 
         ExpenseCategory category = repository.findByUuid(uuid)
@@ -107,9 +128,10 @@ public class ExpenseCategoryServiceImpl
 
     @Override
     @Transactional
+    @AdminOnly
     public ExpenseCategoryResponse update(
-            UUID uuid,
-            ExpenseCategoryUpdateRequest request
+        UUID uuid,
+        ExpenseCategoryUpdateRequest request
     ) {
 
         ExpenseCategory existing = repository.findByUuid(uuid)
@@ -145,6 +167,15 @@ public class ExpenseCategoryServiceImpl
                 );
             }
 
+            auditLogService.log(
+                "UPDATE",
+                "EXPENSE_CATEGORY",
+                uuid.toString(),
+                "Expense category updated: " + updated.name(),
+                toAuditValues(existing),
+                toAuditValues(updated)
+            );
+
             log.info(
                 "Expense category updated successfully. categoryUuid={}",
                 uuid
@@ -167,13 +198,35 @@ public class ExpenseCategoryServiceImpl
 
     @Override
     @Transactional
+    @AdminOnly
     public void deactivate(UUID uuid) {
+
+        ExpenseCategory existing = repository.findByUuid(uuid)
+            .filter(ExpenseCategory::active)
+            .orElseThrow(() ->
+                new ApiException(
+                    ExpenseCategoryErrorCode.EXPENSE_CATEGORY_NOT_FOUND
+                )
+            );
 
         if (!repository.deactivate(uuid)) {
             throw new ApiException(
                 ExpenseCategoryErrorCode.EXPENSE_CATEGORY_NOT_FOUND
             );
         }
+
+        Map<String, Object> newValues = new LinkedHashMap<>();
+        newValues.put("name", existing.name());
+        newValues.put("active", false);
+
+        auditLogService.log(
+            "DELETE",
+            "EXPENSE_CATEGORY",
+            uuid.toString(),
+            "Expense category deactivated: " + existing.name(),
+            toAuditValues(existing),
+            newValues
+        );
 
         log.info(
             "Expense category deactivated successfully. categoryUuid={}",
@@ -182,7 +235,7 @@ public class ExpenseCategoryServiceImpl
     }
 
     private ExpenseCategoryResponse toResponse(
-            ExpenseCategory category
+        ExpenseCategory category
     ) {
 
         return new ExpenseCategoryResponse(
@@ -194,6 +247,19 @@ public class ExpenseCategoryServiceImpl
             category.createdAt(),
             category.updatedAt()
         );
+    }
+
+    private Map<String, Object> toAuditValues(
+        ExpenseCategory category
+    ) {
+
+        Map<String, Object> values = new LinkedHashMap<>();
+
+        values.put("name", category.name());
+        values.put("description", category.description());
+        values.put("active", category.active());
+
+        return values;
     }
 
     private String clean(String value) {

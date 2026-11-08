@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Value;
 
+import com.autoparts.erp.auth.security.annotation.AdminOnly;
+import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.reports.dto.DataQualityReportResponse;
 import com.autoparts.erp.reports.dto.CustomerAnalyticsResponse;
 import com.autoparts.erp.reports.dto.FinancialReconciliationResponse;
@@ -49,13 +51,13 @@ public class AdvancedReportServiceImpl implements AdvancedReportService {
 
     @Override
     @Transactional(readOnly = true)
+    @SalesAccess
     public DataQualityReportResponse getDataQualityReport(
             LocalDate fromDate,
             LocalDate toDate) {
         validateDateRange(fromDate, toDate);
         var fromTimestamp = fromDate.atStartOfDay(businessZone).toOffsetDateTime();
-        var toTimestamp = toDate.plusDays(1)
-                .atStartOfDay(businessZone).toOffsetDateTime();
+        var toTimestamp = exclusiveEndTimestamp(toDate);
         var issues = repository.findDataQualityIssues(
                 fromDate, toDate, fromTimestamp, toTimestamp,
                 businessZone.getId());
@@ -85,6 +87,7 @@ public class AdvancedReportServiceImpl implements AdvancedReportService {
 
     @Override
     @Transactional
+    @AdminOnly
     public void updateIssueResolution(
             String issueKey,
             String status,
@@ -104,13 +107,13 @@ public class AdvancedReportServiceImpl implements AdvancedReportService {
 
     @Override
     @Transactional(readOnly = true)
+    @SalesAccess
     public FinancialReconciliationResponse getReconciliationReport(
             LocalDate fromDate,
             LocalDate toDate) {
         validateDateRange(fromDate, toDate);
         var fromTimestamp = fromDate.atStartOfDay(businessZone).toOffsetDateTime();
-        var toTimestamp = toDate.plusDays(1)
-                .atStartOfDay(businessZone).toOffsetDateTime();
+        var toTimestamp = exclusiveEndTimestamp(toDate);
         return new FinancialReconciliationResponse(
                 fromDate,
                 toDate,
@@ -126,6 +129,7 @@ public class AdvancedReportServiceImpl implements AdvancedReportService {
 
     @Override
     @Transactional(readOnly = true)
+    @SalesAccess
     public InventoryAnalyticsResponse getInventoryAnalytics(
             LocalDate fromDate,
             LocalDate toDate) {
@@ -151,13 +155,13 @@ public class AdvancedReportServiceImpl implements AdvancedReportService {
                         fromDate,
                         toDate,
                         fromDate.atStartOfDay(businessZone).toOffsetDateTime(),
-                        toDate.plusDays(1).atStartOfDay(businessZone)
-                                .toOffsetDateTime(),
+                        exclusiveEndTimestamp(toDate),
                         businessZone.getId()));
     }
 
     @Override
     @Transactional(readOnly = true)
+    @SalesAccess
     public ScenarioAnalysisResponse simulate(ScenarioAnalysisRequest request) {
         if (request == null) {
             throw new IllegalArgumentException("Scenario assumptions are required");
@@ -206,6 +210,7 @@ public class AdvancedReportServiceImpl implements AdvancedReportService {
 
     @Override
     @Transactional(readOnly = true)
+    @SalesAccess
     public TargetActualReportResponse getTargetActualReport(
             LocalDate fromDate,
             LocalDate toDate) {
@@ -270,11 +275,15 @@ public class AdvancedReportServiceImpl implements AdvancedReportService {
 
     @Override
     @Transactional
+    @AdminOnly
     public UUID createTarget(ReportTargetRequest request, String username) {
         if (request == null) {
             throw new IllegalArgumentException("Target configuration is required");
         }
         validateDateRange(request.periodStart(), request.periodEnd());
+        if (request.metricKey() == null || request.metricKey().isBlank()) {
+            throw new IllegalArgumentException("Target metric key is required");
+        }
         boolean validDimensions = switch (request.metricKey()) {
             case "MONTHLY_SALES", "EXPENSE_BUDGET" ->
                             request.productId() == null && request.categoryId() == null;
@@ -297,6 +306,7 @@ public class AdvancedReportServiceImpl implements AdvancedReportService {
 
     @Override
     @Transactional(readOnly = true)
+    @SalesAccess
     public CustomerAnalyticsResponse getCustomerAnalytics(
             LocalDate fromDate,
             LocalDate toDate) {
@@ -318,12 +328,12 @@ public class AdvancedReportServiceImpl implements AdvancedReportService {
                         fromDate,
                         toDate,
                         fromDate.atStartOfDay(businessZone).toOffsetDateTime(),
-                        toDate.plusDays(1).atStartOfDay(businessZone)
-                                .toOffsetDateTime()));
+                        exclusiveEndTimestamp(toDate)));
     }
 
     @Override
     @Transactional(readOnly = true)
+    @SalesAccess
     public SupplierAnalyticsResponse getSupplierAnalytics(
             LocalDate fromDate,
             LocalDate toDate) {
@@ -346,8 +356,7 @@ public class AdvancedReportServiceImpl implements AdvancedReportService {
                 repository.findSupplierMetrics(
                         fromDate,
                         toDate,
-                        toDate.plusDays(1).atStartOfDay(businessZone)
-                                .toOffsetDateTime(),
+                        exclusiveEndTimestamp(toDate),
                         businessZone.getId()));
     }
 
@@ -377,5 +386,15 @@ public class AdvancedReportServiceImpl implements AdvancedReportService {
             throw new IllegalArgumentException(
                     "fromDate must be before or equal to toDate");
         }
+        if (toDate.equals(LocalDate.MAX)) {
+            throw new IllegalArgumentException(
+                    "toDate is too large to calculate an exclusive end timestamp");
+        }
+    }
+
+    private OffsetDateTime exclusiveEndTimestamp(LocalDate toDate) {
+        return toDate.plusDays(1)
+                .atStartOfDay(businessZone)
+                .toOffsetDateTime();
     }
 }

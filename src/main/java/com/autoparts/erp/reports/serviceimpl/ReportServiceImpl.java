@@ -7,6 +7,7 @@ import com.autoparts.erp.reports.service.ReportService;
 import java.time.LocalDate;
 import java.time.ZoneId;
 
+import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +30,7 @@ public class ReportServiceImpl implements ReportService {
 
     @Override
     @Transactional(readOnly = true)
+    @SalesAccess
     public DashboardSummaryResponse getDashboardSummary(
             LocalDate fromDate,
             LocalDate toDate) {

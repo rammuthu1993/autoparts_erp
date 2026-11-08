@@ -17,17 +17,17 @@ public interface ProductRepository {
     boolean brandExistsAndActive(Long brandId);
 
     Product create(
-            UUID uuid,
-            String productCode,
-            String partNo,
-            String name,
-            String description,
-            Long categoryId,
-            Long brandId,
-            BigDecimal purchasePrice,
-            BigDecimal sellingPrice,
-            BigDecimal minimumStock,
-            String unit
+        UUID uuid,
+        String productCode,
+        String partNo,
+        String name,
+        String description,
+        Long categoryId,
+        Long brandId,
+        BigDecimal purchasePrice,
+        BigDecimal sellingPrice,
+        BigDecimal minimumStock,
+        String unit
     );
 
     List<Product> findAll();
@@ -35,23 +35,28 @@ public interface ProductRepository {
     Optional<Product> findByUuid(UUID uuid);
 
     boolean update(
-            UUID uuid,
-            String partNo,
-            String name,
-            String description,
-            Long categoryId,
-            Long brandId,
-            BigDecimal purchasePrice,
-            BigDecimal sellingPrice,
-            BigDecimal minimumStock,
-            String unit
+        UUID uuid,
+        String partNo,
+        String name,
+        String description,
+        Long categoryId,
+        Long brandId,
+        BigDecimal purchasePrice,
+        BigDecimal sellingPrice,
+        BigDecimal minimumStock,
+        String unit
     );
 
     boolean deactivate(UUID uuid);
-    
+
     boolean existsByName(String name);
 
     boolean existsByPartNo(String partNo);
 
     boolean existsByProductCode(String productCode);
+
+    // Duplicate checks for product updates.
+    boolean existsByNameExcludingUuid(String name, UUID uuid);
+
+    boolean existsByPartNoExcludingUuid(String partNo, UUID uuid);
 }

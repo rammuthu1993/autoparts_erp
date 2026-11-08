@@ -1,6 +1,7 @@
-
 package com.autoparts.erp.purchase.service;
 
+import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.common.exception.ApiException;
 import com.autoparts.erp.inventory.exception.InventoryErrorCode;
 import com.autoparts.erp.inventory.service.InventoryService;
@@ -13,32 +14,42 @@ import com.autoparts.erp.purchase.model.Purchase;
 import com.autoparts.erp.purchase.model.PurchaseProduct;
 import com.autoparts.erp.purchase.model.PurchaseStatus;
 import com.autoparts.erp.purchase.repository.PurchaseRepository;
+
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.HashSet;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 @Service
 @Transactional(readOnly = true)
+@AdminOrManager
 public class PurchaseServiceImpl implements PurchaseService {
 
     private final PurchaseRepository repository;
     private final InventoryService inventoryService;
+    private final AuditLogService auditLogService;
 
     public PurchaseServiceImpl(
-        PurchaseRepository repository,
-        InventoryService inventoryService
+            PurchaseRepository repository,
+            InventoryService inventoryService,
+            AuditLogService auditLogService
     ) {
         this.repository = repository;
         this.inventoryService = inventoryService;
+        this.auditLogService = auditLogService;
     }
+
+    // ---------------------------------------------------------
+    // CREATE PURCHASE DRAFT
+    // ---------------------------------------------------------
 
     @Override
     @Transactional
@@ -48,24 +59,24 @@ public class PurchaseServiceImpl implements PurchaseService {
 
         if (!repository.supplierExistsAndActive(request.supplierId())) {
             throw new ApiException(
-                PurchaseErrorCode.SUPPLIER_NOT_FOUND
+                    PurchaseErrorCode.SUPPLIER_NOT_FOUND
             );
         }
 
         String invoiceNo = request.supplierInvoiceNo().trim();
 
         if (repository.existsBySupplierInvoiceNo(
-            request.supplierId(), invoiceNo
+                request.supplierId(), invoiceNo
         )) {
             throw new ApiException(
-                PurchaseErrorCode.PURCHASE_ALREADY_EXISTS
+                    PurchaseErrorCode.PURCHASE_ALREADY_EXISTS
             );
         }
 
         for (PurchaseProductRequest product : request.products()) {
             if (!repository.productExistsAndActive(product.productId())) {
                 throw new ApiException(
-                    PurchaseErrorCode.PRODUCT_NOT_FOUND
+                        PurchaseErrorCode.PRODUCT_NOT_FOUND
                 );
             }
         }
@@ -80,23 +91,28 @@ public class PurchaseServiceImpl implements PurchaseService {
 
         // Calculate all totals before inserting the header.
         for (PurchaseProductRequest product : request.products()) {
+
             BigDecimal gross = product.quantity()
-                .multiply(product.purchasePrice())
-                .setScale(2, RoundingMode.HALF_UP);
+                    .multiply(product.purchasePrice())
+                    .setScale(2, RoundingMode.HALF_UP);
 
             BigDecimal discount = money(product.discountAmount());
 
             if (discount.compareTo(gross) > 0) {
                 throw new ApiException(
-                    PurchaseErrorCode.INVALID_PURCHASE_DATA
+                        PurchaseErrorCode.INVALID_PURCHASE_DATA
                 );
             }
 
             BigDecimal taxable = gross.subtract(discount);
 
             BigDecimal tax = taxable
-                .multiply(product.taxPercent())
-                .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+                    .multiply(product.taxPercent())
+                    .divide(
+                            new BigDecimal("100"),
+                            2,
+                            RoundingMode.HALF_UP
+                    );
 
             subtotal = subtotal.add(gross);
             discountTotal = discountTotal.add(discount);
@@ -105,167 +121,335 @@ public class PurchaseServiceImpl implements PurchaseService {
         }
 
         try {
+
             repository.createPurchase(
-                purchaseUuid,
-                purchaseNumber,
-                request.supplierId(),
-                invoiceNo,
-                request.purchaseDate(),
-                clean(request.notes())
+                    purchaseUuid,
+                    purchaseNumber,
+                    request.supplierId(),
+                    invoiceNo,
+                    request.purchaseDate(),
+                    clean(request.notes())
             );
 
             for (PurchaseProductRequest product : request.products()) {
+
                 BigDecimal gross = product.quantity()
-                    .multiply(product.purchasePrice())
-                    .setScale(2, RoundingMode.HALF_UP);
+                        .multiply(product.purchasePrice())
+                        .setScale(2, RoundingMode.HALF_UP);
 
                 BigDecimal discount = money(product.discountAmount());
                 BigDecimal taxable = gross.subtract(discount);
 
                 BigDecimal tax = taxable
-                    .multiply(product.taxPercent())
-                    .divide(
-                        new BigDecimal("100"),
-                        2,
-                        RoundingMode.HALF_UP
-                    );
+                        .multiply(product.taxPercent())
+                        .divide(
+                                new BigDecimal("100"),
+                                2,
+                                RoundingMode.HALF_UP
+                        );
 
                 BigDecimal lineTotal = taxable.add(tax);
 
                 repository.createPurchaseProduct(
-                    UUID.randomUUID(),
-                    purchaseUuid,
-                    product.productId(),
-                    product.quantity(),
-                    money(product.purchasePrice()),
-                    discount,
-                    product.taxPercent(),
-                    tax,
-                    lineTotal
+                        UUID.randomUUID(),
+                        purchaseUuid,
+                        product.productId(),
+                        product.quantity(),
+                        money(product.purchasePrice()),
+                        discount,
+                        product.taxPercent(),
+                        tax,
+                        lineTotal
                 );
             }
 
             repository.updatePurchaseTotals(
-                purchaseUuid,
-                subtotal,
-                discountTotal,
-                taxTotal,
-                grandTotal
+                    purchaseUuid,
+                    subtotal,
+                    discountTotal,
+                    taxTotal,
+                    grandTotal
             );
 
         } catch (DuplicateKeyException exception) {
-            if (isConstraint(exception, "uq_purchase_supplier_invoice_normalized")) {
+
+            if (isConstraint(
+                    exception,
+                    "uq_purchase_supplier_invoice_normalized"
+            )) {
                 throw new ApiException(
-                    PurchaseErrorCode.PURCHASE_ALREADY_EXISTS
+                        PurchaseErrorCode.PURCHASE_ALREADY_EXISTS
                 );
             }
 
-            if (isConstraint(exception, "uq_purchase_products_product")) {
+            if (isConstraint(
+                    exception,
+                    "uq_purchase_products_product"
+            )) {
                 throw new ApiException(
-                    PurchaseErrorCode.PURCHASE_PRODUCT_ALREADY_EXISTS
+                        PurchaseErrorCode.PURCHASE_PRODUCT_ALREADY_EXISTS
                 );
             }
 
             throw exception;
         }
 
+        // Audit purchase creation.
+        auditLogService.log(
+                "CREATE",
+                "PURCHASE",
+                purchaseNumber,
+                "Purchase draft created",
+                null,
+                Map.of(
+                        "purchaseUuid", purchaseUuid.toString(),
+                        "purchaseNumber", purchaseNumber,
+                        "supplierId", request.supplierId(),
+                        "supplierInvoiceNo", invoiceNo,
+                        "purchaseDate", request.purchaseDate().toString(),
+                        "subtotal", subtotal,
+                        "discountTotal", discountTotal,
+                        "taxTotal", taxTotal,
+                        "grandTotal", grandTotal,
+                        "status", PurchaseStatus.DRAFT.name()
+                )
+        );
+
         return findByUuid(purchaseUuid);
     }
 
+    // ---------------------------------------------------------
+    // FIND ALL PURCHASES
+    // ---------------------------------------------------------
+
     @Override
     public List<PurchaseResponse> findAll() {
+
         return repository.findAll()
-            .stream()
-            .map(this::toResponse)
-            .toList();
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
+
+    // ---------------------------------------------------------
+    // FIND PURCHASE BY UUID
+    // ---------------------------------------------------------
 
     @Override
     public PurchaseResponse findByUuid(UUID uuid) {
+
         Purchase purchase = repository.findByUuid(uuid)
-            .orElseThrow(() ->
-                new ApiException(PurchaseErrorCode.PURCHASE_NOT_FOUND)
-            );
+                .orElseThrow(() ->
+                        new ApiException(
+                                PurchaseErrorCode.PURCHASE_NOT_FOUND
+                        )
+                );
 
         return toResponse(purchase);
     }
 
+    // ---------------------------------------------------------
+    // VALIDATE UNIQUE PRODUCTS
+    // ---------------------------------------------------------
+
     private void validateUniqueProducts(
-        List<PurchaseProductRequest> products
+            List<PurchaseProductRequest> products
     ) {
+
         Set<Long> productIds = new HashSet<>();
 
         for (PurchaseProductRequest product : products) {
+
             if (!productIds.add(product.productId())) {
                 throw new ApiException(
-                    PurchaseErrorCode.PURCHASE_PRODUCT_ALREADY_EXISTS
+                        PurchaseErrorCode.PURCHASE_PRODUCT_ALREADY_EXISTS
                 );
             }
         }
     }
 
+    // ---------------------------------------------------------
+    // BUILD PURCHASE RESPONSE
+    // ---------------------------------------------------------
+
     private PurchaseResponse toResponse(Purchase purchase) {
+
         List<PurchaseProductResponse> products = purchase.products()
-            .stream()
-            .map(this::toProductResponse)
-            .toList();
+                .stream()
+                .map(this::toProductResponse)
+                .toList();
 
         return new PurchaseResponse(
-            purchase.id(),
-            purchase.uuid(),
-            purchase.purchaseNumber(),
-            purchase.supplierId(),
-            purchase.supplierName(),
-            purchase.supplierInvoiceNo(),
-            purchase.purchaseDate(),
-            purchase.status(),
-            purchase.subtotal(),
-            purchase.discountTotal(),
-            purchase.taxTotal(),
-            purchase.grandTotal(),
-            purchase.notes(),
-            products,
-            purchase.createdAt(),
-            purchase.updatedAt(),
-            purchase.receivedAt()
+                purchase.id(),
+                purchase.uuid(),
+                purchase.purchaseNumber(),
+                purchase.supplierId(),
+                purchase.supplierName(),
+                purchase.supplierInvoiceNo(),
+                purchase.purchaseDate(),
+                purchase.status(),
+                purchase.subtotal(),
+                purchase.discountTotal(),
+                purchase.taxTotal(),
+                purchase.grandTotal(),
+                purchase.notes(),
+                products,
+                purchase.createdAt(),
+                purchase.updatedAt(),
+                purchase.receivedAt()
         );
     }
 
-    private PurchaseProductResponse toProductResponse(PurchaseProduct product) {
+    // ---------------------------------------------------------
+    // BUILD PURCHASE PRODUCT RESPONSE
+    // ---------------------------------------------------------
+
+    private PurchaseProductResponse toProductResponse(
+            PurchaseProduct product
+    ) {
+
         return new PurchaseProductResponse(
-            product.uuid(),
-            product.productId(),
-            product.productCode(),
-            product.partNo(),
-            product.productName(),
-            product.quantity(),
-            product.purchasePrice(),
-            product.discountAmount(),
-            product.taxPercent(),
-            product.taxAmount(),
-            product.lineTotal()
+                product.uuid(),
+                product.productId(),
+                product.productCode(),
+                product.partNo(),
+                product.productName(),
+                product.quantity(),
+                product.purchasePrice(),
+                product.discountAmount(),
+                product.taxPercent(),
+                product.taxAmount(),
+                product.lineTotal()
         );
     }
+
+    // ---------------------------------------------------------
+    // RECEIVE PURCHASE
+    // ---------------------------------------------------------
+
+    @Override
+    @Transactional
+    public PurchaseResponse receive(UUID uuid) {
+
+        Purchase purchase = repository.findByUuidForUpdate(uuid)
+                .orElseThrow(() ->
+                        new ApiException(
+                                PurchaseErrorCode.PURCHASE_NOT_FOUND
+                        )
+                );
+
+        if (purchase.status() == PurchaseStatus.RECEIVED) {
+            throw new ApiException(
+                    PurchaseErrorCode.PURCHASE_ALREADY_RECEIVED
+            );
+        }
+
+        if (purchase.status() != PurchaseStatus.DRAFT) {
+            throw new ApiException(
+                    PurchaseErrorCode.PURCHASE_NOT_DRAFT
+            );
+        }
+
+        if (purchase.products() == null
+                || purchase.products().isEmpty()) {
+            throw new ApiException(
+                    PurchaseErrorCode.PURCHASE_PRODUCTS_NOT_FOUND
+            );
+        }
+
+        // Sort products to maintain a consistent stock update order.
+        List<PurchaseProduct> products = purchase.products()
+                .stream()
+                .sorted(Comparator.comparing(PurchaseProduct::productId))
+                .toList();
+
+        // Increase inventory for every purchased product.
+        for (PurchaseProduct product : products) {
+
+            try {
+
+                inventoryService.increaseStock(
+                        product.productId(),
+                        product.quantity(),
+                        purchase.id()
+                );
+
+            } catch (ApiException exception) {
+
+                if (exception.getError()
+                        == InventoryErrorCode.INVENTORY_PRODUCT_NOT_FOUND) {
+
+                    throw new ApiException(
+                            PurchaseErrorCode.PRODUCT_NOT_FOUND
+                    );
+                }
+
+                throw exception;
+            }
+        }
+
+        // Mark purchase as received after successful stock updates.
+        if (!repository.markReceived(uuid)) {
+            throw new ApiException(
+                    PurchaseErrorCode.PURCHASE_NOT_DRAFT
+            );
+        }
+
+        // Audit purchase receipt.
+        auditLogService.log(
+                "APPROVE",
+                "PURCHASE",
+                purchase.purchaseNumber(),
+                "Purchase received and inventory updated",
+                Map.of(
+                        "status", PurchaseStatus.DRAFT.name()
+                ),
+                Map.of(
+                        "status", PurchaseStatus.RECEIVED.name(),
+                        "purchaseNumber", purchase.purchaseNumber(),
+                        "grandTotal", purchase.grandTotal(),
+                        "productCount", products.size()
+                )
+        );
+
+        return findByUuid(uuid);
+    }
+
+    // ---------------------------------------------------------
+    // MONEY ROUNDING
+    // ---------------------------------------------------------
 
     private BigDecimal money(BigDecimal value) {
+
         return value.setScale(2, RoundingMode.HALF_UP);
     }
 
+    // ---------------------------------------------------------
+    // CLEAN STRING
+    // ---------------------------------------------------------
+
     private String clean(String value) {
+
         return value == null || value.isBlank()
-            ? null
-            : value.trim();
+                ? null
+                : value.trim();
     }
 
+    // ---------------------------------------------------------
+    // CHECK DATABASE CONSTRAINT
+    // ---------------------------------------------------------
+
     private boolean isConstraint(
-        DuplicateKeyException exception,
-        String constraintName
+            DuplicateKeyException exception,
+            String constraintName
     ) {
+
         Throwable cause = exception;
 
         while (cause != null) {
+
             if (cause.getMessage() != null
-                && cause.getMessage().contains(constraintName)) {
+                    && cause.getMessage().contains(constraintName)) {
                 return true;
             }
 
@@ -274,61 +458,4 @@ public class PurchaseServiceImpl implements PurchaseService {
 
         return false;
     }
-    
-    @Override
-	@Transactional
-	public PurchaseResponse receive(UUID uuid) {
-	
-	    Purchase purchase = repository.findByUuidForUpdate(uuid)
-	        .orElseThrow(() ->
-	            new ApiException(PurchaseErrorCode.PURCHASE_NOT_FOUND)
-	        );
-	
-	    if (purchase.status() == PurchaseStatus.RECEIVED) {
-	        throw new ApiException(
-	            PurchaseErrorCode.PURCHASE_ALREADY_RECEIVED
-	        );
-	    }
-	
-	    if (purchase.status() != PurchaseStatus.DRAFT) {
-	        throw new ApiException(
-	            PurchaseErrorCode.PURCHASE_NOT_DRAFT
-	        );
-	    }
-	
-	    if (purchase.products() == null || purchase.products().isEmpty()) {
-	        throw new ApiException(
-	            PurchaseErrorCode.PURCHASE_PRODUCTS_NOT_FOUND
-	        );
-	    }
-	
-	    List<PurchaseProduct> products = purchase.products().stream()
-	        .sorted(Comparator.comparing(PurchaseProduct::productId))
-	        .toList();
-	
-	    for (PurchaseProduct product : products) {
-	        try {
-	            inventoryService.increaseStock(
-	                product.productId(),
-	                product.quantity(),
-	                purchase.id()
-	            );
-	        } catch (ApiException exception) {
-	            if (exception.getError()
-	                    == InventoryErrorCode.INVENTORY_PRODUCT_NOT_FOUND) {
-	                throw new ApiException(PurchaseErrorCode.PRODUCT_NOT_FOUND);
-	            }
-	            throw exception;
-	        }
-	    }
-	
-	    if (!repository.markReceived(uuid)) {
-	        throw new ApiException(
-	            PurchaseErrorCode.PURCHASE_NOT_DRAFT
-	        );
-	    }
-	
-	    return findByUuid(uuid);
-	}
-
 }

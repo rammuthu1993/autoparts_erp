@@ -35,4 +35,6 @@ public interface RefreshTokenRepository {
             String tokenHash,
             Instant revokedAt
     );
+    
+    void revokeAllActiveByUserId(Long userId);
 }

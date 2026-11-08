@@ -865,7 +865,7 @@ public class AdvancedReportRepositoryImpl implements AdvancedReportRepository {
 
     @Override
     public UUID createTarget(ReportTargetRequest request, String username) {
-        return jdbc.queryForObject("""
+        String sql = """
                 INSERT INTO report_targets (
                     uuid, metric_key, period_start, period_end,
                     product_id, category_id, target_value, created_by
@@ -874,8 +874,24 @@ public class AdvancedReportRepositoryImpl implements AdvancedReportRepository {
                        :productId, :categoryId, :targetValue, u.id
                 FROM users u
                 WHERE LOWER(u.username) = LOWER(:username)
+                  AND (
+                      :productId IS NULL
+                      OR EXISTS (
+                          SELECT 1 FROM products p
+                          WHERE p.id = :productId AND p.active = TRUE
+                      )
+                  )
+                  AND (
+                      :categoryId IS NULL
+                      OR EXISTS (
+                          SELECT 1 FROM product_categories pc
+                          WHERE pc.id = :categoryId AND pc.active = TRUE
+                      )
+                  )
                 RETURNING uuid
-                """, new MapSqlParameterSource()
+                """;
+
+        var params = new MapSqlParameterSource()
                 .addValue("uuid", UUID.randomUUID())
                 .addValue("metricKey", request.metricKey())
                 .addValue("periodStart", request.periodStart())
@@ -883,7 +899,19 @@ public class AdvancedReportRepositoryImpl implements AdvancedReportRepository {
                 .addValue("productId", request.productId())
                 .addValue("categoryId", request.categoryId())
                 .addValue("targetValue", request.targetValue())
-                .addValue("username", username), UUID.class);
+                .addValue("username", username);
+
+        List<UUID> createdIds = jdbc.query(
+                sql,
+                params,
+                (rs, rowNum) -> rs.getObject("uuid", UUID.class));
+
+        if (createdIds.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Target was not created. Verify the authenticated user and active product/category reference.");
+        }
+
+        return createdIds.getFirst();
     }
 
     @Override
@@ -1009,7 +1037,7 @@ public class AdvancedReportRepositoryImpl implements AdvancedReportRepository {
                            6 - NTILE(5) OVER (
                                ORDER BY monetary_value DESC, customer_id
                            ) AS monetary_score,
-                           (:toDate - last_purchase_date) AS recency_days
+                           (:toDate - last_purchase_date)::bigint AS recency_days
                     FROM customer_metrics
                 )
                 SELECT customer_id, customer_code, customer_name, cohort_month,
@@ -1124,7 +1152,7 @@ public class AdvancedReportRepositoryImpl implements AdvancedReportRepository {
                     LEFT JOIN purchase_metrics m ON m.supplier_id = s.id
                 )
                 SELECT supplier_id, supplier_name, received_purchase_count,
-                       purchase_total, payment_total,
+                       purchase_total, payment_total, credit_applied_total,
                        CASE WHEN purchase_total = 0 THEN NULL
                             ELSE (payment_total + credit_applied_total)
                                  * 100 / purchase_total

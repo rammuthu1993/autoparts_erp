@@ -1,6 +1,9 @@
 
 package com.autoparts.erp.tax.service;
 
+import com.autoparts.erp.auth.security.annotation.AdminOnly;
+import com.autoparts.erp.auth.security.annotation.SalesAccess;
+import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.common.exception.ApiException;
 import com.autoparts.erp.tax.dto.TaxRateCreateRequest;
 import com.autoparts.erp.tax.dto.TaxRateResponse;
@@ -15,7 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -23,15 +28,19 @@ import java.util.UUID;
 public class TaxRateServiceImpl implements TaxRateService {
 
     private final TaxRateRepository taxRateRepository;
+    private final AuditLogService auditLogService;
 
     public TaxRateServiceImpl(
-        TaxRateRepository taxRateRepository
+        TaxRateRepository taxRateRepository,
+        AuditLogService auditLogService
     ) {
         this.taxRateRepository = taxRateRepository;
+        this.auditLogService = auditLogService;
     }
 
     @Override
     @Transactional
+    @AdminOnly
     public TaxRateResponse create(
         TaxRateCreateRequest request
     ) {
@@ -77,6 +86,16 @@ public class TaxRateServiceImpl implements TaxRateService {
                 request.effectiveTo()
             );
 
+            // Audit successful tax rate creation.
+            auditLogService.log(
+                "CREATE",
+                "TAX_RATE",
+                taxRate.uuid().toString(),
+                "Created tax rate: " + taxRate.taxName(),
+                null,
+                toAuditValues(taxRate)
+            );
+
             return toResponse(taxRate);
 
         } catch (DuplicateKeyException exception) {
@@ -88,6 +107,7 @@ public class TaxRateServiceImpl implements TaxRateService {
     }
 
     @Override
+    @SalesAccess
     public List<TaxRateResponse> findAll() {
 
         return taxRateRepository.findAll()
@@ -97,6 +117,7 @@ public class TaxRateServiceImpl implements TaxRateService {
     }
 
     @Override
+    @SalesAccess
     public TaxRateResponse findByUuid(UUID uuid) {
 
         TaxRate taxRate = taxRateRepository
@@ -110,6 +131,7 @@ public class TaxRateServiceImpl implements TaxRateService {
 
     @Override
     @Transactional
+    @AdminOnly
     public TaxRateResponse update(
         UUID uuid,
         TaxRateUpdateRequest request
@@ -120,6 +142,9 @@ public class TaxRateServiceImpl implements TaxRateService {
             .orElseThrow(() -> new ApiException(
                 TaxErrorCode.TAX_RATE_NOT_FOUND
             ));
+
+        // Capture previous values before updating.
+        Map<String, Object> oldValues = toAuditValues(existing);
 
         taxRateRepository.lockTaxRateConfiguration();
 
@@ -152,6 +177,16 @@ public class TaxRateServiceImpl implements TaxRateService {
                 request.active()
             );
 
+            // Audit successful tax rate update.
+            auditLogService.log(
+                "UPDATE",
+                "TAX_RATE",
+                updated.uuid().toString(),
+                "Updated tax rate: " + updated.taxName(),
+                oldValues,
+                toAuditValues(updated)
+            );
+
             return toResponse(updated);
 
         } catch (DuplicateKeyException exception) {
@@ -163,6 +198,7 @@ public class TaxRateServiceImpl implements TaxRateService {
     }
 
     @Override
+    @SalesAccess
     public List<TaxRateResponse> findCurrent() {
 
         return taxRateRepository.findCurrent()
@@ -201,6 +237,24 @@ public class TaxRateServiceImpl implements TaxRateService {
                 TaxErrorCode.INVALID_TAX_EFFECTIVE_DATE
             );
         }
+    }
+
+    private Map<String, Object> toAuditValues(
+        TaxRate taxRate
+    ) {
+
+        Map<String, Object> values = new LinkedHashMap<>();
+
+        values.put("taxName", taxRate.taxName());
+        values.put("gstRate", taxRate.gstRate());
+        values.put("cgstRate", taxRate.cgstRate());
+        values.put("sgstRate", taxRate.sgstRate());
+        values.put("igstRate", taxRate.igstRate());
+        values.put("effectiveFrom", taxRate.effectiveFrom());
+        values.put("effectiveTo", taxRate.effectiveTo());
+        values.put("active", taxRate.active());
+
+        return values;
     }
 
     private TaxRateResponse toResponse(TaxRate taxRate) {

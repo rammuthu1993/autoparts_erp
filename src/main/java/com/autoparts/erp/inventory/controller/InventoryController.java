@@ -6,6 +6,7 @@ import com.autoparts.erp.inventory.dto.InventoryStockResponse;
 import com.autoparts.erp.inventory.dto.StockAdjustmentRequest;
 import com.autoparts.erp.inventory.enums.InventoryMovementType;
 import com.autoparts.erp.inventory.service.InventoryService;
+import com.autoparts.erp.auth.security.annotation.AdminOrManager;
 
 import jakarta.validation.Valid;
 
@@ -101,6 +102,7 @@ public class InventoryController {
      * Manually increase or decrease Product stock.
      */
     @PostMapping("/products/{productUuid}/adjustments")
+    @AdminOrManager
     public InventoryStockResponse adjustStock(
 
             @PathVariable UUID productUuid,

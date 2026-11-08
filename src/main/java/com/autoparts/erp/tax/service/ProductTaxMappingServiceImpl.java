@@ -1,6 +1,9 @@
 
 package com.autoparts.erp.tax.service;
 
+import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.SalesAccess;
+import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.common.exception.ApiException;
 import com.autoparts.erp.tax.dto.ProductTaxMappingCreateRequest;
 import com.autoparts.erp.tax.dto.ProductTaxMappingResponse;
@@ -15,7 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -25,17 +30,21 @@ public class ProductTaxMappingServiceImpl
 
     private final ProductTaxMappingRepository mappingRepository;
     private final TaxRateRepository taxRateRepository;
+    private final AuditLogService auditLogService;
 
     public ProductTaxMappingServiceImpl(
         ProductTaxMappingRepository mappingRepository,
-        TaxRateRepository taxRateRepository
+        TaxRateRepository taxRateRepository,
+        AuditLogService auditLogService
     ) {
         this.mappingRepository = mappingRepository;
         this.taxRateRepository = taxRateRepository;
+        this.auditLogService = auditLogService;
     }
 
     @Override
     @Transactional
+    @AdminOrManager
     public ProductTaxMappingResponse create(
         UUID productUuid,
         ProductTaxMappingCreateRequest request
@@ -87,6 +96,17 @@ public class ProductTaxMappingServiceImpl
                     request.effectiveTo()
                 );
 
+            // Audit successful product tax mapping creation.
+            auditLogService.log(
+                "CREATE",
+                "PRODUCT_TAX_MAPPING",
+                mapping.uuid().toString(),
+                "Created tax mapping for product: "
+                    + mapping.productCode(),
+                null,
+                toAuditValues(mapping, productUuid)
+            );
+
             return toResponse(mapping, productUuid);
 
         } catch (DuplicateKeyException exception) {
@@ -100,6 +120,7 @@ public class ProductTaxMappingServiceImpl
     }
 
     @Override
+    @SalesAccess
     public ProductTaxMappingResponse findByUuid(UUID uuid) {
 
         ProductTaxMapping mapping = mappingRepository
@@ -117,6 +138,7 @@ public class ProductTaxMappingServiceImpl
     }
 
     @Override
+    @SalesAccess
     public List<ProductTaxMappingResponse> findByProductUuid(
         UUID productUuid
     ) {
@@ -129,6 +151,7 @@ public class ProductTaxMappingServiceImpl
     }
 
     @Override
+    @SalesAccess
     public ProductTaxMappingResponse findCurrentByProductUuid(
         UUID productUuid
     ) {
@@ -183,11 +206,30 @@ public class ProductTaxMappingServiceImpl
 
     private UUID findProductUuid(Long productId) {
 
-        // This lookup is supplied by the repository method below.
+        // Retrieve the external product UUID.
         return mappingRepository.findProductUuidById(productId)
             .orElseThrow(() -> new ApiException(
                 TaxErrorCode.PRODUCT_NOT_FOUND
             ));
+    }
+
+    private Map<String, Object> toAuditValues(
+        ProductTaxMapping mapping,
+        UUID productUuid
+    ) {
+
+        Map<String, Object> values = new LinkedHashMap<>();
+
+        values.put("productUuid", productUuid);
+        values.put("productCode", mapping.productCode());
+        values.put("productName", mapping.productName());
+        values.put("taxRateUuid", mapping.taxRateUuid());
+        values.put("taxName", mapping.taxName());
+        values.put("hsnCode", mapping.hsnCode());
+        values.put("effectiveFrom", mapping.effectiveFrom());
+        values.put("effectiveTo", mapping.effectiveTo());
+
+        return values;
     }
 
     private ProductTaxMappingResponse toResponse(

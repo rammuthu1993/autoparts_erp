@@ -1,11 +1,14 @@
+
 package com.autoparts.erp.sales.service.impl;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -16,6 +19,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.SalesAccess;
+import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.inventory.service.InventoryService;
 import com.autoparts.erp.sales.dto.SalesRefundRequest;
 import com.autoparts.erp.sales.dto.SalesRefundResponse;
@@ -39,6 +45,7 @@ import com.autoparts.erp.cashregister.enums.CashMovementSourceType;
 import com.autoparts.erp.cashregister.enums.CashMovementType;
 
 @Service
+@SalesAccess
 public class SalesReturnServiceImpl implements SalesReturnService {
 
     private static final Logger logger =
@@ -53,18 +60,26 @@ public class SalesReturnServiceImpl implements SalesReturnService {
     private final SalesReturnRepository returnRepository;
     private final InventoryService inventoryService;
     private final CashRegisterService cashRegisterService;
+    private final AuditLogService auditLogService;
 
     public SalesReturnServiceImpl(
             SalesRepository salesRepository,
             SalesReturnRepository returnRepository,
             InventoryService inventoryService,
-            CashRegisterService cashRegisterService
+            CashRegisterService cashRegisterService,
+            AuditLogService auditLogService
     ) {
         this.salesRepository = salesRepository;
         this.returnRepository = returnRepository;
         this.inventoryService = inventoryService;
         this.cashRegisterService = cashRegisterService;
+        this.auditLogService = auditLogService;
     }
+
+    // ---------------------------------------------------------
+    // CREATE SALES RETURN
+    // ADMIN / MANAGER / CASHIER
+    // ---------------------------------------------------------
 
     @Override
     @Transactional
@@ -73,10 +88,15 @@ public class SalesReturnServiceImpl implements SalesReturnService {
             SalesReturnRequest request
     ) {
 
-        logger.info("Sales return creation started for sale UUID {}", saleUuid);
+        logger.info(
+                "Sales return creation started for sale UUID {}",
+                saleUuid
+        );
 
         Sales sale = salesRepository.findByUuidForUpdate(saleUuid)
-                .orElseThrow(() -> notFound("Sales invoice not found"));
+                .orElseThrow(() ->
+                        notFound("Sales invoice not found")
+                );
 
         if (sale.status() != SalesStatus.COMPLETED) {
             throw badRequest(
@@ -85,7 +105,9 @@ public class SalesReturnServiceImpl implements SalesReturnService {
         }
 
         if (request.products() == null || request.products().isEmpty()) {
-            throw badRequest("At least one return product is required");
+            throw badRequest(
+                    "At least one return product is required"
+            );
         }
 
         List<SalesProduct> originalProducts =
@@ -128,6 +150,7 @@ public class SalesReturnServiceImpl implements SalesReturnService {
 
             if (!processedSalesProductUuids.add(
                     productRequest.salesProductUuid())) {
+
                 throw badRequest(
                         "Duplicate sales product in return request"
                 );
@@ -150,7 +173,10 @@ public class SalesReturnServiceImpl implements SalesReturnService {
 
             if (requestedQuantity == null
                     || requestedQuantity.compareTo(BigDecimal.ZERO) <= 0) {
-                throw badRequest("Return quantity must be greater than zero");
+
+                throw badRequest(
+                        "Return quantity must be greater than zero"
+                );
             }
 
             List<SalesReturnProduct> previousReturns =
@@ -168,6 +194,7 @@ public class SalesReturnServiceImpl implements SalesReturnService {
                             .subtract(previouslyReturnedQuantity);
 
             if (requestedQuantity.compareTo(remainingQuantity) > 0) {
+
                 throw badRequest(
                         "Return quantity exceeds the remaining sold quantity for product "
                                 + originalProduct.productCode()
@@ -195,8 +222,9 @@ public class SalesReturnServiceImpl implements SalesReturnService {
                     salesReturn.id()
             );
 
-            subtotal = subtotal.add(returnProduct.unitPrice()
-                    .multiply(requestedQuantity));
+            subtotal = subtotal.add(
+                    returnProduct.unitPrice().multiply(requestedQuantity)
+            );
 
             discount = discount.add(returnProduct.discountAmount());
             taxable = taxable.add(returnProduct.taxableAmount());
@@ -229,6 +257,35 @@ public class SalesReturnServiceImpl implements SalesReturnService {
 
         returnRepository.updateReturn(salesReturn);
 
+        // Audit log for sales return creation.
+        Map<String, Object> returnAuditData = new HashMap<>();
+
+        returnAuditData.put(
+                "returnUuid",
+                salesReturn.uuid().toString()
+        );
+        returnAuditData.put("saleId", sale.id());
+        returnAuditData.put("invoiceNumber", sale.invoiceNumber());
+        returnAuditData.put("reason", salesReturn.reason());
+        returnAuditData.put("status", salesReturn.status().name());
+        returnAuditData.put(
+                "totalReturnAmount",
+                salesReturn.totalReturnAmount()
+        );
+        returnAuditData.put(
+                "productCount",
+                request.products().size()
+        );
+
+        auditLogService.log(
+                "CREATE",
+                "SALES_RETURN",
+                salesReturn.uuid().toString(),
+                "Sales return created and stock restored",
+                null,
+                returnAuditData
+        );
+
         logger.info(
                 "Sales return created. Return UUID: {}, invoice UUID: {}",
                 salesReturn.uuid(),
@@ -237,6 +294,10 @@ public class SalesReturnServiceImpl implements SalesReturnService {
 
         return buildResponse(salesReturn, sale);
     }
+
+    // ---------------------------------------------------------
+    // CALCULATE RETURN PRODUCT
+    // ---------------------------------------------------------
 
     private SalesReturnProduct calculateReturnProduct(
             Long returnId,
@@ -330,6 +391,10 @@ public class SalesReturnServiceImpl implements SalesReturnService {
         );
     }
 
+    // ---------------------------------------------------------
+    // ALLOCATE ORIGINAL AMOUNTS TO PARTIAL RETURNS
+    // ---------------------------------------------------------
+
     private BigDecimal allocateAmount(
             BigDecimal originalAmount,
             BigDecimal originalQuantity,
@@ -358,6 +423,11 @@ public class SalesReturnServiceImpl implements SalesReturnService {
         );
     }
 
+    // ---------------------------------------------------------
+    // FIND RETURNS BY SALES UUID
+    // ADMIN / MANAGER / CASHIER
+    // ---------------------------------------------------------
+
     @Override
     @Transactional(readOnly = true)
     public List<SalesReturnResponse> findReturnsBySaleUuid(
@@ -365,7 +435,9 @@ public class SalesReturnServiceImpl implements SalesReturnService {
     ) {
 
         Sales sale = salesRepository.findByUuid(saleUuid)
-                .orElseThrow(() -> notFound("Sales invoice not found"));
+                .orElseThrow(() ->
+                        notFound("Sales invoice not found")
+                );
 
         return returnRepository.findReturnsBySaleId(sale.id())
                 .stream()
@@ -373,31 +445,50 @@ public class SalesReturnServiceImpl implements SalesReturnService {
                 .toList();
     }
 
+    // ---------------------------------------------------------
+    // FIND RETURN BY UUID
+    // ADMIN / MANAGER / CASHIER
+    // ---------------------------------------------------------
+
     @Override
     @Transactional(readOnly = true)
     public SalesReturnResponse findReturnByUuid(UUID returnUuid) {
 
         SalesReturn salesReturn = returnRepository.findReturnByUuid(returnUuid)
-                .orElseThrow(() -> notFound("Sales return not found"));
+                .orElseThrow(() ->
+                        notFound("Sales return not found")
+                );
 
-        Sales sale = salesRepository.findByUuidForUpdate(
+        // This is a read operation. Do not use FOR UPDATE here.
+        Sales sale = salesRepository.findByUuid(
                 findSaleUuidForReturn(salesReturn)
-        ).orElseThrow(() -> notFound("Sales invoice not found"));
+        ).orElseThrow(() ->
+                notFound("Sales invoice not found")
+        );
 
         return buildResponse(salesReturn, sale);
     }
 
-    /*
-     * The repository needs a method to resolve the sale UUID from sale ID.
-     * See the repository addition below.
-     */
+    // ---------------------------------------------------------
+    // FIND ORIGINAL SALE UUID FROM RETURN
+    // ---------------------------------------------------------
+
     private UUID findSaleUuidForReturn(SalesReturn salesReturn) {
+
         return salesRepository.findUuidById(salesReturn.saleId())
-                .orElseThrow(() -> notFound("Sales invoice not found"));
+                .orElseThrow(() ->
+                        notFound("Sales invoice not found")
+                );
     }
+
+    // ---------------------------------------------------------
+    // RECORD CUSTOMER REFUND
+    // ADMIN / MANAGER ONLY
+    // ---------------------------------------------------------
 
     @Override
     @Transactional
+    @AdminOrManager
     public SalesReturnResponse recordRefund(
             UUID returnUuid,
             SalesRefundRequest request
@@ -417,15 +508,19 @@ public class SalesReturnServiceImpl implements SalesReturnService {
 
         if (request.amount() == null
                 || request.amount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw badRequest("Refund amount must be greater than zero");
+
+            throw badRequest(
+                    "Refund amount must be greater than zero"
+            );
         }
 
         if (request.amount().compareTo(refundableAmount) > 0) {
+
             throw badRequest(
                     "Refund amount exceeds the remaining refundable amount"
             );
         }
-        
+
         SalesRefund refund = new SalesRefund(
                 null,
                 UUID.randomUUID(),
@@ -438,10 +533,10 @@ public class SalesReturnServiceImpl implements SalesReturnService {
                 null
         );
 
-        // Save refund
+        // Save refund.
         refund = returnRepository.createRefund(refund);
 
-        // Record cash movement only for CASH refunds
+        // Record cash movement only for CASH refunds.
         if (refund.paymentMethod() == PaymentMethod.CASH) {
 
             cashRegisterService.recordTransactionMovement(
@@ -454,22 +549,8 @@ public class SalesReturnServiceImpl implements SalesReturnService {
             );
         }
 
-//        SalesRefund refund = new SalesRefund(
-//                null,
-//                UUID.randomUUID(),
-//                salesReturn.id(),
-//                request.paymentMethod(),
-//                money(request.amount()),
-//                request.referenceNumber(),
-//                OffsetDateTime.now(),
-//                request.notes(),
-//                null
-//        );
-
-//        returnRepository.createRefund(refund);
-
         BigDecimal newRefundedAmount =
-                refundedAmount.add(request.amount());
+                refundedAmount.add(refund.amount());
 
         SalesReturnStatus newStatus =
                 newRefundedAmount.compareTo(
@@ -500,9 +581,30 @@ public class SalesReturnServiceImpl implements SalesReturnService {
 
         returnRepository.updateReturn(updatedReturn);
 
-        Sales sale = salesRepository.findByUuidForUpdate(
+        // Audit log for customer refund.
+        auditLogService.log(
+                "REFUND",
+                "SALES_RETURN",
+                salesReturn.uuid().toString(),
+                "Customer refund recorded",
+                Map.of(
+                        "previouslyRefundedAmount", refundedAmount,
+                        "previousStatus", salesReturn.status().name()
+                ),
+                Map.of(
+                        "refundUuid", refund.uuid().toString(),
+                        "refundAmount", refund.amount(),
+                        "paymentMethod", refund.paymentMethod().name(),
+                        "totalRefundedAmount", newRefundedAmount,
+                        "status", newStatus.name()
+                )
+        );
+
+        Sales sale = salesRepository.findByUuid(
                 findSaleUuidForReturn(updatedReturn)
-        ).orElseThrow(() -> notFound("Sales invoice not found"));
+        ).orElseThrow(() ->
+                notFound("Sales invoice not found")
+        );
 
         logger.info(
                 "Refund recorded for return UUID {}. Amount: {}",
@@ -512,6 +614,10 @@ public class SalesReturnServiceImpl implements SalesReturnService {
 
         return buildResponse(updatedReturn, sale);
     }
+
+    // ---------------------------------------------------------
+    // BUILD SALES RETURN RESPONSE
+    // ---------------------------------------------------------
 
     private SalesReturnResponse buildResponse(
             SalesReturn salesReturn,
@@ -563,6 +669,10 @@ public class SalesReturnServiceImpl implements SalesReturnService {
         );
     }
 
+    // ---------------------------------------------------------
+    // BUILD RETURN PRODUCT RESPONSE
+    // ---------------------------------------------------------
+
     private SalesReturnProductResponse toProductResponse(
             SalesReturnProduct product
     ) {
@@ -591,6 +701,10 @@ public class SalesReturnServiceImpl implements SalesReturnService {
         );
     }
 
+    // ---------------------------------------------------------
+    // BUILD REFUND RESPONSE
+    // ---------------------------------------------------------
+
     private SalesRefundResponse toRefundResponse(SalesRefund refund) {
 
         return new SalesRefundResponse(
@@ -604,18 +718,33 @@ public class SalesReturnServiceImpl implements SalesReturnService {
         );
     }
 
+    // ---------------------------------------------------------
+    // MONEY ROUNDING
+    // ---------------------------------------------------------
+
     private BigDecimal money(BigDecimal value) {
+
         return value.setScale(MONEY_SCALE, ROUNDING);
     }
 
+    // ---------------------------------------------------------
+    // BAD REQUEST EXCEPTION
+    // ---------------------------------------------------------
+
     private ResponseStatusException badRequest(String message) {
+
         return new ResponseStatusException(
                 HttpStatus.BAD_REQUEST,
                 message
         );
     }
 
+    // ---------------------------------------------------------
+    // NOT FOUND EXCEPTION
+    // ---------------------------------------------------------
+
     private ResponseStatusException notFound(String message) {
+
         return new ResponseStatusException(
                 HttpStatus.NOT_FOUND,
                 message

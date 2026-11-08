@@ -292,4 +292,49 @@ public class ProductRepositoryImpl implements ProductRepository {
 
         return Boolean.TRUE.equals(exists);
     }
+    
+
+    @Override
+    public boolean existsByNameExcludingUuid(String name, UUID uuid) {
+
+        Boolean exists = jdbcTemplate.queryForObject(
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM products
+                WHERE LOWER(name) = LOWER(?)
+                  AND uuid <> ?
+            )
+            """,
+            Boolean.class,
+            name,
+            uuid
+        );
+
+        return Boolean.TRUE.equals(exists);
+    }
+
+    @Override
+    public boolean existsByPartNoExcludingUuid(
+        String partNo,
+        UUID uuid
+    ) {
+
+        Boolean exists = jdbcTemplate.queryForObject(
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM products
+                WHERE part_no = ?
+                  AND uuid <> ?
+            )
+            """,
+            Boolean.class,
+            partNo,
+            uuid
+        );
+
+        return Boolean.TRUE.equals(exists);
+    }
+
 }

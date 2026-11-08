@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.cashregister.enums.CashMovementSourceType;
 import com.autoparts.erp.cashregister.enums.CashMovementType;
 import com.autoparts.erp.cashregister.service.CashRegisterService;
@@ -43,8 +44,13 @@ import com.autoparts.erp.tax.model.ProductTaxMapping;
 import com.autoparts.erp.tax.model.TaxRate;
 import com.autoparts.erp.tax.repository.ProductTaxMappingRepository;
 import com.autoparts.erp.tax.repository.TaxRateRepository;
+import java.util.Map;
+
+import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.audit.service.AuditLogService;
 
 @Service
+@SalesAccess
 public class SalesServiceImpl implements SalesService {
 
     private static final Logger logger =
@@ -58,14 +64,16 @@ public class SalesServiceImpl implements SalesService {
     private final TaxRateRepository taxRateRepository;
     private final CustomerRepository customerRepository;
     private final CashRegisterService cashRegisterService;
+    private final AuditLogService auditLogService;
 
     public SalesServiceImpl(
-        SalesRepository salesRepository,
-        InventoryService inventoryService,
-        ProductTaxMappingRepository productTaxMappingRepository,
-        TaxRateRepository taxRateRepository,
-        CustomerRepository customerRepository,
-        CashRegisterService cashRegisterService
+            SalesRepository salesRepository,
+            InventoryService inventoryService,
+            ProductTaxMappingRepository productTaxMappingRepository,
+            TaxRateRepository taxRateRepository,
+            CustomerRepository customerRepository,
+            CashRegisterService cashRegisterService,
+            AuditLogService auditLogService
     ) {
         this.salesRepository = salesRepository;
         this.inventoryService = inventoryService;
@@ -73,6 +81,7 @@ public class SalesServiceImpl implements SalesService {
         this.taxRateRepository = taxRateRepository;
         this.customerRepository = customerRepository;
         this.cashRegisterService = cashRegisterService;
+        this.auditLogService = auditLogService;
     }
 
     // ---------------------------------------------------------
@@ -411,6 +420,21 @@ public class SalesServiceImpl implements SalesService {
             "Sales draft successfully created with invoice number {}",
             invoiceNumber
         );
+        
+        auditLogService.log(
+                "CREATE",
+                "SALES",
+                createdSale.invoiceNumber(),
+                "Sales draft created",
+                null,
+                Map.of(
+                        "saleUuid", createdSale.uuid().toString(),
+                        "invoiceNumber", createdSale.invoiceNumber(),
+                        "status", createdSale.status().name(),
+                        "grandTotal", grandTotal,
+                        "paidAmount", paidAmount
+                )
+        );
 
         return findByUuid(createdSale.uuid());
     }
@@ -541,6 +565,20 @@ public class SalesServiceImpl implements SalesService {
         );
 
         salesRepository.updateSale(completedSale);
+        
+        auditLogService.log(
+                "APPROVE",
+                "SALES",
+                completedSale.invoiceNumber(),
+                "Sales invoice completed",
+                Map.of(
+                        "status", sale.status().name()
+                ),
+                Map.of(
+                        "status", completedSale.status().name(),
+                        "grandTotal", completedSale.grandTotal()
+                )
+        );
 
         logger.info(
             "Sales invoice completion successful for UUID {}",
@@ -661,6 +699,7 @@ public class SalesServiceImpl implements SalesService {
     // ---------------------------------------------------------
 
     @Override
+    @AdminOrManager
     @Transactional
     public SalesResponse cancel(UUID saleUuid) {
 
@@ -713,6 +752,19 @@ public class SalesServiceImpl implements SalesService {
         );
 
         salesRepository.updateSale(cancelledSale);
+        
+        auditLogService.log(
+                "CANCEL",
+                "SALES",
+                cancelledSale.invoiceNumber(),
+                "Sales draft cancelled",
+                Map.of(
+                        "status", sale.status().name()
+                ),
+                Map.of(
+                        "status", cancelledSale.status().name()
+                )
+        );
 
         logger.info(
             "Sales cancellation successful for UUID {}",
@@ -967,6 +1019,23 @@ public class SalesServiceImpl implements SalesService {
         );
 
         salesRepository.updateSale(updatedSale);
+        
+        auditLogService.log(
+                "CREATE",
+                "SALES_PAYMENT",
+                payment.uuid().toString(),
+                "Additional sales payment recorded",
+                Map.of(
+                        "paidAmount", sale.paidAmount(),
+                        "balanceAmount", sale.balanceAmount()
+                ),
+                Map.of(
+                        "paymentAmount", paymentAmount,
+                        "paidAmount", paidAmount,
+                        "balanceAmount", balanceAmount,
+                        "paymentMethod", request.paymentMethod().name()
+                )
+        );
 
         logger.info(
             "Payment recorded successfully for invoice {}",

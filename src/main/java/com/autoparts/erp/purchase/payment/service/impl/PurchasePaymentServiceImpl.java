@@ -13,6 +13,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.AuthenticatedUser;
 import com.autoparts.erp.auth.security.CurrentUserService;
 import com.autoparts.erp.cashregister.enums.CashMovementSourceType;
 import com.autoparts.erp.cashregister.enums.CashMovementType;
@@ -54,6 +56,7 @@ public class PurchasePaymentServiceImpl
 
     @Override
     @Transactional
+    @AdminOrManager
     public PurchasePaymentSummaryResponse recordPayment(
             UUID purchaseUuid,
             PurchasePaymentRequest request
@@ -177,6 +180,7 @@ public class PurchasePaymentServiceImpl
     }
 
     @Override
+    @AuthenticatedUser
     public PurchasePaymentSummaryResponse findPaymentsByPurchase(
             UUID purchaseUuid
     ) {
@@ -193,6 +197,7 @@ public class PurchasePaymentServiceImpl
     }
 
     @Override
+    @AuthenticatedUser
     public PurchasePaymentResponse findPaymentByUuid(
             UUID paymentUuid
     ) {
