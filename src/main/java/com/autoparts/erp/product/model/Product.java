@@ -1,4 +1,3 @@
-
 package com.autoparts.erp.product.model;
 
 import java.math.BigDecimal;
@@ -21,6 +20,8 @@ public record Product(
         int qty,
         BigDecimal minimumStock,
         String unit,
+        String barcode,
+        String barcodeType,
         boolean active,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt

@@ -1,11 +1,9 @@
-
 package com.autoparts.erp.product.dto;
 
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 
 public record ProductCreateRequest(
-
         @NotBlank
         @Size(max = 100)
         String partNo,
@@ -43,13 +41,8 @@ public record ProductCreateRequest(
         @DecimalMin("0.000")
         @Digits(integer = 9, fraction = 3)
         BigDecimal minimumStock,
-        
-        @NotNull(message = "Quantity is required")
-        @Positive(message = "Quantity must be greater than zero")
-        int qty,
 
         @NotBlank
         @Size(max = 20)
         String unit
-
 ) {}

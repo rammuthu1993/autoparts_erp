@@ -1,139 +1,700 @@
-2026-11-08T15:55:10.067+05:30  INFO 34520 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Starting AutopartsErpApplication using Java 25.0.3 with PID 34520 (D:\Projects\autoparts-erp\target\classes started by Muthukumar Ramasamy in D:\Projects\autoparts-erp)
-2026-11-08T15:55:10.072+05:30  INFO 34520 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : No active profile set, falling back to 1 default profile: "default"
-2026-11-08T15:55:11.797+05:30  INFO 34520 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
-2026-11-08T15:55:11.825+05:30  INFO 34520 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-11-08T15:55:11.826+05:30  INFO 34520 --- [autoparts-erp] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
-2026-11-08T15:55:11.900+05:30  INFO 34520 --- [autoparts-erp] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1795 ms
-2026-11-08T15:55:12.459+05:30  INFO 34520 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
-2026-11-08T15:55:12.643+05:30  INFO 34520 --- [autoparts-erp] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@4cc8d70d
-2026-11-08T15:55:12.647+05:30  INFO 34520 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
-2026-11-08T15:55:12.673+05:30  INFO 34520 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
-2026-11-08T15:55:12.776+05:30  INFO 34520 --- [autoparts-erp] [main] o.f.core.internal.command.DbValidate     : Successfully validated 25 migrations (execution time 00:00.044s)
-2026-11-08T15:55:12.812+05:30  INFO 34520 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 24
-2026-11-08T15:55:12.827+05:30  INFO 34520 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "25 - create audit logs"
-2026-11-08T15:55:12.865+05:30  INFO 34520 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Successfully applied 1 migration to schema "public", now at version v25 (execution time 00:00.024s)
-2026-11-08T15:55:12.914+05:30  WARN 34520 --- [autoparts-erp] [main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'auditLogController' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\audit\controller\AuditLogController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'auditLogServiceImpl' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\audit\serviceimpl\AuditLogServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 1: Error creating bean with name 'currentUserService' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\auth\security\CurrentUserService.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'userRepositoryImpl' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\auth\repositoryimpl\UserRepositoryImpl.class]: Unsatisfied dependency expressed through constructor parameter 1: Error creating bean with name 'userRepositoryImpl': Requested bean is currently in creation: Is there an unresolvable circular reference or an asynchronous initialization dependency?
-2026-11-08T15:55:12.915+05:30  INFO 34520 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
-2026-11-08T15:55:12.917+05:30  INFO 34520 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
-2026-11-08T15:55:12.923+05:30  INFO 34520 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
-2026-11-08T15:55:12.938+05:30  INFO 34520 --- [autoparts-erp] [main] .s.b.a.l.ConditionEvaluationReportLogger : 
+2026-11-11T16:02:47.240+05:30  INFO 30164 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Starting AutopartsErpApplication using Java 25.0.3 with PID 30164 (D:\Projects\autoparts-erp\target\classes started by Muthukumar Ramasamy in D:\Projects\autoparts-erp)
+2026-11-11T16:02:47.245+05:30  INFO 30164 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : No active profile set, falling back to 1 default profile: "default"
+2026-11-11T16:02:50.452+05:30  INFO 30164 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-11-11T16:02:50.486+05:30  INFO 30164 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-11-11T16:02:50.488+05:30  INFO 30164 --- [autoparts-erp] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
+2026-11-11T16:02:50.677+05:30  INFO 30164 --- [autoparts-erp] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 3396 ms
+2026-11-11T16:02:52.936+05:30  INFO 30164 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-11-11T16:02:53.254+05:30  INFO 30164 --- [autoparts-erp] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@93fb44
+2026-11-11T16:02:53.261+05:30  INFO 30164 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-11-11T16:02:53.317+05:30  INFO 30164 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
+2026-11-11T16:02:53.521+05:30  INFO 30164 --- [autoparts-erp] [main] o.f.core.internal.command.DbValidate     : Successfully validated 27 migrations (execution time 00:00.096s)
+2026-11-11T16:02:53.545+05:30  INFO 30164 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 27
+2026-11-11T16:02:53.554+05:30  INFO 30164 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Schema "public" is up to date. No migration necessary.
+2026-11-11T16:02:56.060+05:30  INFO 30164 --- [autoparts-erp] [main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+2026-11-11T16:02:56.060+05:30  WARN 30164 --- [autoparts-erp] [main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
+2026-11-11T16:02:57.864+05:30  INFO 30164 --- [autoparts-erp] [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
+2026-11-11T16:02:58.069+05:30  INFO 30164 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-11-11T16:02:58.084+05:30  INFO 30164 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Started AutopartsErpApplication in 11.278 seconds (process running for 11.744)
+2026-11-11T16:02:58.101+05:30  INFO 30164 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
+2026-11-11T16:02:58.126+05:30  INFO 30164 --- [autoparts-erp] [main] o.f.c.i.s.JdbcTableSchemaHistory         : Repair of failed migration in Schema History table "public"."flyway_schema_history" not necessary. No failed migration detected.
+2026-11-11T16:02:58.151+05:30  INFO 30164 --- [autoparts-erp] [main] o.f.core.internal.command.DbRepair       : Successfully repaired schema history table "public"."flyway_schema_history" (execution time 00:00.027s).
+2026-11-11T16:02:58.828+05:30  INFO 30164 --- [autoparts-erp] [RMI TCP Connection(5)-10.100.202.202] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-11-11T16:02:58.828+05:30  INFO 30164 --- [autoparts-erp] [RMI TCP Connection(5)-10.100.202.202] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-11-11T16:02:58.828+05:30  INFO 30164 --- [autoparts-erp] [RMI TCP Connection(5)-10.100.202.202] o.s.web.servlet.DispatcherServlet        : Completed initialization in 0 ms
+2026-11-11T16:03:09.472+05:30  WARN 30164 --- [autoparts-erp] [http-nio-8080-exec-4] c.a.e.s.CustomAuthenticationEntryPoint   : Request rejected because authentication is missing or invalid
+2026-11-11T16:03:12.762+05:30  INFO 30164 --- [autoparts-erp] [http-nio-8080-exec-5] c.a.e.auth.serviceimpl.AuthServiceImpl   : Login succeeded.
+2026-11-11T16:03:27.706+05:30  INFO 30164 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution started: searchProducts
+2026-11-11T16:03:27.722+05:30  INFO 30164 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution completed: searchProducts, resultCount=0, durationMs=6
+2026-11-11T16:34:42.883+05:30  WARN 30164 --- [autoparts-erp] [http-nio-8080-exec-4] c.a.e.s.CustomAuthenticationEntryPoint   : Request rejected because authentication is missing or invalid
+2026-11-11T16:34:47.047+05:30  INFO 30164 --- [autoparts-erp] [RMI TCP Connection(37)-10.100.202.202] inMXBeanRegistrar$SpringApplicationAdmin : Application shutdown requested.
+2026-11-11T16:34:47.051+05:30  INFO 30164 --- [autoparts-erp] [RMI TCP Connection(37)-10.100.202.202] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-11-11T16:34:47.054+05:30  INFO 30164 --- [autoparts-erp] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-11-11T16:34:47.060+05:30  INFO 30164 --- [autoparts-erp] [RMI TCP Connection(37)-10.100.202.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-11-11T16:34:47.061+05:30  INFO 30164 --- [autoparts-erp] [RMI TCP Connection(37)-10.100.202.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-11-11T16:36:15.291+05:30  INFO 19976 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Starting AutopartsErpApplication using Java 25.0.3 with PID 19976 (D:\Projects\autoparts-erp\target\classes started by Muthukumar Ramasamy in D:\Projects\autoparts-erp)
+2026-11-11T16:36:15.294+05:30  INFO 19976 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : No active profile set, falling back to 1 default profile: "default"
+2026-11-11T16:36:16.337+05:30  INFO 19976 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-11-11T16:36:16.347+05:30  INFO 19976 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-11-11T16:36:16.347+05:30  INFO 19976 --- [autoparts-erp] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
+2026-11-11T16:36:16.405+05:30  INFO 19976 --- [autoparts-erp] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1079 ms
+2026-11-11T16:36:16.889+05:30  INFO 19976 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-11-11T16:36:16.970+05:30  INFO 19976 --- [autoparts-erp] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@7ccf6114
+2026-11-11T16:36:16.971+05:30  INFO 19976 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-11-11T16:36:16.984+05:30  INFO 19976 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
+2026-11-11T16:36:17.046+05:30  INFO 19976 --- [autoparts-erp] [main] o.f.core.internal.command.DbValidate     : Successfully validated 28 migrations (execution time 00:00.034s)
+2026-11-11T16:36:17.084+05:30  INFO 19976 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 27
+2026-11-11T16:36:17.093+05:30  INFO 19976 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "28 - Additional ai"
+2026-11-11T16:36:17.101+05:30  WARN 19976 --- [autoparts-erp] [main] o.f.c.i.s.DefaultSqlScriptExecutor       : DB: relation "idx_ai_conversations_user" already exists, skipping (SQL State: 42P07 - Error Code: 0)
+2026-11-11T16:36:17.102+05:30  WARN 19976 --- [autoparts-erp] [main] o.f.c.i.s.DefaultSqlScriptExecutor       : DB: relation "idx_ai_messages_conversation" already exists, skipping (SQL State: 42P07 - Error Code: 0)
+2026-11-11T16:36:17.111+05:30  INFO 19976 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Successfully applied 1 migration to schema "public", now at version v28 (execution time 00:00.010s)
+2026-11-11T16:36:17.740+05:30  INFO 19976 --- [autoparts-erp] [main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+2026-11-11T16:36:17.741+05:30  WARN 19976 --- [autoparts-erp] [main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
+2026-11-11T16:36:18.196+05:30  INFO 19976 --- [autoparts-erp] [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
+2026-11-11T16:36:18.254+05:30  INFO 19976 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-11-11T16:36:18.260+05:30  INFO 19976 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Started AutopartsErpApplication in 3.227 seconds (process running for 3.499)
+2026-11-11T16:36:18.264+05:30  INFO 19976 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
+2026-11-11T16:36:18.274+05:30  INFO 19976 --- [autoparts-erp] [main] o.f.c.i.s.JdbcTableSchemaHistory         : Repair of failed migration in Schema History table "public"."flyway_schema_history" not necessary. No failed migration detected.
+2026-11-11T16:36:18.281+05:30  INFO 19976 --- [autoparts-erp] [main] o.f.core.internal.command.DbRepair       : Successfully repaired schema history table "public"."flyway_schema_history" (execution time 00:00.009s).
+2026-11-11T16:36:18.577+05:30  INFO 19976 --- [autoparts-erp] [RMI TCP Connection(5)-10.100.202.202] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-11-11T16:36:18.578+05:30  INFO 19976 --- [autoparts-erp] [RMI TCP Connection(5)-10.100.202.202] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-11-11T16:36:18.579+05:30  INFO 19976 --- [autoparts-erp] [RMI TCP Connection(5)-10.100.202.202] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+2026-11-11T16:36:22.404+05:30  WARN 19976 --- [autoparts-erp] [http-nio-8080-exec-1] c.a.e.s.CustomAuthenticationEntryPoint   : Request rejected because authentication is missing or invalid
+2026-11-11T16:36:23.755+05:30  WARN 19976 --- [autoparts-erp] [http-nio-8080-exec-6] c.a.e.s.CustomAuthenticationEntryPoint   : Request rejected because authentication is missing or invalid
+2026-11-11T16:36:28.721+05:30  INFO 19976 --- [autoparts-erp] [http-nio-8080-exec-9] c.a.e.auth.serviceimpl.AuthServiceImpl   : Login succeeded.
+2026-11-11T16:36:33.251+05:30  INFO 19976 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution started: searchProducts
+2026-11-11T16:36:33.251+05:30  INFO 19976 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution completed: searchProducts, resultCount=1, durationMs=2
+2026-11-11T16:37:27.342+05:30  INFO 19976 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution started: getProductStock
+2026-11-11T16:37:27.344+05:30  INFO 19976 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution completed: getProductStock, resultCount=1, durationMs=2
+2026-11-11T17:03:15.307+05:30  WARN 19976 --- [autoparts-erp] [http-nio-8080-exec-5] c.a.e.s.CustomAuthenticationEntryPoint   : Request rejected because authentication is missing or invalid
+2026-11-11T17:03:19.143+05:30  INFO 19976 --- [autoparts-erp] [RMI TCP Connection(32)-10.100.202.202] inMXBeanRegistrar$SpringApplicationAdmin : Application shutdown requested.
+2026-11-11T17:03:19.148+05:30  INFO 19976 --- [autoparts-erp] [RMI TCP Connection(32)-10.100.202.202] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-11-11T17:03:19.154+05:30  INFO 19976 --- [autoparts-erp] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-11-11T17:03:19.166+05:30  INFO 19976 --- [autoparts-erp] [RMI TCP Connection(32)-10.100.202.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-11-11T17:03:19.168+05:30  INFO 19976 --- [autoparts-erp] [RMI TCP Connection(32)-10.100.202.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-11-11T17:03:28.911+05:30  INFO 38184 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Starting AutopartsErpApplication using Java 25.0.3 with PID 38184 (D:\Projects\autoparts-erp\target\classes started by Muthukumar Ramasamy in D:\Projects\autoparts-erp)
+2026-11-11T17:03:28.913+05:30  INFO 38184 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : No active profile set, falling back to 1 default profile: "default"
+2026-11-11T17:03:30.523+05:30  INFO 38184 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-11-11T17:03:30.541+05:30  INFO 38184 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-11-11T17:03:30.541+05:30  INFO 38184 --- [autoparts-erp] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
+2026-11-11T17:03:30.629+05:30  INFO 38184 --- [autoparts-erp] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1679 ms
+2026-11-11T17:03:31.433+05:30  INFO 38184 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-11-11T17:03:31.560+05:30  INFO 38184 --- [autoparts-erp] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@1d0dad12
+2026-11-11T17:03:31.561+05:30  INFO 38184 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-11-11T17:03:31.593+05:30  INFO 38184 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
+2026-11-11T17:03:31.685+05:30  INFO 38184 --- [autoparts-erp] [main] o.f.core.internal.command.DbValidate     : Successfully validated 28 migrations (execution time 00:00.048s)
+2026-11-11T17:03:31.726+05:30  INFO 38184 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 28
+2026-11-11T17:03:31.731+05:30  INFO 38184 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Schema "public" is up to date. No migration necessary.
+2026-11-11T17:03:32.694+05:30  INFO 38184 --- [autoparts-erp] [main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+2026-11-11T17:03:32.696+05:30  WARN 38184 --- [autoparts-erp] [main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
+2026-11-11T17:03:33.445+05:30  INFO 38184 --- [autoparts-erp] [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
+2026-11-11T17:03:33.543+05:30  INFO 38184 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-11-11T17:03:33.552+05:30  INFO 38184 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Started AutopartsErpApplication in 5.019 seconds (process running for 5.4)
+2026-11-11T17:03:33.560+05:30  INFO 38184 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
+2026-11-11T17:03:33.574+05:30  INFO 38184 --- [autoparts-erp] [main] o.f.c.i.s.JdbcTableSchemaHistory         : Repair of failed migration in Schema History table "public"."flyway_schema_history" not necessary. No failed migration detected.
+2026-11-11T17:03:33.585+05:30  INFO 38184 --- [autoparts-erp] [main] o.f.core.internal.command.DbRepair       : Successfully repaired schema history table "public"."flyway_schema_history" (execution time 00:00.016s).
+2026-11-11T17:03:34.082+05:30  INFO 38184 --- [autoparts-erp] [RMI TCP Connection(5)-10.100.202.202] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-11-11T17:03:34.083+05:30  INFO 38184 --- [autoparts-erp] [RMI TCP Connection(5)-10.100.202.202] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-11-11T17:03:34.086+05:30  INFO 38184 --- [autoparts-erp] [RMI TCP Connection(5)-10.100.202.202] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
+2026-11-11T17:03:37.989+05:30  INFO 38184 --- [autoparts-erp] [http-nio-8080-exec-3] c.a.e.auth.serviceimpl.AuthServiceImpl   : Login succeeded.
+2026-11-11T17:05:19.638+05:30  WARN 38184 --- [autoparts-erp] [http-nio-8080-exec-1] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.method.annotation.MethodArgumentTypeMismatchException: Method parameter 'conversationId': Failed to convert value of type 'java.lang.String' to required type 'java.util.UUID'; UUID string too large]
+2026-11-11T17:05:51.094+05:30  WARN 38184 --- [autoparts-erp] [http-nio-8080-exec-9] c.a.e.s.CustomAccessDeniedHandler        : Request rejected because the authenticated principal lacks permission
+2026-11-11T17:06:10.528+05:30  WARN 38184 --- [autoparts-erp] [http-nio-8080-exec-7] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.method.annotation.MethodArgumentTypeMismatchException: Method parameter 'conversationId': Failed to convert value of type 'java.lang.String' to required type 'java.util.UUID'; UUID string too large]
+2026-11-11T17:06:15.873+05:30  WARN 38184 --- [autoparts-erp] [http-nio-8080-exec-6] c.a.e.s.CustomAccessDeniedHandler        : Request rejected because the authenticated principal lacks permission
+2026-11-11T17:06:24.533+05:30  WARN 38184 --- [autoparts-erp] [http-nio-8080-exec-3] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.method.annotation.MethodArgumentTypeMismatchException: Method parameter 'conversationId': Failed to convert value of type 'java.lang.String' to required type 'java.util.UUID'; Error at index 10 in: "b528d7b0f9za"]
+2026-11-11T17:06:28.792+05:30  WARN 38184 --- [autoparts-erp] [http-nio-8080-exec-10] c.a.e.s.CustomAccessDeniedHandler        : Request rejected because the authenticated principal lacks permission
+2026-11-11T17:06:32.924+05:30  WARN 38184 --- [autoparts-erp] [http-nio-8080-exec-9] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.method.annotation.MethodArgumentTypeMismatchException: Method parameter 'conversationId': Failed to convert value of type 'java.lang.String' to required type 'java.util.UUID'; UUID string too large]
+2026-11-11T17:25:20.208+05:30  INFO 38184 --- [autoparts-erp] [RMI TCP Connection(27)-10.100.202.202] inMXBeanRegistrar$SpringApplicationAdmin : Application shutdown requested.
+2026-11-11T17:25:20.214+05:30  INFO 38184 --- [autoparts-erp] [RMI TCP Connection(27)-10.100.202.202] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-11-11T17:25:20.225+05:30  INFO 38184 --- [autoparts-erp] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-11-11T17:25:20.242+05:30  INFO 38184 --- [autoparts-erp] [RMI TCP Connection(27)-10.100.202.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-11-11T17:25:20.245+05:30  INFO 38184 --- [autoparts-erp] [RMI TCP Connection(27)-10.100.202.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-11-11T17:25:28.498+05:30  INFO 34844 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Starting AutopartsErpApplication using Java 25.0.3 with PID 34844 (D:\Projects\autoparts-erp\target\classes started by Muthukumar Ramasamy in D:\Projects\autoparts-erp)
+2026-11-11T17:25:28.501+05:30  INFO 34844 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : No active profile set, falling back to 1 default profile: "default"
+2026-11-11T17:25:30.539+05:30  INFO 34844 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-11-11T17:25:30.555+05:30  INFO 34844 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-11-11T17:25:30.555+05:30  INFO 34844 --- [autoparts-erp] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
+2026-11-11T17:25:30.622+05:30  INFO 34844 --- [autoparts-erp] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 2085 ms
+2026-11-11T17:25:31.387+05:30  INFO 34844 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-11-11T17:25:31.507+05:30  INFO 34844 --- [autoparts-erp] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@3d7b3b18
+2026-11-11T17:25:31.508+05:30  INFO 34844 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-11-11T17:25:31.540+05:30  INFO 34844 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
+2026-11-11T17:25:31.611+05:30  INFO 34844 --- [autoparts-erp] [main] o.f.core.internal.command.DbValidate     : Successfully validated 29 migrations (execution time 00:00.032s)
+2026-11-11T17:25:31.666+05:30  INFO 34844 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 28
+2026-11-11T17:25:31.675+05:30  INFO 34844 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "29 - aiupdate"
+2026-11-11T17:25:31.699+05:30 ERROR 34844 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Migration of schema "public" to version "29 - aiupdate" failed! Changes successfully rolled back.
+2026-11-11T17:25:31.705+05:30  WARN 34844 --- [autoparts-erp] [main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'aiAssistantController' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\controller\AiAssistantController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'aiAssistantService' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\service\AiAssistantService.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'erpAiAgentService' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\service\ErpAiAgentService.class]: Unsatisfied dependency expressed through constructor parameter 1: Error creating bean with name 'productLookupTool' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\tools\ProductLookupTool.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'jdbcTemplate' defined in class path resource [org/springframework/boot/jdbc/autoconfigure/JdbcTemplateConfiguration.class]: Failed to initialize dependency 'flywayInitializer' of JdbcTemplate bean 'jdbcTemplate': Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/flyway/autoconfigure/FlywayAutoConfiguration$FlywayConfiguration.class]: Failed to execute script V29__aiupdate.sql
+------------------------------------------
+SQL State  : 42601
+Error Code : 0
+Message    : ERROR: syntax error at or near ":"
+  Position: 73
+Location   : db/migration/V29__aiupdate.sql (D:\Projects\autoparts-erp\target\classes\db\migration\V29__aiupdate.sql)
+Line       : 1
+Statement  : Run Flyway with -X option to see the actual statement causing the problem
+
+2026-11-11T17:25:31.705+05:30  INFO 34844 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-11-11T17:25:31.768+05:30  INFO 34844 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-11-11T17:25:31.775+05:30  INFO 34844 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+2026-11-11T17:25:31.792+05:30  INFO 34844 --- [autoparts-erp] [main] .s.b.a.l.ConditionEvaluationReportLogger : 
 
 Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
-2026-11-08T15:55:12.950+05:30 ERROR 34520 --- [autoparts-erp] [main] o.s.b.d.LoggingFailureAnalysisReporter   : 
+2026-11-11T17:25:31.811+05:30 ERROR 34844 --- [autoparts-erp] [main] o.s.boot.SpringApplication               : Application run failed
 
-***************************
-APPLICATION FAILED TO START
-***************************
+org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'aiAssistantController' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\controller\AiAssistantController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'aiAssistantService' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\service\AiAssistantService.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'erpAiAgentService' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\service\ErpAiAgentService.class]: Unsatisfied dependency expressed through constructor parameter 1: Error creating bean with name 'productLookupTool' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\tools\ProductLookupTool.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'jdbcTemplate' defined in class path resource [org/springframework/boot/jdbc/autoconfigure/JdbcTemplateConfiguration.class]: Failed to initialize dependency 'flywayInitializer' of JdbcTemplate bean 'jdbcTemplate': Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/flyway/autoconfigure/FlywayAutoConfiguration$FlywayConfiguration.class]: Failed to execute script V29__aiupdate.sql
+------------------------------------------
+SQL State  : 42601
+Error Code : 0
+Message    : ERROR: syntax error at or near ":"
+  Position: 73
+Location   : db/migration/V29__aiupdate.sql (D:\Projects\autoparts-erp\target\classes\db\migration\V29__aiupdate.sql)
+Line       : 1
+Statement  : Run Flyway with -X option to see the actual statement causing the problem
 
-Description:
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:240) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1380) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1219) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:565) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:525) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:333) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:371) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:331) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:196) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.instantiateSingleton(DefaultListableBeanFactory.java:1225) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingleton(DefaultListableBeanFactory.java:1191) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons(DefaultListableBeanFactory.java:1121) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:994) ~[spring-context-7.0.9.jar:7.0.9]
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:621) ~[spring-context-7.0.9.jar:7.0.9]
+	at org.springframework.boot.web.server.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:143) ~[spring-boot-web-server-4.1.1.jar:4.1.1]
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:756) ~[spring-boot-4.1.1.jar:4.1.1]
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:445) ~[spring-boot-4.1.1.jar:4.1.1]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:321) ~[spring-boot-4.1.1.jar:4.1.1]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1365) ~[spring-boot-4.1.1.jar:4.1.1]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354) ~[spring-boot-4.1.1.jar:4.1.1]
+	at com.autoparts.erp.AutopartsErpApplication.main(AutopartsErpApplication.java:12) ~[classes/:na]
+Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'aiAssistantService' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\service\AiAssistantService.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'erpAiAgentService' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\service\ErpAiAgentService.class]: Unsatisfied dependency expressed through constructor parameter 1: Error creating bean with name 'productLookupTool' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\tools\ProductLookupTool.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'jdbcTemplate' defined in class path resource [org/springframework/boot/jdbc/autoconfigure/JdbcTemplateConfiguration.class]: Failed to initialize dependency 'flywayInitializer' of JdbcTemplate bean 'jdbcTemplate': Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/flyway/autoconfigure/FlywayAutoConfiguration$FlywayConfiguration.class]: Failed to execute script V29__aiupdate.sql
+------------------------------------------
+SQL State  : 42601
+Error Code : 0
+Message    : ERROR: syntax error at or near ":"
+  Position: 73
+Location   : db/migration/V29__aiupdate.sql (D:\Projects\autoparts-erp\target\classes\db\migration\V29__aiupdate.sql)
+Line       : 1
+Statement  : Run Flyway with -X option to see the actual statement causing the problem
 
-The dependencies of some of the beans in the application context form a cycle:
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:240) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1380) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1219) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:565) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:525) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:333) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:371) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:331) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:201) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveBean(DefaultListableBeanFactory.java:1232) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1711) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1658) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:912) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:791) ~[spring-beans-7.0.9.jar:7.0.9]
+	... 21 common frames omitted
+Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'erpAiAgentService' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\service\ErpAiAgentService.class]: Unsatisfied dependency expressed through constructor parameter 1: Error creating bean with name 'productLookupTool' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\tools\ProductLookupTool.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'jdbcTemplate' defined in class path resource [org/springframework/boot/jdbc/autoconfigure/JdbcTemplateConfiguration.class]: Failed to initialize dependency 'flywayInitializer' of JdbcTemplate bean 'jdbcTemplate': Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/flyway/autoconfigure/FlywayAutoConfiguration$FlywayConfiguration.class]: Failed to execute script V29__aiupdate.sql
+------------------------------------------
+SQL State  : 42601
+Error Code : 0
+Message    : ERROR: syntax error at or near ":"
+  Position: 73
+Location   : db/migration/V29__aiupdate.sql (D:\Projects\autoparts-erp\target\classes\db\migration\V29__aiupdate.sql)
+Line       : 1
+Statement  : Run Flyway with -X option to see the actual statement causing the problem
 
-   auditLogController defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\audit\controller\AuditLogController.class]
-      ↓
-   auditLogServiceImpl defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\audit\serviceimpl\AuditLogServiceImpl.class]
-      ↓
-   currentUserService defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\auth\security\CurrentUserService.class]
-┌─────┐
-|  userRepositoryImpl defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\auth\repositoryimpl\UserRepositoryImpl.class]
-└─────┘
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:240) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1380) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1219) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:565) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:525) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:333) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:371) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:331) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:201) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveBean(DefaultListableBeanFactory.java:1232) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1711) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1658) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:912) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:791) ~[spring-beans-7.0.9.jar:7.0.9]
+	... 35 common frames omitted
+Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'productLookupTool' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\tools\ProductLookupTool.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'jdbcTemplate' defined in class path resource [org/springframework/boot/jdbc/autoconfigure/JdbcTemplateConfiguration.class]: Failed to initialize dependency 'flywayInitializer' of JdbcTemplate bean 'jdbcTemplate': Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/flyway/autoconfigure/FlywayAutoConfiguration$FlywayConfiguration.class]: Failed to execute script V29__aiupdate.sql
+------------------------------------------
+SQL State  : 42601
+Error Code : 0
+Message    : ERROR: syntax error at or near ":"
+  Position: 73
+Location   : db/migration/V29__aiupdate.sql (D:\Projects\autoparts-erp\target\classes\db\migration\V29__aiupdate.sql)
+Line       : 1
+Statement  : Run Flyway with -X option to see the actual statement causing the problem
 
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:240) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1380) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1219) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:565) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:525) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:333) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:371) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:331) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:201) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveBean(DefaultListableBeanFactory.java:1232) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1711) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1658) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:912) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:791) ~[spring-beans-7.0.9.jar:7.0.9]
+	... 49 common frames omitted
+Caused by: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'jdbcTemplate' defined in class path resource [org/springframework/boot/jdbc/autoconfigure/JdbcTemplateConfiguration.class]: Failed to initialize dependency 'flywayInitializer' of JdbcTemplate bean 'jdbcTemplate': Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/flyway/autoconfigure/FlywayAutoConfiguration$FlywayConfiguration.class]: Failed to execute script V29__aiupdate.sql
+------------------------------------------
+SQL State  : 42601
+Error Code : 0
+Message    : ERROR: syntax error at or near ":"
+  Position: 73
+Location   : db/migration/V29__aiupdate.sql (D:\Projects\autoparts-erp\target\classes\db\migration\V29__aiupdate.sql)
+Line       : 1
+Statement  : Run Flyway with -X option to see the actual statement causing the problem
 
-Action:
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:322) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:201) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveBean(DefaultListableBeanFactory.java:1232) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1711) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1658) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:912) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:791) ~[spring-beans-7.0.9.jar:7.0.9]
+	... 63 common frames omitted
+Caused by: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/flyway/autoconfigure/FlywayAutoConfiguration$FlywayConfiguration.class]: Failed to execute script V29__aiupdate.sql
+------------------------------------------
+SQL State  : 42601
+Error Code : 0
+Message    : ERROR: syntax error at or near ":"
+  Position: 73
+Location   : db/migration/V29__aiupdate.sql (D:\Projects\autoparts-erp\target\classes\db\migration\V29__aiupdate.sql)
+Line       : 1
+Statement  : Run Flyway with -X option to see the actual statement causing the problem
 
-Relying upon circular references is discouraged and they are prohibited by default. Update your application to remove the dependency cycle between beans. As a last resort, it may be possible to break the cycle automatically by setting spring.main.allow-circular-references to true.
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1815) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:603) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:525) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:333) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:371) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:331) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:196) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:309) ~[spring-beans-7.0.9.jar:7.0.9]
+	... 69 common frames omitted
+Caused by: org.flywaydb.core.internal.exception.FlywayMigrateException: Failed to execute script V29__aiupdate.sql
+------------------------------------------
+SQL State  : 42601
+Error Code : 0
+Message    : ERROR: syntax error at or near ":"
+  Position: 73
+Location   : db/migration/V29__aiupdate.sql (D:\Projects\autoparts-erp\target\classes\db\migration\V29__aiupdate.sql)
+Line       : 1
+Statement  : Run Flyway with -X option to see the actual statement causing the problem
 
-2026-11-08T16:01:03.281+05:30  INFO 25328 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Starting AutopartsErpApplication using Java 25.0.3 with PID 25328 (D:\Projects\autoparts-erp\target\classes started by Muthukumar Ramasamy in D:\Projects\autoparts-erp)
-2026-11-08T16:01:03.283+05:30  INFO 25328 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : No active profile set, falling back to 1 default profile: "default"
-2026-11-08T16:01:04.730+05:30  INFO 25328 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
-2026-11-08T16:01:04.748+05:30  INFO 25328 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-11-08T16:01:04.749+05:30  INFO 25328 --- [autoparts-erp] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
-2026-11-08T16:01:04.797+05:30  INFO 25328 --- [autoparts-erp] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1479 ms
-2026-11-08T16:01:05.339+05:30  INFO 25328 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
-2026-11-08T16:01:05.542+05:30  INFO 25328 --- [autoparts-erp] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@37d699a1
-2026-11-08T16:01:05.544+05:30  INFO 25328 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
-2026-11-08T16:01:05.577+05:30  INFO 25328 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
-2026-11-08T16:01:05.695+05:30  INFO 25328 --- [autoparts-erp] [main] o.f.core.internal.command.DbValidate     : Successfully validated 25 migrations (execution time 00:00.054s)
-2026-11-08T16:01:05.842+05:30  INFO 25328 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 25
-2026-11-08T16:01:05.856+05:30  INFO 25328 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Schema "public" is up to date. No migration necessary.
-2026-11-08T16:01:06.016+05:30  WARN 25328 --- [autoparts-erp] [main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'authController' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\auth\controller\AuthController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'authServiceImpl' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\auth\serviceimpl\AuthServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 0: No qualifying bean of type 'org.springframework.security.authentication.AuthenticationManager' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {}
-2026-11-08T16:01:06.017+05:30  INFO 25328 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
-2026-11-08T16:01:06.019+05:30  INFO 25328 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
-2026-11-08T16:01:06.026+05:30  INFO 25328 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
-2026-11-08T16:01:06.044+05:30  INFO 25328 --- [autoparts-erp] [main] .s.b.a.l.ConditionEvaluationReportLogger : 
+	at org.flywaydb.core.internal.command.DbMigrate.doMigrateGroup(DbMigrate.java:399) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.command.DbMigrate.lambda$applyMigrations$1(DbMigrate.java:283) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.jdbc.TransactionalExecutionTemplate.execute(TransactionalExecutionTemplate.java:59) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.command.DbMigrate.applyMigrations(DbMigrate.java:282) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.command.DbMigrate.migrateGroup(DbMigrate.java:255) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.command.DbMigrate.lambda$migrateAll$0(DbMigrate.java:153) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.database.postgresql.PostgreSQLAdvisoryLockTemplate.execute(PostgreSQLAdvisoryLockTemplate.java:77) ~[flyway-database-postgresql-12.4.0.jar:na]
+	at org.flywaydb.database.postgresql.PostgreSQLAdvisoryLockTemplate.lambda$execute$0(PostgreSQLAdvisoryLockTemplate.java:60) ~[flyway-database-postgresql-12.4.0.jar:na]
+	at org.flywaydb.core.internal.jdbc.TransactionalExecutionTemplate.execute(TransactionalExecutionTemplate.java:59) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.database.postgresql.PostgreSQLAdvisoryLockTemplate.execute(PostgreSQLAdvisoryLockTemplate.java:60) ~[flyway-database-postgresql-12.4.0.jar:na]
+	at org.flywaydb.database.postgresql.PostgreSQLConnection.lock(PostgreSQLConnection.java:105) ~[flyway-database-postgresql-12.4.0.jar:na]
+	at org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory.lock(JdbcTableSchemaHistory.java:165) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.command.DbMigrate.migrateAll(DbMigrate.java:153) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.command.DbMigrate.migrate(DbMigrate.java:104) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.Flyway.lambda$migrate$3(Flyway.java:231) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.FlywayExecutor.execute(FlywayExecutor.java:236) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.FlywayExecutor.execute(FlywayExecutor.java:120) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.Flyway.migrate(Flyway.java:181) ~[flyway-core-12.4.0.jar:na]
+	at org.springframework.boot.flyway.autoconfigure.FlywayMigrationInitializer.afterPropertiesSet(FlywayMigrationInitializer.java:67) ~[spring-boot-flyway-4.1.1.jar:4.1.1]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.invokeInitMethods(AbstractAutowireCapableBeanFactory.java:1862) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1811) ~[spring-beans-7.0.9.jar:7.0.9]
+	... 76 common frames omitted
+Caused by: org.flywaydb.core.internal.sqlscript.FlywaySqlScriptException: Failed to execute script V29__aiupdate.sql
+------------------------------------------
+SQL State  : 42601
+Error Code : 0
+Message    : ERROR: syntax error at or near ":"
+  Position: 73
+Location   : db/migration/V29__aiupdate.sql (D:\Projects\autoparts-erp\target\classes\db\migration\V29__aiupdate.sql)
+Line       : 1
+Statement  : Run Flyway with -X option to see the actual statement causing the problem
+
+	at org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor.handleException(DefaultSqlScriptExecutor.java:251) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor.executeStatement(DefaultSqlScriptExecutor.java:212) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor.execute(DefaultSqlScriptExecutor.java:134) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.resolver.sql.SqlMigrationExecutor.executeOnce(SqlMigrationExecutor.java:75) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.resolver.sql.SqlMigrationExecutor.lambda$execute$0(SqlMigrationExecutor.java:66) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.database.DefaultExecutionStrategy.execute(DefaultExecutionStrategy.java:31) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.resolver.sql.SqlMigrationExecutor.execute(SqlMigrationExecutor.java:65) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.command.DbMigrate.doMigrateGroup(DbMigrate.java:391) ~[flyway-core-12.4.0.jar:na]
+	... 96 common frames omitted
+Caused by: org.postgresql.util.PSQLException: ERROR: syntax error at or near ":"
+  Position: 73
+	at org.postgresql.core.v3.QueryExecutorImpl.receiveErrorResponse(QueryExecutorImpl.java:2993) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.core.v3.QueryExecutorImpl.processResults(QueryExecutorImpl.java:2656) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.core.v3.QueryExecutorImpl.execute(QueryExecutorImpl.java:446) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.jdbc.PgStatement.executeInternal(PgStatement.java:533) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.jdbc.PgStatement.execute(PgStatement.java:449) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.jdbc.PgStatement.executeWithFlags(PgStatement.java:371) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.jdbc.PgStatement.executeCachedSql(PgStatement.java:356) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.jdbc.PgStatement.executeWithFlags(PgStatement.java:332) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.jdbc.PgStatement.execute(PgStatement.java:327) ~[postgresql-42.7.13.jar:42.7.13]
+	at com.zaxxer.hikari.pool.ProxyStatement.execute(ProxyStatement.java:95) ~[HikariCP-7.0.2.jar:na]
+	at com.zaxxer.hikari.pool.HikariProxyStatement.execute(HikariProxyStatement.java) ~[HikariCP-7.0.2.jar:na]
+	at org.flywaydb.core.internal.jdbc.JdbcTemplate.executeStatement(JdbcTemplate.java:229) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.sqlscript.ParsedSqlStatement.execute(ParsedSqlStatement.java:88) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor.executeStatement(DefaultSqlScriptExecutor.java:207) ~[flyway-core-12.4.0.jar:na]
+	... 102 common frames omitted
+
+2026-11-11T17:26:17.743+05:30  INFO 34324 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Starting AutopartsErpApplication using Java 25.0.3 with PID 34324 (D:\Projects\autoparts-erp\target\classes started by Muthukumar Ramasamy in D:\Projects\autoparts-erp)
+2026-11-11T17:26:17.745+05:30  INFO 34324 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : No active profile set, falling back to 1 default profile: "default"
+2026-11-11T17:26:19.454+05:30  INFO 34324 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-11-11T17:26:19.487+05:30  INFO 34324 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-11-11T17:26:19.487+05:30  INFO 34324 --- [autoparts-erp] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
+2026-11-11T17:26:19.554+05:30  INFO 34324 --- [autoparts-erp] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1775 ms
+2026-11-11T17:26:20.284+05:30  INFO 34324 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-11-11T17:26:20.442+05:30  INFO 34324 --- [autoparts-erp] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@2210e466
+2026-11-11T17:26:20.445+05:30  INFO 34324 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-11-11T17:26:20.469+05:30  INFO 34324 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
+2026-11-11T17:26:20.542+05:30  INFO 34324 --- [autoparts-erp] [main] o.f.core.internal.command.DbValidate     : Successfully validated 29 migrations (execution time 00:00.031s)
+2026-11-11T17:26:20.595+05:30  INFO 34324 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 28
+2026-11-11T17:26:20.605+05:30  INFO 34324 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "29 - aiupdate"
+2026-11-11T17:26:20.630+05:30 ERROR 34324 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Migration of schema "public" to version "29 - aiupdate" failed! Changes successfully rolled back.
+2026-11-11T17:26:20.637+05:30  WARN 34324 --- [autoparts-erp] [main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'aiAssistantController' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\controller\AiAssistantController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'aiAssistantService' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\service\AiAssistantService.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'erpAiAgentService' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\service\ErpAiAgentService.class]: Unsatisfied dependency expressed through constructor parameter 1: Error creating bean with name 'productLookupTool' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\tools\ProductLookupTool.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'jdbcTemplate' defined in class path resource [org/springframework/boot/jdbc/autoconfigure/JdbcTemplateConfiguration.class]: Failed to initialize dependency 'flywayInitializer' of JdbcTemplate bean 'jdbcTemplate': Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/flyway/autoconfigure/FlywayAutoConfiguration$FlywayConfiguration.class]: Failed to execute script V29__aiupdate.sql
+------------------------------------------
+SQL State  : 42601
+Error Code : 0
+Message    : ERROR: syntax error at or near ":"
+  Position: 73
+Location   : db/migration/V29__aiupdate.sql (D:\Projects\autoparts-erp\target\classes\db\migration\V29__aiupdate.sql)
+Line       : 1
+Statement  : Run Flyway with -X option to see the actual statement causing the problem
+
+2026-11-11T17:26:20.638+05:30  INFO 34324 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-11-11T17:26:20.695+05:30  INFO 34324 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-11-11T17:26:20.700+05:30  INFO 34324 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+2026-11-11T17:26:20.715+05:30  INFO 34324 --- [autoparts-erp] [main] .s.b.a.l.ConditionEvaluationReportLogger : 
 
 Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
-2026-11-08T16:01:06.060+05:30 ERROR 25328 --- [autoparts-erp] [main] o.s.b.d.LoggingFailureAnalysisReporter   : 
+2026-11-11T17:26:20.729+05:30 ERROR 34324 --- [autoparts-erp] [main] o.s.boot.SpringApplication               : Application run failed
 
-***************************
-APPLICATION FAILED TO START
-***************************
+org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'aiAssistantController' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\controller\AiAssistantController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'aiAssistantService' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\service\AiAssistantService.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'erpAiAgentService' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\service\ErpAiAgentService.class]: Unsatisfied dependency expressed through constructor parameter 1: Error creating bean with name 'productLookupTool' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\tools\ProductLookupTool.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'jdbcTemplate' defined in class path resource [org/springframework/boot/jdbc/autoconfigure/JdbcTemplateConfiguration.class]: Failed to initialize dependency 'flywayInitializer' of JdbcTemplate bean 'jdbcTemplate': Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/flyway/autoconfigure/FlywayAutoConfiguration$FlywayConfiguration.class]: Failed to execute script V29__aiupdate.sql
+------------------------------------------
+SQL State  : 42601
+Error Code : 0
+Message    : ERROR: syntax error at or near ":"
+  Position: 73
+Location   : db/migration/V29__aiupdate.sql (D:\Projects\autoparts-erp\target\classes\db\migration\V29__aiupdate.sql)
+Line       : 1
+Statement  : Run Flyway with -X option to see the actual statement causing the problem
 
-Description:
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:240) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1380) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1219) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:565) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:525) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:333) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:371) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:331) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:196) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.instantiateSingleton(DefaultListableBeanFactory.java:1225) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingleton(DefaultListableBeanFactory.java:1191) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons(DefaultListableBeanFactory.java:1121) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:994) ~[spring-context-7.0.9.jar:7.0.9]
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:621) ~[spring-context-7.0.9.jar:7.0.9]
+	at org.springframework.boot.web.server.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:143) ~[spring-boot-web-server-4.1.1.jar:4.1.1]
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:756) ~[spring-boot-4.1.1.jar:4.1.1]
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:445) ~[spring-boot-4.1.1.jar:4.1.1]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:321) ~[spring-boot-4.1.1.jar:4.1.1]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1365) ~[spring-boot-4.1.1.jar:4.1.1]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354) ~[spring-boot-4.1.1.jar:4.1.1]
+	at com.autoparts.erp.AutopartsErpApplication.main(AutopartsErpApplication.java:12) ~[classes/:na]
+Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'aiAssistantService' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\service\AiAssistantService.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'erpAiAgentService' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\service\ErpAiAgentService.class]: Unsatisfied dependency expressed through constructor parameter 1: Error creating bean with name 'productLookupTool' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\tools\ProductLookupTool.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'jdbcTemplate' defined in class path resource [org/springframework/boot/jdbc/autoconfigure/JdbcTemplateConfiguration.class]: Failed to initialize dependency 'flywayInitializer' of JdbcTemplate bean 'jdbcTemplate': Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/flyway/autoconfigure/FlywayAutoConfiguration$FlywayConfiguration.class]: Failed to execute script V29__aiupdate.sql
+------------------------------------------
+SQL State  : 42601
+Error Code : 0
+Message    : ERROR: syntax error at or near ":"
+  Position: 73
+Location   : db/migration/V29__aiupdate.sql (D:\Projects\autoparts-erp\target\classes\db\migration\V29__aiupdate.sql)
+Line       : 1
+Statement  : Run Flyway with -X option to see the actual statement causing the problem
 
-Parameter 0 of constructor in com.autoparts.erp.auth.serviceimpl.AuthServiceImpl required a bean of type 'org.springframework.security.authentication.AuthenticationManager' that could not be found.
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:240) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1380) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1219) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:565) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:525) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:333) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:371) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:331) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:201) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveBean(DefaultListableBeanFactory.java:1232) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1711) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1658) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:912) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:791) ~[spring-beans-7.0.9.jar:7.0.9]
+	... 21 common frames omitted
+Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'erpAiAgentService' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\service\ErpAiAgentService.class]: Unsatisfied dependency expressed through constructor parameter 1: Error creating bean with name 'productLookupTool' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\tools\ProductLookupTool.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'jdbcTemplate' defined in class path resource [org/springframework/boot/jdbc/autoconfigure/JdbcTemplateConfiguration.class]: Failed to initialize dependency 'flywayInitializer' of JdbcTemplate bean 'jdbcTemplate': Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/flyway/autoconfigure/FlywayAutoConfiguration$FlywayConfiguration.class]: Failed to execute script V29__aiupdate.sql
+------------------------------------------
+SQL State  : 42601
+Error Code : 0
+Message    : ERROR: syntax error at or near ":"
+  Position: 73
+Location   : db/migration/V29__aiupdate.sql (D:\Projects\autoparts-erp\target\classes\db\migration\V29__aiupdate.sql)
+Line       : 1
+Statement  : Run Flyway with -X option to see the actual statement causing the problem
 
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:240) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1380) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1219) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:565) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:525) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:333) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:371) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:331) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:201) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveBean(DefaultListableBeanFactory.java:1232) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1711) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1658) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:912) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:791) ~[spring-beans-7.0.9.jar:7.0.9]
+	... 35 common frames omitted
+Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'productLookupTool' defined in file [D:\Projects\autoparts-erp\target\classes\com\autoparts\erp\ai\tools\ProductLookupTool.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'jdbcTemplate' defined in class path resource [org/springframework/boot/jdbc/autoconfigure/JdbcTemplateConfiguration.class]: Failed to initialize dependency 'flywayInitializer' of JdbcTemplate bean 'jdbcTemplate': Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/flyway/autoconfigure/FlywayAutoConfiguration$FlywayConfiguration.class]: Failed to execute script V29__aiupdate.sql
+------------------------------------------
+SQL State  : 42601
+Error Code : 0
+Message    : ERROR: syntax error at or near ":"
+  Position: 73
+Location   : db/migration/V29__aiupdate.sql (D:\Projects\autoparts-erp\target\classes\db\migration\V29__aiupdate.sql)
+Line       : 1
+Statement  : Run Flyway with -X option to see the actual statement causing the problem
 
-Action:
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:240) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1380) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1219) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:565) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:525) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:333) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:371) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:331) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:201) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveBean(DefaultListableBeanFactory.java:1232) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1711) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1658) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:912) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:791) ~[spring-beans-7.0.9.jar:7.0.9]
+	... 49 common frames omitted
+Caused by: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'jdbcTemplate' defined in class path resource [org/springframework/boot/jdbc/autoconfigure/JdbcTemplateConfiguration.class]: Failed to initialize dependency 'flywayInitializer' of JdbcTemplate bean 'jdbcTemplate': Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/flyway/autoconfigure/FlywayAutoConfiguration$FlywayConfiguration.class]: Failed to execute script V29__aiupdate.sql
+------------------------------------------
+SQL State  : 42601
+Error Code : 0
+Message    : ERROR: syntax error at or near ":"
+  Position: 73
+Location   : db/migration/V29__aiupdate.sql (D:\Projects\autoparts-erp\target\classes\db\migration\V29__aiupdate.sql)
+Line       : 1
+Statement  : Run Flyway with -X option to see the actual statement causing the problem
 
-Consider defining a bean of type 'org.springframework.security.authentication.AuthenticationManager' in your configuration.
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:322) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:201) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveBean(DefaultListableBeanFactory.java:1232) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1711) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1658) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:912) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:791) ~[spring-beans-7.0.9.jar:7.0.9]
+	... 63 common frames omitted
+Caused by: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/flyway/autoconfigure/FlywayAutoConfiguration$FlywayConfiguration.class]: Failed to execute script V29__aiupdate.sql
+------------------------------------------
+SQL State  : 42601
+Error Code : 0
+Message    : ERROR: syntax error at or near ":"
+  Position: 73
+Location   : db/migration/V29__aiupdate.sql (D:\Projects\autoparts-erp\target\classes\db\migration\V29__aiupdate.sql)
+Line       : 1
+Statement  : Run Flyway with -X option to see the actual statement causing the problem
 
-2026-11-08T16:05:31.139+05:30  INFO 37520 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Starting AutopartsErpApplication using Java 25.0.3 with PID 37520 (D:\Projects\autoparts-erp\target\classes started by Muthukumar Ramasamy in D:\Projects\autoparts-erp)
-2026-11-08T16:05:31.143+05:30  INFO 37520 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : No active profile set, falling back to 1 default profile: "default"
-2026-11-08T16:05:32.736+05:30  INFO 37520 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
-2026-11-08T16:05:32.761+05:30  INFO 37520 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-11-08T16:05:32.761+05:30  INFO 37520 --- [autoparts-erp] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
-2026-11-08T16:05:32.824+05:30  INFO 37520 --- [autoparts-erp] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1649 ms
-2026-11-08T16:05:33.212+05:30  INFO 37520 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
-2026-11-08T16:05:33.388+05:30  INFO 37520 --- [autoparts-erp] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@1b17d8ab
-2026-11-08T16:05:33.391+05:30  INFO 37520 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
-2026-11-08T16:05:33.426+05:30  INFO 37520 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
-2026-11-08T16:05:33.501+05:30  INFO 37520 --- [autoparts-erp] [main] o.f.core.internal.command.DbValidate     : Successfully validated 25 migrations (execution time 00:00.032s)
-2026-11-08T16:05:33.546+05:30  INFO 37520 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 25
-2026-11-08T16:05:33.550+05:30  INFO 37520 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Schema "public" is up to date. No migration necessary.
-2026-11-08T16:05:34.202+05:30  INFO 37520 --- [autoparts-erp] [main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
-2026-11-08T16:05:34.202+05:30  WARN 37520 --- [autoparts-erp] [main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
-2026-11-08T16:05:34.979+05:30  INFO 37520 --- [autoparts-erp] [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
-2026-11-08T16:05:35.086+05:30  INFO 37520 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
-2026-11-08T16:05:35.095+05:30  INFO 37520 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Started AutopartsErpApplication in 4.369 seconds (process running for 4.883)
-2026-11-08T16:05:35.111+05:30  INFO 37520 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
-2026-11-08T16:05:35.129+05:30  INFO 37520 --- [autoparts-erp] [main] o.f.c.i.s.JdbcTableSchemaHistory         : Repair of failed migration in Schema History table "public"."flyway_schema_history" not necessary. No failed migration detected.
-2026-11-08T16:05:35.137+05:30  INFO 37520 --- [autoparts-erp] [main] o.f.core.internal.command.DbRepair       : Successfully repaired schema history table "public"."flyway_schema_history" (execution time 00:00.014s).
-2026-11-08T16:05:35.846+05:30  INFO 37520 --- [autoparts-erp] [RMI TCP Connection(5)-10.100.202.202] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-11-08T16:05:35.846+05:30  INFO 37520 --- [autoparts-erp] [RMI TCP Connection(5)-10.100.202.202] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
-2026-11-08T16:05:35.847+05:30  INFO 37520 --- [autoparts-erp] [RMI TCP Connection(5)-10.100.202.202] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
-2026-11-08T16:05:45.625+05:30  WARN 37520 --- [autoparts-erp] [http-nio-8080-exec-1] c.a.e.s.CustomAuthenticationEntryPoint   : Request rejected because authentication is missing or invalid
-2026-11-08T16:05:49.296+05:30  INFO 37520 --- [autoparts-erp] [http-nio-8080-exec-6] c.a.e.auth.serviceimpl.AuthServiceImpl   : Login succeeded.
-2026-11-08T16:50:32.567+05:30  WARN 37520 --- [autoparts-erp] [http-nio-8080-exec-2] c.a.e.s.CustomAuthenticationEntryPoint   : Request rejected because authentication is missing or invalid
-2026-11-08T16:50:34.455+05:30  INFO 37520 --- [autoparts-erp] [http-nio-8080-exec-3] c.a.e.auth.serviceimpl.AuthServiceImpl   : Login succeeded.
-2026-11-08T16:50:36.929+05:30  INFO 37520 --- [autoparts-erp] [RMI TCP Connection(50)-10.100.202.202] inMXBeanRegistrar$SpringApplicationAdmin : Application shutdown requested.
-2026-11-08T16:50:36.964+05:30  INFO 37520 --- [autoparts-erp] [RMI TCP Connection(50)-10.100.202.202] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
-2026-11-08T16:50:36.978+05:30  INFO 37520 --- [autoparts-erp] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
-2026-11-08T16:50:37.012+05:30  INFO 37520 --- [autoparts-erp] [RMI TCP Connection(50)-10.100.202.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
-2026-11-08T16:50:37.014+05:30  INFO 37520 --- [autoparts-erp] [RMI TCP Connection(50)-10.100.202.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
-2026-11-08T16:50:46.941+05:30  INFO 11564 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Starting AutopartsErpApplication using Java 25.0.3 with PID 11564 (D:\Projects\autoparts-erp\target\classes started by Muthukumar Ramasamy in D:\Projects\autoparts-erp)
-2026-11-08T16:50:46.943+05:30  INFO 11564 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : No active profile set, falling back to 1 default profile: "default"
-2026-11-08T16:50:48.602+05:30  INFO 11564 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
-2026-11-08T16:50:48.634+05:30  INFO 11564 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-11-08T16:50:48.635+05:30  INFO 11564 --- [autoparts-erp] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
-2026-11-08T16:50:48.715+05:30  INFO 11564 --- [autoparts-erp] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1738 ms
-2026-11-08T16:50:49.185+05:30  INFO 11564 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
-2026-11-08T16:50:49.390+05:30  INFO 11564 --- [autoparts-erp] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@28daf506
-2026-11-08T16:50:49.396+05:30  INFO 11564 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
-2026-11-08T16:50:49.433+05:30  INFO 11564 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
-2026-11-08T16:50:49.549+05:30  INFO 11564 --- [autoparts-erp] [main] o.f.core.internal.command.DbValidate     : Successfully validated 25 migrations (execution time 00:00.061s)
-2026-11-08T16:50:49.571+05:30  INFO 11564 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 25
-2026-11-08T16:50:49.576+05:30  INFO 11564 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Schema "public" is up to date. No migration necessary.
-2026-11-08T16:50:50.219+05:30  INFO 11564 --- [autoparts-erp] [main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
-2026-11-08T16:50:50.219+05:30  WARN 11564 --- [autoparts-erp] [main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
-2026-11-08T16:50:50.949+05:30  INFO 11564 --- [autoparts-erp] [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
-2026-11-08T16:50:51.052+05:30  INFO 11564 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
-2026-11-08T16:50:51.062+05:30  INFO 11564 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Started AutopartsErpApplication in 4.464 seconds (process running for 4.969)
-2026-11-08T16:50:51.072+05:30  INFO 11564 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
-2026-11-08T16:50:51.092+05:30  INFO 11564 --- [autoparts-erp] [main] o.f.c.i.s.JdbcTableSchemaHistory         : Repair of failed migration in Schema History table "public"."flyway_schema_history" not necessary. No failed migration detected.
-2026-11-08T16:50:51.102+05:30  INFO 11564 --- [autoparts-erp] [main] o.f.core.internal.command.DbRepair       : Successfully repaired schema history table "public"."flyway_schema_history" (execution time 00:00.015s).
-2026-11-08T16:50:51.499+05:30  INFO 11564 --- [autoparts-erp] [RMI TCP Connection(5)-10.100.202.202] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-11-08T16:50:51.499+05:30  INFO 11564 --- [autoparts-erp] [RMI TCP Connection(5)-10.100.202.202] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
-2026-11-08T16:50:51.501+05:30  INFO 11564 --- [autoparts-erp] [RMI TCP Connection(5)-10.100.202.202] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
-2026-11-08T17:04:31.854+05:30  WARN 11564 --- [autoparts-erp] [HikariPool-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=5m12s243ms993µs400ns).
-2026-11-08T20:53:11.557+05:30  WARN 11564 --- [autoparts-erp] [HikariPool-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=2h39m8s756ms807µs700ns).
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1815) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:603) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:525) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:333) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:371) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:331) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:196) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:309) ~[spring-beans-7.0.9.jar:7.0.9]
+	... 69 common frames omitted
+Caused by: org.flywaydb.core.internal.exception.FlywayMigrateException: Failed to execute script V29__aiupdate.sql
+------------------------------------------
+SQL State  : 42601
+Error Code : 0
+Message    : ERROR: syntax error at or near ":"
+  Position: 73
+Location   : db/migration/V29__aiupdate.sql (D:\Projects\autoparts-erp\target\classes\db\migration\V29__aiupdate.sql)
+Line       : 1
+Statement  : Run Flyway with -X option to see the actual statement causing the problem
+
+	at org.flywaydb.core.internal.command.DbMigrate.doMigrateGroup(DbMigrate.java:399) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.command.DbMigrate.lambda$applyMigrations$1(DbMigrate.java:283) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.jdbc.TransactionalExecutionTemplate.execute(TransactionalExecutionTemplate.java:59) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.command.DbMigrate.applyMigrations(DbMigrate.java:282) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.command.DbMigrate.migrateGroup(DbMigrate.java:255) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.command.DbMigrate.lambda$migrateAll$0(DbMigrate.java:153) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.database.postgresql.PostgreSQLAdvisoryLockTemplate.execute(PostgreSQLAdvisoryLockTemplate.java:77) ~[flyway-database-postgresql-12.4.0.jar:na]
+	at org.flywaydb.database.postgresql.PostgreSQLAdvisoryLockTemplate.lambda$execute$0(PostgreSQLAdvisoryLockTemplate.java:60) ~[flyway-database-postgresql-12.4.0.jar:na]
+	at org.flywaydb.core.internal.jdbc.TransactionalExecutionTemplate.execute(TransactionalExecutionTemplate.java:59) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.database.postgresql.PostgreSQLAdvisoryLockTemplate.execute(PostgreSQLAdvisoryLockTemplate.java:60) ~[flyway-database-postgresql-12.4.0.jar:na]
+	at org.flywaydb.database.postgresql.PostgreSQLConnection.lock(PostgreSQLConnection.java:105) ~[flyway-database-postgresql-12.4.0.jar:na]
+	at org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory.lock(JdbcTableSchemaHistory.java:165) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.command.DbMigrate.migrateAll(DbMigrate.java:153) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.command.DbMigrate.migrate(DbMigrate.java:104) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.Flyway.lambda$migrate$3(Flyway.java:231) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.FlywayExecutor.execute(FlywayExecutor.java:236) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.FlywayExecutor.execute(FlywayExecutor.java:120) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.Flyway.migrate(Flyway.java:181) ~[flyway-core-12.4.0.jar:na]
+	at org.springframework.boot.flyway.autoconfigure.FlywayMigrationInitializer.afterPropertiesSet(FlywayMigrationInitializer.java:67) ~[spring-boot-flyway-4.1.1.jar:4.1.1]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.invokeInitMethods(AbstractAutowireCapableBeanFactory.java:1862) ~[spring-beans-7.0.9.jar:7.0.9]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1811) ~[spring-beans-7.0.9.jar:7.0.9]
+	... 76 common frames omitted
+Caused by: org.flywaydb.core.internal.sqlscript.FlywaySqlScriptException: Failed to execute script V29__aiupdate.sql
+------------------------------------------
+SQL State  : 42601
+Error Code : 0
+Message    : ERROR: syntax error at or near ":"
+  Position: 73
+Location   : db/migration/V29__aiupdate.sql (D:\Projects\autoparts-erp\target\classes\db\migration\V29__aiupdate.sql)
+Line       : 1
+Statement  : Run Flyway with -X option to see the actual statement causing the problem
+
+	at org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor.handleException(DefaultSqlScriptExecutor.java:251) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor.executeStatement(DefaultSqlScriptExecutor.java:212) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor.execute(DefaultSqlScriptExecutor.java:134) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.resolver.sql.SqlMigrationExecutor.executeOnce(SqlMigrationExecutor.java:75) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.resolver.sql.SqlMigrationExecutor.lambda$execute$0(SqlMigrationExecutor.java:66) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.database.DefaultExecutionStrategy.execute(DefaultExecutionStrategy.java:31) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.resolver.sql.SqlMigrationExecutor.execute(SqlMigrationExecutor.java:65) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.command.DbMigrate.doMigrateGroup(DbMigrate.java:391) ~[flyway-core-12.4.0.jar:na]
+	... 96 common frames omitted
+Caused by: org.postgresql.util.PSQLException: ERROR: syntax error at or near ":"
+  Position: 73
+	at org.postgresql.core.v3.QueryExecutorImpl.receiveErrorResponse(QueryExecutorImpl.java:2993) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.core.v3.QueryExecutorImpl.processResults(QueryExecutorImpl.java:2656) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.core.v3.QueryExecutorImpl.execute(QueryExecutorImpl.java:446) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.jdbc.PgStatement.executeInternal(PgStatement.java:533) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.jdbc.PgStatement.execute(PgStatement.java:449) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.jdbc.PgStatement.executeWithFlags(PgStatement.java:371) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.jdbc.PgStatement.executeCachedSql(PgStatement.java:356) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.jdbc.PgStatement.executeWithFlags(PgStatement.java:332) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.jdbc.PgStatement.execute(PgStatement.java:327) ~[postgresql-42.7.13.jar:42.7.13]
+	at com.zaxxer.hikari.pool.ProxyStatement.execute(ProxyStatement.java:95) ~[HikariCP-7.0.2.jar:na]
+	at com.zaxxer.hikari.pool.HikariProxyStatement.execute(HikariProxyStatement.java) ~[HikariCP-7.0.2.jar:na]
+	at org.flywaydb.core.internal.jdbc.JdbcTemplate.executeStatement(JdbcTemplate.java:229) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.sqlscript.ParsedSqlStatement.execute(ParsedSqlStatement.java:88) ~[flyway-core-12.4.0.jar:na]
+	at org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor.executeStatement(DefaultSqlScriptExecutor.java:207) ~[flyway-core-12.4.0.jar:na]
+	... 102 common frames omitted
+
+2026-11-11T17:27:43.734+05:30  INFO 4568 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Starting AutopartsErpApplication using Java 25.0.3 with PID 4568 (D:\Projects\autoparts-erp\target\classes started by Muthukumar Ramasamy in D:\Projects\autoparts-erp)
+2026-11-11T17:27:43.736+05:30  INFO 4568 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : No active profile set, falling back to 1 default profile: "default"
+2026-11-11T17:27:45.451+05:30  INFO 4568 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-11-11T17:27:45.478+05:30  INFO 4568 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-11-11T17:27:45.479+05:30  INFO 4568 --- [autoparts-erp] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
+2026-11-11T17:27:45.549+05:30  INFO 4568 --- [autoparts-erp] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1779 ms
+2026-11-11T17:27:46.431+05:30  INFO 4568 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-11-11T17:27:46.571+05:30  INFO 4568 --- [autoparts-erp] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@7296fe0b
+2026-11-11T17:27:46.572+05:30  INFO 4568 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-11-11T17:27:46.595+05:30  INFO 4568 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
+2026-11-11T17:27:46.662+05:30  INFO 4568 --- [autoparts-erp] [main] o.f.core.internal.command.DbValidate     : Successfully validated 28 migrations (execution time 00:00.028s)
+2026-11-11T17:27:46.724+05:30  INFO 4568 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 28
+2026-11-11T17:27:46.728+05:30  INFO 4568 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Schema "public" is up to date. No migration necessary.
+2026-11-11T17:27:47.681+05:30  INFO 4568 --- [autoparts-erp] [main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+2026-11-11T17:27:47.681+05:30  WARN 4568 --- [autoparts-erp] [main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
+2026-11-11T17:27:48.427+05:30  INFO 4568 --- [autoparts-erp] [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
+2026-11-11T17:27:48.524+05:30  INFO 4568 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-11-11T17:27:48.533+05:30  INFO 4568 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Started AutopartsErpApplication in 5.194 seconds (process running for 5.569)
+2026-11-11T17:27:48.541+05:30  INFO 4568 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
+2026-11-11T17:27:48.556+05:30  INFO 4568 --- [autoparts-erp] [main] o.f.c.i.s.JdbcTableSchemaHistory         : Repair of failed migration in Schema History table "public"."flyway_schema_history" not necessary. No failed migration detected.
+2026-11-11T17:27:48.569+05:30  INFO 4568 --- [autoparts-erp] [main] o.f.core.internal.command.DbRepair       : Successfully repaired schema history table "public"."flyway_schema_history" (execution time 00:00.016s).
+2026-11-11T17:27:48.910+05:30  INFO 4568 --- [autoparts-erp] [RMI TCP Connection(5)-10.100.202.202] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-11-11T17:27:48.910+05:30  INFO 4568 --- [autoparts-erp] [RMI TCP Connection(5)-10.100.202.202] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-11-11T17:27:48.911+05:30  INFO 4568 --- [autoparts-erp] [RMI TCP Connection(5)-10.100.202.202] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+2026-11-11T17:27:56.236+05:30  WARN 4568 --- [autoparts-erp] [http-nio-8080-exec-3] c.a.e.s.CustomAuthenticationEntryPoint   : Request rejected because authentication is missing or invalid
+2026-11-11T17:27:58.763+05:30  INFO 4568 --- [autoparts-erp] [http-nio-8080-exec-8] c.a.e.auth.serviceimpl.AuthServiceImpl   : Login succeeded.
+2026-11-11T17:36:01.812+05:30  INFO 4568 --- [autoparts-erp] [RMI TCP Connection(14)-10.100.202.202] inMXBeanRegistrar$SpringApplicationAdmin : Application shutdown requested.
+2026-11-11T17:36:01.823+05:30  INFO 4568 --- [autoparts-erp] [RMI TCP Connection(14)-10.100.202.202] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-11-11T17:36:01.832+05:30  INFO 4568 --- [autoparts-erp] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-11-11T17:36:01.842+05:30  INFO 4568 --- [autoparts-erp] [RMI TCP Connection(14)-10.100.202.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-11-11T17:36:01.846+05:30  INFO 4568 --- [autoparts-erp] [RMI TCP Connection(14)-10.100.202.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-11-11T17:36:10.490+05:30  INFO 39088 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Starting AutopartsErpApplication using Java 25.0.3 with PID 39088 (D:\Projects\autoparts-erp\target\classes started by Muthukumar Ramasamy in D:\Projects\autoparts-erp)
+2026-11-11T17:36:10.492+05:30  INFO 39088 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : No active profile set, falling back to 1 default profile: "default"
+2026-11-11T17:36:12.246+05:30  INFO 39088 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-11-11T17:36:12.265+05:30  INFO 39088 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-11-11T17:36:12.266+05:30  INFO 39088 --- [autoparts-erp] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
+2026-11-11T17:36:12.347+05:30  INFO 39088 --- [autoparts-erp] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1816 ms
+2026-11-11T17:36:13.007+05:30  INFO 39088 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-11-11T17:36:13.137+05:30  INFO 39088 --- [autoparts-erp] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@773c7147
+2026-11-11T17:36:13.140+05:30  INFO 39088 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-11-11T17:36:13.172+05:30  INFO 39088 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
+2026-11-11T17:36:13.261+05:30  INFO 39088 --- [autoparts-erp] [main] o.f.core.internal.command.DbValidate     : Successfully validated 28 migrations (execution time 00:00.031s)
+2026-11-11T17:36:13.295+05:30  INFO 39088 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 28
+2026-11-11T17:36:13.299+05:30  INFO 39088 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Schema "public" is up to date. No migration necessary.
+2026-11-11T17:36:14.277+05:30  INFO 39088 --- [autoparts-erp] [main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+2026-11-11T17:36:14.278+05:30  WARN 39088 --- [autoparts-erp] [main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
+2026-11-11T17:36:15.071+05:30  INFO 39088 --- [autoparts-erp] [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
+2026-11-11T17:36:15.168+05:30  INFO 39088 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-11-11T17:36:15.180+05:30  INFO 39088 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Started AutopartsErpApplication in 5.086 seconds (process running for 5.462)
+2026-11-11T17:36:15.190+05:30  INFO 39088 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
+2026-11-11T17:36:15.206+05:30  INFO 39088 --- [autoparts-erp] [main] o.f.c.i.s.JdbcTableSchemaHistory         : Repair of failed migration in Schema History table "public"."flyway_schema_history" not necessary. No failed migration detected.
+2026-11-11T17:36:15.216+05:30  INFO 39088 --- [autoparts-erp] [main] o.f.core.internal.command.DbRepair       : Successfully repaired schema history table "public"."flyway_schema_history" (execution time 00:00.016s).
+2026-11-11T17:36:15.617+05:30  INFO 39088 --- [autoparts-erp] [RMI TCP Connection(4)-10.100.202.202] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-11-11T17:36:15.618+05:30  INFO 39088 --- [autoparts-erp] [RMI TCP Connection(4)-10.100.202.202] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-11-11T17:36:15.619+05:30  INFO 39088 --- [autoparts-erp] [RMI TCP Connection(4)-10.100.202.202] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+2026-11-11T17:36:19.194+05:30  WARN 39088 --- [autoparts-erp] [http-nio-8080-exec-1] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.HttpRequestMethodNotSupportedException: Request method 'POST' is not supported]
+2026-11-11T17:36:20.772+05:30  WARN 39088 --- [autoparts-erp] [http-nio-8080-exec-3] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.HttpRequestMethodNotSupportedException: Request method 'POST' is not supported]
+2026-11-11T17:37:58.156+05:30  INFO 39088 --- [autoparts-erp] [RMI TCP Connection(6)-10.100.202.202] inMXBeanRegistrar$SpringApplicationAdmin : Application shutdown requested.
+2026-11-11T17:37:58.163+05:30  INFO 39088 --- [autoparts-erp] [RMI TCP Connection(6)-10.100.202.202] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-11-11T17:37:58.172+05:30  INFO 39088 --- [autoparts-erp] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-11-11T17:37:58.190+05:30  INFO 39088 --- [autoparts-erp] [RMI TCP Connection(6)-10.100.202.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-11-11T17:37:58.193+05:30  INFO 39088 --- [autoparts-erp] [RMI TCP Connection(6)-10.100.202.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-11-11T17:38:06.991+05:30  INFO 28476 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Starting AutopartsErpApplication using Java 25.0.3 with PID 28476 (D:\Projects\autoparts-erp\target\classes started by Muthukumar Ramasamy in D:\Projects\autoparts-erp)
+2026-11-11T17:38:06.993+05:30  INFO 28476 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : No active profile set, falling back to 1 default profile: "default"
+2026-11-11T17:38:08.727+05:30  INFO 28476 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-11-11T17:38:08.742+05:30  INFO 28476 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-11-11T17:38:08.742+05:30  INFO 28476 --- [autoparts-erp] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
+2026-11-11T17:38:08.821+05:30  INFO 28476 --- [autoparts-erp] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1789 ms
+2026-11-11T17:38:10.169+05:30  INFO 28476 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-11-11T17:38:10.459+05:30  INFO 28476 --- [autoparts-erp] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@10408ea
+2026-11-11T17:38:10.463+05:30  INFO 28476 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-11-11T17:38:10.518+05:30  INFO 28476 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
+2026-11-11T17:38:10.677+05:30  INFO 28476 --- [autoparts-erp] [main] o.f.core.internal.command.DbValidate     : Successfully validated 28 migrations (execution time 00:00.080s)
+2026-11-11T17:38:10.693+05:30  INFO 28476 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 28
+2026-11-11T17:38:10.709+05:30  INFO 28476 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Schema "public" is up to date. No migration necessary.
+2026-11-11T17:38:13.027+05:30  INFO 28476 --- [autoparts-erp] [main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+2026-11-11T17:38:13.027+05:30  WARN 28476 --- [autoparts-erp] [main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
+2026-11-11T17:38:14.646+05:30  INFO 28476 --- [autoparts-erp] [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
+2026-11-11T17:38:14.820+05:30  INFO 28476 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-11-11T17:38:14.837+05:30  INFO 28476 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Started AutopartsErpApplication in 8.222 seconds (process running for 8.662)
+2026-11-11T17:38:14.859+05:30  INFO 28476 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
+2026-11-11T17:38:14.884+05:30  INFO 28476 --- [autoparts-erp] [main] o.f.c.i.s.JdbcTableSchemaHistory         : Repair of failed migration in Schema History table "public"."flyway_schema_history" not necessary. No failed migration detected.
+2026-11-11T17:38:14.908+05:30  INFO 28476 --- [autoparts-erp] [main] o.f.core.internal.command.DbRepair       : Successfully repaired schema history table "public"."flyway_schema_history" (execution time 00:00.032s).
+2026-11-11T17:38:15.259+05:30  INFO 28476 --- [autoparts-erp] [RMI TCP Connection(4)-10.100.202.202] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-11-11T17:38:15.259+05:30  INFO 28476 --- [autoparts-erp] [RMI TCP Connection(4)-10.100.202.202] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-11-11T17:38:15.259+05:30  INFO 28476 --- [autoparts-erp] [RMI TCP Connection(4)-10.100.202.202] o.s.web.servlet.DispatcherServlet        : Completed initialization in 0 ms
+2026-11-11T17:40:58.917+05:30  WARN 28476 --- [autoparts-erp] [http-nio-8080-exec-5] c.a.e.s.CustomAccessDeniedHandler        : Request rejected because the authenticated principal lacks permission
+2026-11-11T17:50:33.274+05:30  WARN 28476 --- [autoparts-erp] [http-nio-8080-exec-6] c.a.e.s.CustomAuthenticationEntryPoint   : Request rejected because authentication is missing or invalid
+2026-11-11T17:50:36.701+05:30  INFO 28476 --- [autoparts-erp] [RMI TCP Connection(18)-10.100.202.202] inMXBeanRegistrar$SpringApplicationAdmin : Application shutdown requested.
+2026-11-11T17:50:36.706+05:30  INFO 28476 --- [autoparts-erp] [RMI TCP Connection(18)-10.100.202.202] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-11-11T17:50:36.712+05:30  INFO 28476 --- [autoparts-erp] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-11-11T17:50:36.720+05:30  INFO 28476 --- [autoparts-erp] [RMI TCP Connection(18)-10.100.202.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-11-11T17:50:36.722+05:30  INFO 28476 --- [autoparts-erp] [RMI TCP Connection(18)-10.100.202.202] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.

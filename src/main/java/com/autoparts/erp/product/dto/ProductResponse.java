@@ -1,4 +1,3 @@
-
 package com.autoparts.erp.product.dto;
 
 import java.math.BigDecimal;
@@ -18,9 +17,10 @@ public record ProductResponse(
         String brandName,
         BigDecimal purchasePrice,
         BigDecimal sellingPrice,
-        int qty,
         BigDecimal minimumStock,
         String unit,
+        String barcode,
+        String barcodeType,
         boolean active,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
