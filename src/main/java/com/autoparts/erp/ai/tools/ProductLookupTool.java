@@ -59,10 +59,14 @@ public class ProductLookupTool {
         try {
 
             String sql = """
-                SELECT id, uuid, product_code, part_no
+                SELECT uuid, product_code, part_no, name, qty, unit
                 FROM products
-                WHERE LOWER(product_code) LIKE LOWER(?)
-                   OR LOWER(part_no) LIKE LOWER(?)
+                WHERE active = TRUE
+                  AND (
+                    LOWER(product_code) LIKE LOWER(?)
+                    OR LOWER(part_no) LIKE LOWER(?)
+                    OR LOWER(name) LIKE LOWER(?)
+                  )
                 ORDER BY product_code
                 LIMIT 20
                 """;
@@ -72,6 +76,7 @@ public class ProductLookupTool {
             List<Map<String, Object>> products =
                     jdbcTemplate.queryForList(
                             sql,
+                            searchPattern,
                             searchPattern,
                             searchPattern
                     );

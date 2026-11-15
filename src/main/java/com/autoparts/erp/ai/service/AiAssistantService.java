@@ -11,6 +11,8 @@ import java.util.concurrent.CancellationException;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -36,15 +38,18 @@ public class AiAssistantService {
 
     private final ErpAiAgentService erpAiAgentService;
     private final AiRepository aiRepository;
+    private final TransactionTemplate transactionTemplate;
     private static final Logger log =
             LoggerFactory.getLogger(AiAssistantService.class);
 
     public AiAssistantService(
             ErpAiAgentService erpAiAgentService,
-            AiRepository aiRepository
+            AiRepository aiRepository,
+            PlatformTransactionManager transactionManager
     ) {
         this.erpAiAgentService = erpAiAgentService;
         this.aiRepository = aiRepository;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
     // ---------------------------------------------
@@ -144,32 +149,26 @@ public class AiAssistantService {
                 );
             }
 
-            // Save assistant response.
-            aiRepository.saveMessage(
+            completeRunAndSaveAssistantMessage(
                     activeConversationId,
-                    "ASSISTANT",
+                    runId,
                     assistantResponse
             );
-
-            // Mark agent run as completed.
-            int updated = aiRepository.updateAgentRunStatus(
-                    runId,
-                    AiAgentRunStatus.COMPLETED,
-                    null
-            );
-
-            if (updated != 1) {
-                log.error(
-                        "Unable to mark AI agent run {} as COMPLETED",
-                        runId
-                );
-            }
 
             return new AiChatResponse(
                     activeConversationId,
                     assistantResponse,
                     Instant.now()
             );
+
+        } catch (AiAgentRunCompletionException exception) {
+            log.error(
+                    "Unable to persist AI agent completion. Conversation: {}, Run: {}",
+                    activeConversationId,
+                    runId,
+                    exception
+            );
+            throw exception;
 
         } catch (AiAgentExecutionTimeoutException exception) {
 
@@ -180,10 +179,11 @@ public class AiAssistantService {
                     exception
             );
 
-            aiRepository.updateAgentRunStatus(
+            recordStatusPreservingException(
                     runId,
                     AiAgentRunStatus.FAILED,
-                    exception.getMessage()
+                    exception.getMessage(),
+                    exception
             );
 
             throw new AiProviderTimeoutException(
@@ -199,10 +199,11 @@ public class AiAssistantService {
                     runId
             );
 
-            aiRepository.updateAgentRunStatus(
+            recordStatusPreservingException(
                     runId,
                     AiAgentRunStatus.CANCELLED,
-                    "Execution cancelled by user"
+                    "Execution cancelled by user",
+                    exception
             );
 
             throw exception;
@@ -226,10 +227,11 @@ public class AiAssistantService {
                 errorMessage = errorMessage.substring(0, 1000);
             }
 
-            aiRepository.updateAgentRunStatus(
+            recordStatusPreservingException(
                     runId,
                     AiAgentRunStatus.FAILED,
-                    errorMessage
+                    errorMessage,
+                    exception
             );
 
             if (isTimeoutException(exception)) {
@@ -240,6 +242,72 @@ public class AiAssistantService {
             }
 
             throw exception;
+        }
+    }
+
+    private void completeRunAndSaveAssistantMessage(
+            UUID conversationId,
+            UUID runId,
+            String assistantResponse) {
+        transactionTemplate.execute(status -> {
+            int updated = aiRepository.updateAgentRunStatus(
+                    runId,
+                    AiAgentRunStatus.COMPLETED,
+                    null
+            );
+
+            if (updated != 1) {
+                AiAgentRun persistedRun = aiRepository.getAgentRun(runId);
+                if (updated == 0
+                        && persistedRun != null
+                        && persistedRun.status() == AiAgentRunStatus.COMPLETED) {
+                    return null;
+                }
+
+                String persistedStatus = persistedRun == null
+                        ? "missing"
+                        : persistedRun.status().name();
+                throw new AiAgentRunCompletionException(
+                        "Unable to mark AI agent run "
+                                + runId
+                                + " as COMPLETED; persisted status is "
+                                + persistedStatus
+                );
+            }
+
+            aiRepository.saveMessage(
+                    conversationId,
+                    "ASSISTANT",
+                    assistantResponse
+            );
+            return null;
+        });
+    }
+
+    private void recordStatusPreservingException(
+            UUID runId,
+            AiAgentRunStatus status,
+            String errorMessage,
+            RuntimeException originalException) {
+        try {
+            aiRepository.updateAgentRunStatus(runId, status, errorMessage);
+        } catch (RuntimeException | Error persistenceFailure) {
+            if (persistenceFailure != originalException) {
+                originalException.addSuppressed(persistenceFailure);
+            }
+            log.error(
+                    "Unable to persist AI agent run status {} for run {}",
+                    status,
+                    runId,
+                    persistenceFailure
+            );
+        }
+    }
+
+    private static class AiAgentRunCompletionException extends IllegalStateException {
+
+        private AiAgentRunCompletionException(String message) {
+            super(message);
         }
     }
     
