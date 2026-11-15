@@ -25,12 +25,12 @@ import org.bsc.langgraph4j.CompiledGraph;
 import org.bsc.langgraph4j.GraphInput;
 import org.bsc.langgraph4j.NodeOutput;
 import org.bsc.langgraph4j.RunnableConfig;
-import org.bsc.langgraph4j.spring.ai.agentexecutor.AgentExecutor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.UserMessage;
 
 import com.autoparts.erp.ai.exception.AiAgentExecutionTimeoutException;
+import com.autoparts.erp.ai.exception.AiExecutionInProgressException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -662,11 +662,11 @@ class ErpAiAgentServiceConcurrencyTest {
         Future<String> first = chatAsync(harness, conversationId);
         await(streamEntered);
         assertThrows(
-                IllegalStateException.class,
+                AiExecutionInProgressException.class,
                 () -> harness.service.chat(
                         conversationId,
                         UUID.randomUUID(),
-                        List.of(new AssistantMessage("request"))
+                        List.of(new UserMessage("request"))
                 )
         );
         releaseStream.countDown();
@@ -716,15 +716,13 @@ class ErpAiAgentServiceConcurrencyTest {
                 ErpAiAgentService.ExecutionStatus.COMPLETED);
     }
 
-//    private Harness harness(Duration timeout) {
-//        return harness(timeout, new ManualScheduler());
-//    }
-
     private Harness harness(Duration timeout) {
+        return harness(timeout, new ManualScheduler());
+    }
 
-        ScheduledThreadPoolExecutor scheduler =
-                new ManualScheduler();
-
+    private Harness harness(
+            Duration timeout,
+            ScheduledThreadPoolExecutor scheduler) {
         CompiledGraph<ErpAiGraphState> graph =
                 mock(CompiledGraph.class);
 
@@ -748,7 +746,7 @@ class ErpAiAgentServiceConcurrencyTest {
         return workers.submit(() -> harness.service.chat(
                 conversationId,
                 runId,
-                List.of(new AssistantMessage("request"))
+                List.of(new UserMessage("request"))
         ));
     }
 
@@ -764,7 +762,7 @@ class ErpAiAgentServiceConcurrencyTest {
         return generator;
     }
 
-    private static AsyncGenerator.Cancellable<NodeOutput<AgentExecutor.State>> generatorBlocking(
+    private static AsyncGenerator.Cancellable<NodeOutput<ErpAiGraphState>> generatorBlocking(
             String response,
             CountDownLatch streamEntered,
             CountDownLatch releaseStream) {
@@ -778,15 +776,12 @@ class ErpAiAgentServiceConcurrencyTest {
     }
 
     @SuppressWarnings("unchecked")
-    private static AsyncGenerator.Cancellable<NodeOutput<AgentExecutor.State>> mockGenerator() {
+    private static AsyncGenerator.Cancellable<NodeOutput<ErpAiGraphState>> mockGenerator() {
         return mock(AsyncGenerator.Cancellable.class);
     }
 
-    private static NodeOutput<AgentExecutor.State> output(String response) {
-        var state = new AgentExecutor.State(Map.of(
-                "messages",
-                List.of(new AssistantMessage(response))
-        ));
+    private static NodeOutput<ErpAiGraphState> output(String response) {
+        var state = new ErpAiGraphState(Map.of("finalResponse", response));
         return new NodeOutput<>("agent", state);
     }
 

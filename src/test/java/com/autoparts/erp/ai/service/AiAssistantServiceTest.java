@@ -1,6 +1,8 @@
 package com.autoparts.erp.ai.service;
 import com.autoparts.erp.ai.enums.AiAgentRunStatus;
 import com.autoparts.erp.ai.exception.AiAgentExecutionTimeoutException;
+import com.autoparts.erp.ai.exception.AiExecutionInProgressException;
+import com.autoparts.erp.ai.exception.AiProviderResponseException;
 import com.autoparts.erp.ai.exception.AiProviderTimeoutException;
 import com.autoparts.erp.ai.model.AiAgentRun;
 import com.autoparts.erp.ai.repository.AiRepository;
@@ -20,6 +22,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -55,6 +58,46 @@ class AiAssistantServiceTest {
     // ---------------------------------------------
     // TEST 1: AI AGENT FAILURE
     // ---------------------------------------------
+
+    @Test
+    void shouldMarkRejectedConcurrentRunAsFailed() {
+        UUID conversationId = UUID.randomUUID();
+        UUID runId = UUID.randomUUID();
+        String message = "Find product GAP-000001";
+        var exception = new AiExecutionInProgressException(
+                "An AI execution is already active for this conversation"
+        );
+
+        when(aiRepository.conversationExists(conversationId, "admin")).thenReturn(true);
+        when(aiRepository.getMessages(conversationId)).thenReturn(List.of(
+                Map.of("role", "USER", "content", message)
+        ));
+        when(aiRepository.createAgentRun(conversationId, "admin")).thenReturn(runId);
+        when(erpAiAgentService.chat(eq(conversationId), any(UUID.class), anyList()))
+                .thenThrow(exception);
+        when(aiRepository.updateAgentRunStatus(
+                runId,
+                AiAgentRunStatus.FAILED,
+                exception.getMessage()
+        )).thenReturn(1);
+
+        AiExecutionInProgressException thrown = assertThrows(
+                AiExecutionInProgressException.class,
+                () -> aiAssistantService.chat(conversationId, message, "admin")
+        );
+
+        assertEquals(exception, thrown);
+        verify(aiRepository).updateAgentRunStatus(
+                runId,
+                AiAgentRunStatus.FAILED,
+                exception.getMessage()
+        );
+        verify(aiRepository, never()).saveMessage(
+                eq(conversationId),
+                eq("ASSISTANT"),
+                anyString()
+        );
+    }
 
     @Test
     void shouldMarkAgentRunAsFailedWhenAgentFails() {
@@ -172,6 +215,52 @@ class AiAssistantServiceTest {
         assertEquals(providerFailure, thrown);
         assertEquals(1, thrown.getSuppressed().length);
         assertEquals(statusFailure, thrown.getSuppressed()[0]);
+    }
+
+    @Test
+    void mapsWrappedEmptyProviderResponseAfterMarkingRunFailed() {
+        UUID conversationId = UUID.randomUUID();
+        UUID runId = UUID.randomUUID();
+        AiProviderResponseException providerFailure =
+                new AiProviderResponseException(
+                        "AI provider returned an empty response. Please try again."
+                );
+
+        when(aiRepository.conversationExists(conversationId, "admin")).thenReturn(true);
+        when(aiRepository.getMessages(conversationId)).thenReturn(List.of(
+                Map.of("role", "USER", "content", "Hello")
+        ));
+        when(aiRepository.createAgentRun(conversationId, "admin")).thenReturn(runId);
+        when(erpAiAgentService.chat(eq(conversationId), any(UUID.class), anyList()))
+                .thenThrow(new CompletionException(
+                        new IllegalStateException("Graph execution failed", providerFailure)
+                ));
+        when(aiRepository.updateAgentRunStatus(
+                eq(runId),
+                eq(AiAgentRunStatus.FAILED),
+                anyString()
+        )).thenReturn(1);
+
+        AiProviderResponseException thrown = assertThrows(
+                AiProviderResponseException.class,
+                () -> aiAssistantService.chat(conversationId, "Hello", "admin")
+        );
+
+        assertEquals(providerFailure.getMessage(), thrown.getMessage());
+        assertEquals(
+                providerFailure,
+                thrown.getCause().getCause().getCause()
+        );
+        verify(aiRepository).updateAgentRunStatus(
+                eq(runId),
+                eq(AiAgentRunStatus.FAILED),
+                anyString()
+        );
+        verify(aiRepository, never()).saveMessage(
+                eq(conversationId),
+                eq("ASSISTANT"),
+                anyString()
+        );
     }
 
     // ---------------------------------------------

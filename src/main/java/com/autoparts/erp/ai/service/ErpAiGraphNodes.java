@@ -6,8 +6,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.bsc.langgraph4j.RunnableConfig;
 import org.slf4j.Logger;
@@ -21,6 +19,7 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import com.autoparts.erp.ai.exception.AiProviderResponseException;
 import com.autoparts.erp.ai.tools.ProductLookupTool;
 
 @Component
@@ -29,22 +28,19 @@ public class ErpAiGraphNodes {
     private static final Logger log =
             LoggerFactory.getLogger(ErpAiGraphNodes.class);
 
-    private static final Pattern PRODUCT_IDENTIFIER =
-            Pattern.compile(
-                    "\\b[A-Z0-9]+(?:-[A-Z0-9]+)+\\b",
-                    Pattern.CASE_INSENSITIVE
-            );
-
     private final ChatModel chatModel;
     private final ProductLookupTool productLookupTool;
+    private final ErpAiIntentClassifier intentClassifier;
     private final String systemPrompt;
 
     public ErpAiGraphNodes(
             ChatModel chatModel,
-            ProductLookupTool productLookupTool
+            ProductLookupTool productLookupTool,
+            ErpAiIntentClassifier intentClassifier
     ) {
         this.chatModel = chatModel;
         this.productLookupTool = productLookupTool;
+        this.intentClassifier = intentClassifier;
         this.systemPrompt = loadSystemPrompt();
     }
 
@@ -56,88 +52,18 @@ public class ErpAiGraphNodes {
             ErpAiGraphState state,
             RunnableConfig config
     ) {
-        String message = state.text("currentMessage")
-                .trim();
-
-        String normalized = message.toLowerCase(Locale.ROOT);
-
-        String intent;
-        String searchText = extractSearchText(message);
-
-        if (isUnsupportedRequest(normalized)) {
-            intent = "UNSUPPORTED";
-
-        } else if (containsAny(
-                normalized,
-                "low stock",
-                "below minimum",
-                "minimum stock",
-                "need restocking",
-                "need to restock",
-                "restock products"
-        )) {
-            intent = "LOW_STOCK_PRODUCTS";
-
-        } else if (containsAny(
-                normalized,
-                "how many products",
-                "total products",
-                "product count",
-                "number of products",
-                "count products"
-        )) {
-            intent = "COUNT_PRODUCTS";
-
-        } else if (containsAny(
-                normalized,
-                "stock",
-                "available quantity",
-                "quantity available",
-                "how much quantity"
-        )) {
-            intent = StringUtils.hasText(searchText)
-                    ? "PRODUCT_STOCK"
-                    : "CLARIFICATION";
-
-        } else if (containsAny(
-                normalized,
-                "product details",
-                "details of",
-                "information about",
-                "price of",
-                "description of"
-        )) {
-            intent = StringUtils.hasText(searchText)
-                    ? "PRODUCT_DETAILS"
-                    : "CLARIFICATION";
-
-        } else if (containsAny(
-                normalized,
-                "find product",
-                "search product",
-                "lookup product",
-                "look up product",
-                "show product",
-                "find ",
-                "search "
-        )) {
-            intent = StringUtils.hasText(searchText)
-                    ? "PRODUCT_SEARCH"
-                    : "CLARIFICATION";
-
-        } else {
-            intent = "GENERAL";
-        }
+        ErpAiIntentResult classification =
+                intentClassifier.classify(state.text("currentMessage"));
 
         log.info(
                 "ERP AI intent classified. Intent: {}, Conversation: {}",
-                intent,
+                classification.intent(),
                 state.text("conversationId")
         );
 
         return Map.of(
-                "intent", intent,
-                "searchText", searchText
+                "intent", classification.intent(),
+                "searchText", classification.searchText()
         );
     }
 
@@ -149,6 +75,7 @@ public class ErpAiGraphNodes {
             ErpAiGraphState state,
             RunnableConfig config
     ) {
+
         String intent = state.text("intent");
         String searchText = state.text("searchText");
 
@@ -158,6 +85,7 @@ public class ErpAiGraphNodes {
         );
 
         try {
+
             Object result = switch (intent) {
 
                 case "PRODUCT_SEARCH" ->
@@ -191,6 +119,7 @@ public class ErpAiGraphNodes {
             );
 
         } catch (CancellationException exception) {
+
             throw exception;
 
         } catch (RuntimeException exception) {
@@ -202,8 +131,7 @@ public class ErpAiGraphNodes {
             );
 
             return Map.of(
-                    "toolResult",
-                    "",
+                    "toolResult", "",
                     "toolError",
                     "Unable to retrieve the requested ERP information."
             );
@@ -218,9 +146,11 @@ public class ErpAiGraphNodes {
             ErpAiGraphState state,
             RunnableConfig config
     ) {
+
         String toolError = state.text("toolError");
 
         if (StringUtils.hasText(toolError)) {
+
             return Map.of(
                     "finalResponse",
                     "I couldn't retrieve the requested information from the ERP system. Please try again."
@@ -229,19 +159,71 @@ public class ErpAiGraphNodes {
 
         Object toolResult = state.object("toolResult");
 
+        String intent = state.text("intent");
+
+        // ----------------------------------------------
+        // Handle empty product list results
+        // ----------------------------------------------
+
         if (toolResult instanceof List<?> results
                 && results.isEmpty()) {
+
+            if ("LOW_STOCK_PRODUCTS".equals(intent)) {
+
+                return Map.of(
+                        "finalResponse",
+                        "There are currently no active products below their minimum stock level."
+                );
+            }
+
             return Map.of(
                     "finalResponse",
                     "I couldn't find any matching products in the ERP system."
             );
         }
 
-        String intent = state.text("intent");
+        // ----------------------------------------------
+        // Handle product count directly in Java
+        // ----------------------------------------------
+
+        if ("COUNT_PRODUCTS".equals(intent)) {
+
+            if (!(toolResult instanceof Number count)) {
+
+                log.error(
+                        "Unexpected product count result. Result type: {}",
+                        toolResult == null
+                                ? "null"
+                                : toolResult.getClass().getName()
+                );
+
+                return Map.of(
+                        "finalResponse",
+                        "I couldn't retrieve the active product count. Please try again."
+                );
+            }
+
+            long total = count.longValue();
+
+            log.info(
+                    "Active product count response generated."
+            );
+
+            return Map.of(
+                    "finalResponse",
+                    "There are " + total
+                            + " active products in the ERP system."
+            );
+        }
+
+        // ----------------------------------------------
+        // Prepare verified ERP tool result
+        // ----------------------------------------------
 
         String toolContext = "";
 
         if (toolResult != null) {
+
             toolContext = """
 
                     VERIFIED ERP TOOL RESULT:
@@ -256,6 +238,10 @@ public class ErpAiGraphNodes {
                     """.formatted(toolResult);
         }
 
+        // ----------------------------------------------
+        // Prepare conversation messages
+        // ----------------------------------------------
+
         List<Message> promptMessages = new ArrayList<>();
 
         promptMessages.add(
@@ -269,16 +255,19 @@ public class ErpAiGraphNodes {
 
             if (!StringUtils.hasText(content)
                     || !StringUtils.hasText(role)) {
+
                 continue;
             }
 
             switch (role.toUpperCase(Locale.ROOT)) {
 
-                case "USER" ->
-                        promptMessages.add(new UserMessage(content));
+                case "USER" -> promptMessages.add(
+                        new UserMessage(content)
+                );
 
-                case "ASSISTANT" ->
-                        promptMessages.add(new AssistantMessage(content));
+                case "ASSISTANT" -> promptMessages.add(
+                        new AssistantMessage(content)
+                );
 
                 default -> log.debug(
                         "Ignoring unsupported conversation history role: {}",
@@ -288,10 +277,15 @@ public class ErpAiGraphNodes {
         }
 
         if (promptMessages.size() == 1) {
+
             promptMessages.add(
                     new UserMessage(state.text("currentMessage"))
             );
         }
+
+        // ----------------------------------------------
+        // Call Sarvam AI
+        // ----------------------------------------------
 
         log.info(
                 "ERP AI response generation started. Intent: {}",
@@ -305,8 +299,9 @@ public class ErpAiGraphNodes {
         if (chatResponse == null
                 || chatResponse.getResult() == null
                 || chatResponse.getResult().getOutput() == null) {
-            throw new IllegalStateException(
-                    "Sarvam AI returned an empty response"
+
+            throw new AiProviderResponseException(
+                    "AI provider returned an empty response. Please try again."
             );
         }
 
@@ -316,8 +311,9 @@ public class ErpAiGraphNodes {
                 .getText();
 
         if (!StringUtils.hasText(response)) {
-            throw new IllegalStateException(
-                    "Sarvam AI returned an empty response"
+
+            throw new AiProviderResponseException(
+                    "AI provider returned an empty response. Please try again."
             );
         }
 
@@ -335,6 +331,7 @@ public class ErpAiGraphNodes {
             ErpAiGraphState state,
             RunnableConfig config
     ) {
+
         return Map.of(
                 "finalResponse",
                 """
@@ -353,6 +350,7 @@ public class ErpAiGraphNodes {
             ErpAiGraphState state,
             RunnableConfig config
     ) {
+
         return Map.of(
                 "finalResponse",
                 "Please provide the product code or part number so I can retrieve the correct product information."
@@ -367,9 +365,11 @@ public class ErpAiGraphNodes {
             ErpAiGraphState state,
             RunnableConfig config
     ) {
+
         String response = state.text("finalResponse");
 
         if (!StringUtils.hasText(response)) {
+
             response =
                     "I couldn't generate a response. Please try again.";
         }
@@ -386,8 +386,12 @@ public class ErpAiGraphNodes {
 
     public static String routeIntent(ErpAiGraphState state) {
 
-        return switch (state.text("intent")) {
+        String intent = state.text("intent");
+        if (intent == null) {
+            return "CLARIFICATION";
+        }
 
+        return switch (intent) {
             case "PRODUCT_SEARCH",
                  "PRODUCT_DETAILS",
                  "PRODUCT_STOCK",
@@ -398,83 +402,27 @@ public class ErpAiGraphNodes {
 
             case "CLARIFICATION" -> "CLARIFICATION";
 
-            default -> "GENERAL";
+            case "GENERAL" -> "GENERAL";
+
+            default -> "CLARIFICATION";
         };
     }
 
-    private boolean isUnsupportedRequest(String message) {
-
-        if (message.contains("supplier")) {
-            return true;
-        }
-
-        return containsAny(
-                message,
-                "create purchase",
-                "create sales",
-                "create invoice",
-                "generate invoice",
-                "make purchase",
-                "make sales",
-                "record purchase",
-                "record sales"
-        );
-    }
-
-    private String extractSearchText(String message) {
-
-        Matcher matcher = PRODUCT_IDENTIFIER.matcher(message);
-
-        if (matcher.find()) {
-            return matcher.group().trim();
-        }
-
-        String cleaned = message.trim();
-
-        cleaned = cleaned.replaceFirst(
-                "(?i)^(please\\s+)?(find|search|lookup|look up|show|get|check)\\s+",
-                ""
-        );
-
-        cleaned = cleaned.replaceFirst(
-                "(?i)^for\\s+",
-                ""
-        );
-
-        cleaned = cleaned.replaceFirst(
-                "(?i)^the\\s+",
-                ""
-        );
-
-        cleaned = cleaned.replaceFirst(
-                "(?i)^product\\s+",
-                ""
-        );
-
-        return cleaned.trim();
-    }
-
-    private boolean containsAny(
-            String message,
-            String... values
-    ) {
-        for (String value : values) {
-            if (message.contains(value)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
+    // --------------------------------------------------
+    // LOAD SYSTEM PROMPT
+    // --------------------------------------------------
 
     private String loadSystemPrompt() {
 
         try {
-            var resource = new org.springframework.core.io.ClassPathResource(
-                    "prompts/erp-system-prompt.st"
-            );
+
+            var resource =
+                    new org.springframework.core.io.ClassPathResource(
+                            "prompts/erp-system-prompt.st"
+                    );
 
             try (var inputStream = resource.getInputStream()) {
+
                 return new String(
                         inputStream.readAllBytes(),
                         java.nio.charset.StandardCharsets.UTF_8
@@ -482,6 +430,7 @@ public class ErpAiGraphNodes {
             }
 
         } catch (Exception exception) {
+
             throw new IllegalStateException(
                     "Unable to load ERP AI system prompt",
                     exception

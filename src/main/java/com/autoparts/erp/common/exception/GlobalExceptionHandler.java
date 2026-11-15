@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.autoparts.erp.ai.exception.AiExecutionInProgressException;
+import com.autoparts.erp.ai.exception.AiProviderResponseException;
 import com.autoparts.erp.ai.exception.AiProviderTimeoutException;
 import com.autoparts.erp.common.response.ApiError;
 import java.util.concurrent.CancellationException;
@@ -163,6 +165,42 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.GATEWAY_TIMEOUT)
+                .body(error);
+    }
+
+    @ExceptionHandler(AiExecutionInProgressException.class)
+    public ResponseEntity<ApiError> handleAiExecutionInProgress(
+            AiExecutionInProgressException exception,
+            HttpServletRequest request) {
+
+        ApiError error = new ApiError(
+                Instant.now(),
+                HttpStatus.CONFLICT.value(),
+                "AI Execution In Progress",
+                exception.getMessage(),
+                request.getRequestURI()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(error);
+    }
+
+    @ExceptionHandler(AiProviderResponseException.class)
+    public ResponseEntity<ApiError> handleAiProviderResponse(
+            AiProviderResponseException exception,
+            HttpServletRequest request) {
+
+        ApiError error = new ApiError(
+                Instant.now(),
+                HttpStatus.BAD_GATEWAY.value(),
+                "AI Provider Error",
+                exception.getMessage(),
+                request.getRequestURI()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_GATEWAY)
                 .body(error);
     }
     

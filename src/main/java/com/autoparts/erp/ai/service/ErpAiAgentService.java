@@ -37,6 +37,7 @@ import org.springframework.ai.chat.messages.UserMessage;
 import java.util.concurrent.CompletableFuture;
 
 import com.autoparts.erp.ai.exception.AiAgentExecutionTimeoutException;
+import com.autoparts.erp.ai.exception.AiExecutionInProgressException;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -104,7 +105,11 @@ public class ErpAiAgentService {
             ProductLookupTool productLookupTool
     ) {
         this(
-                new ErpAiGraphNodes(chatModel, productLookupTool),
+                new ErpAiGraphNodes(
+                        chatModel,
+                        productLookupTool,
+                        new ErpAiIntentClassifier()
+                ),
                 Duration.ofSeconds(60)
         );
     }
@@ -271,7 +276,7 @@ private CompiledGraph<ErpAiGraphState> buildWorkflow(
                     execution
             ) != null) {
 
-                throw new IllegalStateException(
+                throw new AiExecutionInProgressException(
                         "An AI execution is already active for this conversation"
                 );
             }

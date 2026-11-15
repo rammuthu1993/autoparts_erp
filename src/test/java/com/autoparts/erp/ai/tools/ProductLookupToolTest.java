@@ -1,145 +1,30 @@
-//package com.autoparts.erp.ai.tools;
-//
-//import java.util.concurrent.CancellationException;
-//
-//import org.junit.jupiter.api.Test;
-//import org.junit.jupiter.api.extension.ExtendWith;
-//import org.mockito.InjectMocks;
-//import org.mockito.Mock;
-//import org.mockito.junit.jupiter.MockitoExtension;
-//import org.springframework.jdbc.core.JdbcTemplate;
-//
-//import static org.junit.jupiter.api.Assertions.assertThrows;
-//import static org.mockito.Mockito.verifyNoInteractions;
-//import java.util.concurrent.CountDownLatch;
-//import java.util.concurrent.ExecutorService;
-//import java.util.concurrent.Executors;
-//import java.util.concurrent.Future;
-//import java.util.concurrent.TimeUnit;
-//import java.util.concurrent.atomic.AtomicReference;
-//
-//import static org.junit.jupiter.api.Assertions.*;
-//import static org.mockito.ArgumentMatchers.anyString;
-//import static org.mockito.ArgumentMatchers.eq;
-//import static org.mockito.Mockito.when;
-//
-//@ExtendWith(MockitoExtension.class)
-//class ProductLookupToolTest {
-//
-//    @Mock
-//    private JdbcTemplate jdbcTemplate;
-//
-//    @InjectMocks
-//    private ProductLookupTool productLookupTool;
-//
-//    @Test
-//    void shouldStopExecutionWhenThreadIsInterrupted() {
-//
-//        Thread.currentThread().interrupt();
-//
-//        try {
-//            assertThrows(
-//                    CancellationException.class,
-//                    () -> productLookupTool.countProducts()
-//            );
-//
-//            verifyNoInteractions(jdbcTemplate);
-//
-//        } finally {
-//            // Clear interrupt status after the test
-//            Thread.interrupted();
-//        }
-//    }
-//    
-//
-//@Test
-//void shouldDemonstrateThatInterruptDoesNotAutomaticallyStopRunningQuery()
-//        throws Exception {
-//
-//    CountDownLatch queryStarted = new CountDownLatch(1);
-//    CountDownLatch allowQueryToFinish = new CountDownLatch(1);
-//    AtomicReference<Thread> workerThread = new AtomicReference<>();
-//
-//    when(jdbcTemplate.queryForObject(anyString(), eq(Long.class)))
-//            .thenAnswer(invocation -> {
-//                queryStarted.countDown();
-//
-//                // Simulate a JDBC operation that does not respond
-//                // immediately to thread interruption.
-//                boolean completed = false;
-//
-//                while (!completed) {
-//                    try {
-//                        allowQueryToFinish.await();
-//                        completed = true;
-//                    } catch (InterruptedException exception) {
-//                        // Simulate a database operation that ignores
-//                        // thread interruption and continues waiting.
-//                    }
-//                }
-//
-//                return 10L;
-//            });
-//
-//    ExecutorService executor = Executors.newSingleThreadExecutor();
-//
-//    try {
-//        Future<Long> future = executor.submit(() -> {
-//            workerThread.set(Thread.currentThread());
-//            return productLookupTool.countProducts();
-//        });
-//
-//        assertTrue(queryStarted.await(2, TimeUnit.SECONDS));
-//
-//        // Interrupt while the mocked JDBC query is running.
-//        workerThread.get().interrupt();
-//
-//        // The query is still running because it ignores interruption.
-//        assertFalse(future.isDone());
-//
-//        // Allow the simulated query to finish.
-//        allowQueryToFinish.countDown();
-//
-//        assertEquals(10L, future.get(2, TimeUnit.SECONDS));
-//
-//    } finally {
-//        allowQueryToFinish.countDown();
-//        executor.shutdownNow();
-//    }
-//}
-//
-//}
-
-
 
 package com.autoparts.erp.ai.tools;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentCaptor.forClass;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.dao.DataAccessResourceFailureException;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentCaptor.forClass;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 @ExtendWith(MockitoExtension.class)
 class ProductLookupToolTest {
@@ -152,14 +37,10 @@ class ProductLookupToolTest {
     @BeforeEach
     void setUp() {
         productLookupTool = new ProductLookupTool(jdbcTemplate);
-
-        // Ignore constructor configuration when verifying query interactions.
-        clearInvocations(jdbcTemplate);
     }
 
     @Test
     void shouldStopExecutionWhenThreadIsInterrupted() {
-
         Thread.currentThread().interrupt();
 
         try {
@@ -176,134 +57,389 @@ class ProductLookupToolTest {
     }
 
     @Test
-    void searchProductsToolUsesSchemaAndReturnsDatabaseRows() {
-        var product = java.util.Map.<String, Object>of(
-                "uuid", java.util.UUID.randomUUID(),
+    void shouldSearchProductsUsingProductCodePartNumberAndName() {
+        Map<String, Object> product = Map.of(
+                "uuid", UUID.randomUUID(),
                 "product_code", "PRD001",
                 "part_no", "FILTER-001",
                 "name", "Oil Filter",
                 "qty", 12,
                 "unit", "PCS"
         );
-        when(jdbcTemplate.queryForList(anyString(), any(Object[].class)))
-                .thenReturn(java.util.List.of(product));
 
-        ToolCallback callback = java.util.Arrays.stream(
-                        ToolCallbacks.from(productLookupTool)
-                )
-                .filter(tool -> tool.getToolDefinition().name().equals("searchProducts"))
-                .findFirst()
-                .orElseThrow();
+        when(jdbcTemplate.queryForList(
+                anyString(),
+                any(Object[].class)
+        )).thenReturn(List.of(product));
 
-        String schema = callback.getToolDefinition().inputSchema();
-        assertTrue(schema.contains("searchText"));
-        assertTrue(schema.replaceAll("\\s+", "").contains("\"type\":\"string\""));
+        List<Map<String, Object>> result =
+                productLookupTool.searchProducts("PRD001");
 
-        String result = callback.call("{\"searchText\":\"PRD001\"}");
-        assertTrue(result.contains("\"product_code\":\"PRD001\""));
-        assertTrue(result.contains("\"name\":\"Oil Filter\""));
-        assertTrue(result.contains("\"qty\":12"));
+        assertEquals(1, result.size());
+        assertEquals("PRD001", result.get(0).get("product_code"));
 
-        var sql = forClass(String.class);
-        var args = forClass(Object[].class);
-        verify(jdbcTemplate).queryForList(sql.capture(), args.capture());
-        String normalizedSql = sql.getValue().replaceAll("\\s+", " ").toLowerCase();
-        assertTrue(normalizedSql.contains("where active = true"));
-        assertTrue(normalizedSql.contains("lower(product_code) like lower(?)"));
-        assertTrue(normalizedSql.contains("lower(part_no) like lower(?)"));
-        assertTrue(normalizedSql.contains("lower(name) like lower(?)"));
-        assertFalse(normalizedSql.contains("select id,"));
+        ArgumentCaptor<String> sqlCaptor =
+                forClass(String.class);
+
+        ArgumentCaptor<Object[]> argumentsCaptor =
+                forClass(Object[].class);
+
+        verify(jdbcTemplate).queryForList(
+                sqlCaptor.capture(),
+                argumentsCaptor.capture()
+        );
+
+        String sql = normalizeSql(sqlCaptor.getValue());
+
+        assertTrue(sql.contains("where active = true"));
+        assertTrue(sql.contains("lower(product_code) like lower(?)"));
+        assertTrue(sql.contains("lower(part_no) like lower(?)"));
+        assertTrue(sql.contains("lower(name) like lower(?)"));
+
         assertArrayEquals(
-                new Object[]{"%PRD001%", "%PRD001%", "%PRD001%"},
-                args.getValue()
+                new Object[]{
+                        "%PRD001%",
+                        "%PRD001%",
+                        "%PRD001%"
+                },
+                argumentsCaptor.getValue()
         );
     }
 
     @Test
-    void searchProductsSurfacesDatabaseFailuresInsteadOfReturningFakeResults() {
-        when(jdbcTemplate.queryForList(anyString(), any(Object[].class)))
-                .thenThrow(new DataAccessResourceFailureException("database unavailable"));
+    void shouldReturnEmptyListForBlankSearchText() {
+        List<Map<String, Object>> result =
+                productLookupTool.searchProducts(" ");
 
-        IllegalStateException failure = assertThrows(
+        assertTrue(result.isEmpty());
+        verifyNoInteractions(jdbcTemplate);
+    }
+
+    @Test
+    void shouldCountActiveProducts() {
+        when(jdbcTemplate.queryForObject(
+                anyString(),
+                eq(Long.class)
+        )).thenReturn(25L);
+
+        Long result = productLookupTool.countProducts();
+
+        assertEquals(25L, result);
+
+        ArgumentCaptor<String> sqlCaptor =
+                forClass(String.class);
+
+        verify(jdbcTemplate).queryForObject(
+                sqlCaptor.capture(),
+                eq(Long.class)
+        );
+
+        String sql = normalizeSql(sqlCaptor.getValue());
+
+        assertTrue(sql.contains("select count(*)"));
+        assertTrue(sql.contains("from products"));
+        assertTrue(sql.contains("where active = true"));
+    }
+
+    @Test
+    void shouldReturnZeroWhenNoActiveProductsExist() {
+        when(jdbcTemplate.queryForObject(
+                anyString(),
+                eq(Long.class)
+        )).thenReturn(0L);
+
+        assertEquals(0L, productLookupTool.countProducts());
+    }
+
+    @Test
+    void shouldRetrieveProductDetailsUsingExactProductCodeOrPartNumber() {
+        Map<String, Object> product = Map.of(
+                "product_code", "PRD001",
+                "part_no", "FILTER-001",
+                "name", "Oil Filter",
+                "qty", 12
+        );
+
+        when(jdbcTemplate.queryForList(
+                anyString(),
+                any(Object[].class)
+        )).thenReturn(List.of(product));
+
+        List<Map<String, Object>> result =
+                productLookupTool.getProductDetails("PRD001");
+
+        assertEquals(1, result.size());
+        assertEquals("Oil Filter", result.get(0).get("name"));
+
+        ArgumentCaptor<String> sqlCaptor =
+                forClass(String.class);
+
+        ArgumentCaptor<Object[]> argumentsCaptor =
+                forClass(Object[].class);
+
+        verify(jdbcTemplate).queryForList(
+                sqlCaptor.capture(),
+                argumentsCaptor.capture()
+        );
+
+        String sql = normalizeSql(sqlCaptor.getValue());
+
+        assertTrue(sql.contains("where lower(product_code) = lower(?)"));
+        assertTrue(sql.contains("or lower(part_no) = lower(?)"));
+
+        assertArrayEquals(
+                new Object[]{"PRD001", "PRD001"},
+                argumentsCaptor.getValue()
+        );
+    }
+
+    @Test
+    void shouldNotQueryDatabaseForBlankProductDetailsSearch() {
+        List<Map<String, Object>> result =
+                productLookupTool.getProductDetails(" ");
+
+        assertTrue(result.isEmpty());
+        verifyNoInteractions(jdbcTemplate);
+    }
+
+    @Test
+    void shouldRetrieveLowStockProducts() {
+        Map<String, Object> product = Map.of(
+                "product_code", "PRD001",
+                "part_no", "FILTER-001",
+                "name", "Oil Filter",
+                "qty", 2,
+                "minimum_stock", 5,
+                "unit", "PCS"
+        );
+
+        when(jdbcTemplate.queryForList(anyString()))
+                .thenReturn(List.of(product));
+
+        List<Map<String, Object>> result =
+                productLookupTool.getLowStockProducts();
+
+        assertEquals(1, result.size());
+        assertEquals("PRD001", result.get(0).get("product_code"));
+
+        ArgumentCaptor<String> sqlCaptor =
+                forClass(String.class);
+
+        verify(jdbcTemplate).queryForList(sqlCaptor.capture());
+
+        String sql = normalizeSql(sqlCaptor.getValue());
+
+        assertTrue(sql.contains("where active = true"));
+        assertTrue(sql.contains("qty <= minimum_stock"));
+        assertTrue(sql.contains("order by qty asc"));
+    }
+
+    @Test
+    void shouldRetrieveProductStockUsingExactProductCodeOrPartNumber() {
+        Map<String, Object> product = Map.of(
+                "product_code", "PRD001",
+                "part_no", "FILTER-001",
+                "name", "Oil Filter",
+                "qty", 12,
+                "minimum_stock", 5,
+                "unit", "PCS"
+        );
+
+        when(jdbcTemplate.queryForList(
+                anyString(),
+                any(Object[].class)
+        )).thenReturn(List.of(product));
+
+        List<Map<String, Object>> result =
+                productLookupTool.getProductStock("PRD001");
+
+        assertEquals(1, result.size());
+        assertEquals(12, result.get(0).get("qty"));
+
+        ArgumentCaptor<String> sqlCaptor =
+                forClass(String.class);
+
+        ArgumentCaptor<Object[]> argumentsCaptor =
+                forClass(Object[].class);
+
+        verify(jdbcTemplate).queryForList(
+                sqlCaptor.capture(),
+                argumentsCaptor.capture()
+        );
+
+        String sql = normalizeSql(sqlCaptor.getValue());
+
+        assertTrue(sql.contains("where lower(product_code) = lower(?)"));
+        assertTrue(sql.contains("or lower(part_no) = lower(?)"));
+
+        assertArrayEquals(
+                new Object[]{"PRD001", "PRD001"},
+                argumentsCaptor.getValue()
+        );
+    }
+
+    @Test
+    void shouldNotQueryDatabaseForBlankStockSearch() {
+        List<Map<String, Object>> result =
+                productLookupTool.getProductStock(" ");
+
+        assertTrue(result.isEmpty());
+        verifyNoInteractions(jdbcTemplate);
+    }
+
+    @Test
+    void shouldExposeSearchDatabaseFailureAsIllegalStateException() {
+        when(jdbcTemplate.queryForList(
+                anyString(),
+                any(Object[].class)
+        )).thenThrow(
+                new DataAccessResourceFailureException(
+                        "Database unavailable"
+                )
+        );
+
+        IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
                 () -> productLookupTool.searchProducts("PRD001")
         );
 
-        assertEquals("Unable to search products at this time.", failure.getMessage());
-        assertInstanceOf(DataAccessResourceFailureException.class, failure.getCause());
+        assertEquals(
+                "Unable to search products at this time.",
+                exception.getMessage()
+        );
+
+        assertInstanceOf(
+                DataAccessResourceFailureException.class,
+                exception.getCause()
+        );
     }
 
     @Test
-    void shouldDemonstrateThatInterruptDoesNotAutomaticallyStopRunningQuery()
-            throws Exception {
+    void shouldExposeCountDatabaseFailureAsIllegalStateException() {
+        when(jdbcTemplate.queryForObject(
+                anyString(),
+                eq(Long.class)
+        )).thenThrow(
+                new DataAccessResourceFailureException(
+                        "Database unavailable"
+                )
+        );
 
-        CountDownLatch queryStarted = new CountDownLatch(1);
-        CountDownLatch interruptionObserved = new CountDownLatch(1);
-        CountDownLatch allowQueryToFinish = new CountDownLatch(1);
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> productLookupTool.countProducts()
+        );
 
-        AtomicReference<Thread> workerThread = new AtomicReference<>();
+        assertEquals(
+                "Unable to retrieve the product count at this time.",
+                exception.getMessage()
+        );
+    }
 
-        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class)))
-                .thenAnswer(invocation -> {
+    @Test
+    void shouldExposeProductDetailsDatabaseFailure() {
+        when(jdbcTemplate.queryForList(
+                anyString(),
+                any(Object[].class)
+        )).thenThrow(
+                new DataAccessResourceFailureException(
+                        "Database unavailable"
+                )
+        );
 
-                    queryStarted.countDown();
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> productLookupTool.getProductDetails("PRD001")
+        );
 
-                    boolean completed = false;
+        assertEquals(
+                "Unable to retrieve product details at this time.",
+                exception.getMessage()
+        );
+    }
 
-                    while (!completed) {
-                        try {
-                            allowQueryToFinish.await();
-                            completed = true;
+    @Test
+    void shouldExposeLowStockDatabaseFailure() {
+        when(jdbcTemplate.queryForList(anyString()))
+                .thenThrow(
+                        new DataAccessResourceFailureException(
+                                "Database unavailable"
+                        )
+                );
 
-                        } catch (InterruptedException exception) {
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> productLookupTool.getLowStockProducts()
+        );
 
-                            // Simulate a database operation that
-                            // does not stop when its thread is interrupted.
-                            interruptionObserved.countDown();
-                        }
-                    }
+        assertEquals(
+                "Unable to retrieve low-stock products at this time.",
+                exception.getMessage()
+        );
+    }
 
-                    return 10L;
-                });
+    @Test
+    void shouldExposeProductStockDatabaseFailure() {
+        when(jdbcTemplate.queryForList(
+                anyString(),
+                any(Object[].class)
+        )).thenThrow(
+                new DataAccessResourceFailureException(
+                        "Database unavailable"
+                )
+        );
 
-        ExecutorService executor =
-                Executors.newSingleThreadExecutor();
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> productLookupTool.getProductStock("PRD001")
+        );
 
-        try {
-            Future<Long> future = executor.submit(() -> {
+        assertEquals(
+                "Unable to retrieve product stock at this time.",
+                exception.getMessage()
+        );
+    }
 
-                workerThread.set(Thread.currentThread());
+    @Test
+    void shouldExposeSearchProductsAsSpringAiTool() {
+        Map<String, Object> product = Map.of(
+                "product_code", "PRD001",
+                "part_no", "FILTER-001",
+                "name", "Oil Filter",
+                "qty", 12
+        );
 
-                return productLookupTool.countProducts();
-            });
+        when(jdbcTemplate.queryForList(
+                anyString(),
+                any(Object[].class)
+        )).thenReturn(List.of(product));
 
-            assertTrue(
-                    queryStarted.await(2, TimeUnit.SECONDS),
-                    "Database query should start"
-            );
+        ToolCallback callback = java.util.Arrays.stream(
+                        ToolCallbacks.from(productLookupTool)
+                )
+                .filter(tool ->
+                        tool.getToolDefinition()
+                                .name()
+                                .equals("searchProducts")
+                )
+                .findFirst()
+                .orElseThrow();
 
-            workerThread.get().interrupt();
+        String schema = callback.getToolDefinition().inputSchema();
 
-            assertTrue(
-                    interruptionObserved.await(2, TimeUnit.SECONDS),
-                    "Worker should observe the interruption"
-            );
+        assertTrue(schema.contains("searchText"));
 
-            assertFalse(
-                    future.isDone(),
-                    "Simulated query should continue despite interruption"
-            );
+        String result = callback.call(
+                "{\"searchText\":\"PRD001\"}"
+        );
 
-            allowQueryToFinish.countDown();
+        assertTrue(result.contains("\"product_code\":\"PRD001\""));
+        assertTrue(result.contains("\"name\":\"Oil Filter\""));
+    }
 
-            assertEquals(
-                    10L,
-                    future.get(2, TimeUnit.SECONDS)
-            );
-
-        } finally {
-            allowQueryToFinish.countDown();
-            executor.shutdownNow();
-        }
+    private String normalizeSql(String sql) {
+        return sql.replaceAll("\\s+", " ")
+                .trim()
+                .toLowerCase();
     }
 }

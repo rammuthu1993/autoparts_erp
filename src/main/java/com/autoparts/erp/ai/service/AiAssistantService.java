@@ -26,6 +26,8 @@ import com.autoparts.erp.ai.dto.AiConversationMessagesResponse;
 import com.autoparts.erp.ai.dto.AiMessageResponse;
 
 import com.autoparts.erp.ai.enums.AiAgentRunStatus;
+import com.autoparts.erp.ai.exception.AiExecutionInProgressException;
+import com.autoparts.erp.ai.exception.AiProviderResponseException;
 import com.autoparts.erp.ai.exception.AiProviderTimeoutException;
 import com.autoparts.erp.ai.model.AiAgentRun;
 import com.autoparts.erp.ai.repository.AiRepository;
@@ -170,6 +172,20 @@ public class AiAssistantService {
             );
             throw exception;
 
+        } catch (AiExecutionInProgressException exception) {
+            log.info(
+                    "AI execution rejected because the conversation is already active. Conversation: {}, Run: {}",
+                    activeConversationId,
+                    runId
+            );
+            recordStatusPreservingException(
+                    runId,
+                    AiAgentRunStatus.FAILED,
+                    exception.getMessage(),
+                    exception
+            );
+            throw exception;
+
         } catch (AiAgentExecutionTimeoutException exception) {
 
             log.error(
@@ -241,8 +257,33 @@ public class AiAssistantService {
                 );
             }
 
+            AiProviderResponseException providerResponseException =
+                    findCause(exception, AiProviderResponseException.class);
+            if (providerResponseException != null) {
+                throw new AiProviderResponseException(
+                        providerResponseException.getMessage(),
+                        exception
+                );
+            }
+
             throw exception;
         }
+    }
+
+    private static <T extends Throwable> T findCause(
+            Throwable exception,
+            Class<T> exceptionType
+    ) {
+        Throwable current = exception;
+
+        while (current != null) {
+            if (exceptionType.isInstance(current)) {
+                return exceptionType.cast(current);
+            }
+            current = current.getCause();
+        }
+
+        return null;
     }
 
     private void completeRunAndSaveAssistantMessage(
