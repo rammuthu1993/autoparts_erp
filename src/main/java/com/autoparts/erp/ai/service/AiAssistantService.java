@@ -1,31 +1,43 @@
+
 package com.autoparts.erp.ai.service;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CancellationException;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.messages.AssistantMessage;
+
 import com.autoparts.erp.ai.dto.AiChatResponse;
 import com.autoparts.erp.ai.dto.AiConversationResponse;
 import com.autoparts.erp.ai.dto.AiConversationMessagesResponse;
 import com.autoparts.erp.ai.dto.AiMessageResponse;
-import com.autoparts.erp.ai.repository.AiRepository;
 
-import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.messages.AssistantMessage;
+import com.autoparts.erp.ai.enums.AiAgentRunStatus;
+import com.autoparts.erp.ai.exception.AiProviderTimeoutException;
+import com.autoparts.erp.ai.model.AiAgentRun;
+import com.autoparts.erp.ai.repository.AiRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import com.autoparts.erp.ai.exception.AiAgentExecutionTimeoutException;
 
 @Service
 public class AiAssistantService {
 
     private final ErpAiAgentService erpAiAgentService;
     private final AiRepository aiRepository;
+    private static final Logger log =
+            LoggerFactory.getLogger(AiAssistantService.class);
 
     public AiAssistantService(
             ErpAiAgentService erpAiAgentService,
@@ -45,101 +57,205 @@ public class AiAssistantService {
             String userSubject
     ) {
 
-        if (!StringUtils.hasText(message)) {
-            throw new IllegalArgumentException(
-                    "Chat message cannot be empty"
-            );
-        }
+        validateMessage(message);
+        validateUserSubject(userSubject);
 
-        if (!StringUtils.hasText(userSubject)) {
-            throw new AccessDeniedException(
-                    "Authenticated user is required"
-            );
-        }
+        UUID activeConversationId = conversationId;
 
-        boolean newConversation = conversationId == null;
+        // Create a new conversation if conversationId is null.
+        if (activeConversationId == null) {
 
-        if (newConversation) {
+            activeConversationId = UUID.randomUUID();
 
-            conversationId = UUID.randomUUID();
-
-            String title = message.trim();
-
-            if (title.length() > 100) {
-                title = title.substring(0, 100);
-            }
+            String title = generateConversationTitle(message);
 
             aiRepository.createConversation(
-                    conversationId,
+                    activeConversationId,
                     userSubject,
                     title
             );
 
-        } else if (!aiRepository.conversationExists(
-                conversationId,
-                userSubject
-        )) {
+        } else {
 
-            throw new AccessDeniedException(
-                    "Conversation not found or access denied"
+            // Verify conversation ownership.
+            boolean exists = aiRepository.conversationExists(
+                    activeConversationId,
+                    userSubject
             );
+
+            if (!exists) {
+                throw new AccessDeniedException(
+                        "Conversation not found or access denied"
+                );
+            }
         }
 
-        // Save current user message
-
+        // Save user message.
         aiRepository.saveMessage(
-                conversationId,
+                activeConversationId,
                 "USER",
                 message
         );
 
-        // Load latest 20 messages for AI context
-
+        // Load conversation history.
         List<Map<String, Object>> history =
-                aiRepository.getMessages(conversationId);
+                aiRepository.getMessages(activeConversationId);
 
-        List<Message> messages = new ArrayList<>();
+//        List<Message> messages = new ArrayList<>();
 
-        for (Map<String, Object> item : history) {
+//        for (Map<String, Object> item : history) {
+//
+//            String role = String.valueOf(item.get("role"));
+//            String content = String.valueOf(item.get("content"));
+//
+//            if ("USER".equalsIgnoreCase(role)) {
+//
+//                messages.add(new UserMessage(content));
+//
+//            } else if ("ASSISTANT".equalsIgnoreCase(role)) {
+//
+//                messages.add(new AssistantMessage(content));
+//            }
+//        }
+        
+        List<Message> messages = history.stream()
+                .map(this::mapToSpringAiMessage)
+                .toList();
 
-            String role = String.valueOf(item.get("role"));
-            String content = String.valueOf(item.get("content"));
+        // Create agent execution record.
+        UUID runId = aiRepository.createAgentRun(
+                activeConversationId,
+                userSubject
+        );
 
-            if ("USER".equalsIgnoreCase(role)) {
+        try {
 
-                messages.add(new UserMessage(content));
-
-            } else if ("ASSISTANT".equalsIgnoreCase(role)) {
-
-                messages.add(new AssistantMessage(content));
+            // Execute LangGraph4j agent.
+            // Retain your existing two-argument method signature.
+        	String assistantResponse = erpAiAgentService.chat(
+        	        activeConversationId,
+        	        runId,
+        	        messages
+        	);
+        	
+            if (!StringUtils.hasText(assistantResponse)) {
+                throw new IllegalStateException(
+                        "AI agent returned an empty response"
+                );
             }
-        }
 
-        // Execute AI agent
-
-        String response = erpAiAgentService.chat(messages);
-
-        if (!StringUtils.hasText(response)) {
-            throw new IllegalStateException(
-                    "AI agent returned an empty response"
+            // Save assistant response.
+            aiRepository.saveMessage(
+                    activeConversationId,
+                    "ASSISTANT",
+                    assistantResponse
             );
+
+            // Mark agent run as completed.
+            int updated = aiRepository.updateAgentRunStatus(
+                    runId,
+                    AiAgentRunStatus.COMPLETED,
+                    null
+            );
+
+            if (updated != 1) {
+                log.error(
+                        "Unable to mark AI agent run {} as COMPLETED",
+                        runId
+                );
+            }
+
+            return new AiChatResponse(
+                    activeConversationId,
+                    assistantResponse,
+                    Instant.now()
+            );
+
+        } catch (AiAgentExecutionTimeoutException exception) {
+
+            log.error(
+                    "AI agent execution timed out. Conversation: {}, Run: {}",
+                    activeConversationId,
+                    runId,
+                    exception
+            );
+
+            aiRepository.updateAgentRunStatus(
+                    runId,
+                    AiAgentRunStatus.FAILED,
+                    exception.getMessage()
+            );
+
+            throw new AiProviderTimeoutException(
+                    "AI agent execution exceeded the configured time limit. Please try again.",
+                    exception
+            );
+
+        } catch (CancellationException exception) {
+
+            log.info(
+                    "AI agent execution cancelled. Conversation: {}, Run: {}",
+                    activeConversationId,
+                    runId
+            );
+
+            aiRepository.updateAgentRunStatus(
+                    runId,
+                    AiAgentRunStatus.CANCELLED,
+                    "Execution cancelled by user"
+            );
+
+            throw exception;
+
+        } catch (RuntimeException exception) {
+
+            log.error(
+                    "AI agent execution failed. Conversation: {}, Run: {}",
+                    activeConversationId,
+                    runId,
+                    exception
+            );
+
+            String errorMessage = exception.getMessage();
+
+            if (!StringUtils.hasText(errorMessage)) {
+                errorMessage = "AI agent execution failed";
+            }
+
+            if (errorMessage.length() > 1000) {
+                errorMessage = errorMessage.substring(0, 1000);
+            }
+
+            aiRepository.updateAgentRunStatus(
+                    runId,
+                    AiAgentRunStatus.FAILED,
+                    errorMessage
+            );
+
+            if (isTimeoutException(exception)) {
+                throw new AiProviderTimeoutException(
+                        "Sarvam AI provider request timed out. Please try again.",
+                        exception
+                );
+            }
+
+            throw exception;
         }
-
-        // Save assistant response
-
-        aiRepository.saveMessage(
-                conversationId,
-                "ASSISTANT",
-                response
-        );
-
-        return new AiChatResponse(
-                conversationId,
-                response,
-                Instant.now()
-        );
     }
+    
+    private Message mapToSpringAiMessage(Map<String, Object> row) {
 
+        String role = String.valueOf(row.get("role"));
+        String content = String.valueOf(row.get("content"));
+
+        return switch (role.toUpperCase()) {
+            case "USER" -> new UserMessage(content);
+            case "ASSISTANT" -> new AssistantMessage(content);
+            default -> throw new IllegalArgumentException(
+                    "Unsupported message role: " + role
+            );
+        };
+    }
     // ---------------------------------------------
     // GET ALL CONVERSATIONS
     // ---------------------------------------------
@@ -147,6 +263,7 @@ public class AiAssistantService {
     public List<AiConversationResponse> getConversations(
             String userSubject
     ) {
+
         validateUserSubject(userSubject);
 
         return aiRepository.getConversations(userSubject);
@@ -160,6 +277,7 @@ public class AiAssistantService {
             UUID conversationId,
             String userSubject
     ) {
+
         validateUserSubject(userSubject);
         validateConversationOwnership(conversationId, userSubject);
 
@@ -205,9 +323,6 @@ public class AiAssistantService {
             );
         }
 
-        // Update only if the conversation belongs to this user
-        // and is still active.
-
         int updatedRows = aiRepository.updateConversationTitle(
                 conversationId,
                 userSubject,
@@ -219,8 +334,6 @@ public class AiAssistantService {
                     "Conversation not found or access denied"
             );
         }
-
-        // Return the updated conversation.
 
         AiConversationResponse updatedConversation =
                 aiRepository.getConversationById(
@@ -238,8 +351,47 @@ public class AiAssistantService {
     }
 
     // ---------------------------------------------
+    // ARCHIVE CONVERSATION
+    // ---------------------------------------------
+
+    @Transactional
+    public void archiveConversation(
+            UUID conversationId,
+            String userSubject
+    ) {
+
+        validateUserSubject(userSubject);
+
+        if (conversationId == null) {
+            throw new IllegalArgumentException(
+                    "Conversation ID is required"
+            );
+        }
+
+        int updatedRows = aiRepository.archiveConversation(
+                conversationId,
+                userSubject
+        );
+
+        if (updatedRows == 0) {
+            throw new AccessDeniedException(
+                    "Conversation not found or access denied"
+            );
+        }
+    }
+
+    // ---------------------------------------------
     // COMMON VALIDATION
     // ---------------------------------------------
+
+    private void validateMessage(String message) {
+
+        if (!StringUtils.hasText(message)) {
+            throw new IllegalArgumentException(
+                    "Chat message cannot be empty"
+            );
+        }
+    }
 
     private void validateUserSubject(String userSubject) {
 
@@ -266,30 +418,85 @@ public class AiAssistantService {
             );
         }
     }
+
+    private String generateConversationTitle(String message) {
+
+        String title = message.trim();
+
+        if (title.length() > 100) {
+            title = title.substring(0, 100);
+        }
+
+        return title;
+    }
     
-    @Transactional
-    public void archiveConversation(
+    private boolean isTimeoutException(Throwable exception) {
+
+        Throwable current = exception;
+
+        while (current != null) {
+
+            if (current instanceof java.net.SocketTimeoutException
+                    || current instanceof java.net.http.HttpTimeoutException) {
+                return true;
+            }
+
+            String className = current.getClass().getSimpleName();
+            String message = current.getMessage();
+
+            if ("InterruptedIOException".equals(className)
+                    && message != null
+                    && message.toLowerCase().contains("timeout")) {
+                return true;
+            }
+
+            current = current.getCause();
+        }
+
+        return false;
+    }
+    
+    public boolean cancel(
             UUID conversationId,
             String userSubject
     ) {
 
         validateUserSubject(userSubject);
 
-        if (conversationId == null) {
-            throw new IllegalArgumentException(
-                    "Conversation ID is required"
-            );
-        }
-
-        int updatedRows = aiRepository.archiveConversation(
+        boolean exists = aiRepository.conversationExists(
                 conversationId,
                 userSubject
         );
 
-        if (updatedRows == 0) {
+        if (!exists) {
             throw new AccessDeniedException(
                     "Conversation not found or access denied"
             );
         }
+
+        Optional<UUID> runIdOptional =
+                erpAiAgentService.cancel(conversationId);
+
+        if (runIdOptional.isEmpty()) {
+            return false;
+        }
+
+        UUID runId = runIdOptional.get();
+
+        int updated = aiRepository.updateAgentRunStatus(
+                runId,
+                AiAgentRunStatus.CANCELLED,
+                "Execution cancelled by user"
+        );
+
+        if (updated == 1) {
+            return true;
+        }
+
+        // Another thread may already have changed the status.
+        AiAgentRun run = aiRepository.getAgentRun(runId);
+
+        return run != null
+                && run.status() == AiAgentRunStatus.CANCELLED;
     }
 }

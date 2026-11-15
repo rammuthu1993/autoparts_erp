@@ -145,4 +145,26 @@ public class AiAssistantController {
 
         return ResponseEntity.noContent().build();
     }
+    
+    @PostMapping("/conversations/{conversationId}/cancel")
+    public ResponseEntity<Void> cancel(
+            @PathVariable UUID conversationId,
+            Authentication authentication
+    ) {
+
+        String userSubject = getAuthenticatedUser(authentication);
+
+        boolean cancelled = aiAssistantService.cancel(
+                conversationId,
+                userSubject
+        );
+
+        if (!cancelled) {
+            return ResponseEntity
+                    .status(409)
+                    .build();
+        }
+
+        return ResponseEntity.accepted().build();
+    }
 }

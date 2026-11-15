@@ -13,6 +13,14 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import com.autoparts.erp.ai.enums.AiAgentRunStatus;
+import com.autoparts.erp.ai.model.AiAgentRun;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.UUID;
 
 @Repository
 public class AiRepositoryImpl implements AiRepository {
@@ -352,6 +360,111 @@ public class AiRepositoryImpl implements AiRepository {
                         "id", id,
                         "userSubject", userSubject
                 )
+        );
+    }
+    
+    @Override
+    public UUID createAgentRun(UUID conversationId, String userSubject) {
+
+        UUID runId = UUID.randomUUID();
+
+        String sql = """
+                INSERT INTO ai_agent_runs (
+                    id,
+                    conversation_id,
+                    user_subject,
+                    status,
+                    attempt_count,
+                    started_at
+                )
+                VALUES (
+                    :id,
+                    :conversationId,
+                    :userSubject,
+                    :status,
+                    :attemptCount,
+                    CURRENT_TIMESTAMP
+                )
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("id", runId)
+                .addValue("conversationId", conversationId)
+                .addValue("userSubject", userSubject)
+                .addValue("status", AiAgentRunStatus.RUNNING.name())
+                .addValue("attemptCount", 1);
+
+        jdbc.update(sql, params);
+
+        return runId;
+    }
+    
+    @Override
+    public int updateAgentRunStatus(
+            UUID runId,
+            AiAgentRunStatus status,
+            String errorMessage
+    ) {
+
+        String sql = """
+                UPDATE ai_agent_runs
+                SET
+                    status = :status,
+                    error_message = :errorMessage,
+                    completed_at = CASE
+                        WHEN :status IN ('COMPLETED', 'FAILED', 'CANCELLED')
+                        THEN CURRENT_TIMESTAMP
+                        ELSE completed_at
+                    END
+                WHERE id = :runId
+                  AND status = 'RUNNING'
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("runId", runId)
+                .addValue("status", status.name())
+                .addValue("errorMessage", errorMessage);
+
+        return jdbc.update(sql, params);
+    }
+    
+    @Override
+    public AiAgentRun getAgentRun(UUID runId) {
+
+        String sql = """
+                SELECT
+                    id,
+                    conversation_id,
+                    user_subject,
+                    status,
+                    attempt_count,
+                    error_message,
+                    started_at,
+                    completed_at
+                FROM ai_agent_runs
+                WHERE id = :runId
+                """;
+
+        List<AiAgentRun> runs = jdbc.query(
+                sql,
+                new MapSqlParameterSource("runId", runId),
+                (rs, rowNum) -> mapAgentRun(rs)
+        );
+
+        return runs.isEmpty() ? null : runs.get(0);
+    }
+
+    private AiAgentRun mapAgentRun(ResultSet rs) throws SQLException {
+
+        return new AiAgentRun(
+                rs.getObject("id", UUID.class),
+                rs.getObject("conversation_id", UUID.class),
+                rs.getString("user_subject"),
+                AiAgentRunStatus.valueOf(rs.getString("status")),
+                rs.getInt("attempt_count"),
+                rs.getString("error_message"),
+                rs.getObject("started_at", OffsetDateTime.class),
+                rs.getObject("completed_at", OffsetDateTime.class)
         );
     }
 }

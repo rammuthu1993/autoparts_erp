@@ -15,6 +15,7 @@ import java.util.Set;
 import javax.crypto.SecretKey;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.ProviderManager;
@@ -30,11 +31,13 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.jwt.JwsHeader;
+import org.mockito.Mockito;
 
 import com.autoparts.erp.auth.dto.LoginRequest;
 import com.autoparts.erp.auth.dto.LoginResponse;
 import com.autoparts.erp.auth.model.UserAccount;
 import com.autoparts.erp.auth.repository.UserRepository;
+import com.autoparts.erp.auth.service.RefreshTokenService;
 import com.autoparts.erp.auth.serviceimpl.AuthServiceImpl;
 import com.autoparts.erp.config.JwtConfig;
 
@@ -51,14 +54,10 @@ class AuthenticationFlowTests {
         JwtEncoder jwtEncoder = jwtConfig.jwtEncoder(key);
         var jwtDecoder = jwtConfig.jwtDecoder(key, ISSUER);
         var passwordEncoder = new BCryptPasswordEncoder(4);
-        UserRepository userRepository = username -> username.equalsIgnoreCase("alice")
-                ? Optional.of(new UserAccount(
-                        1L,
-                        "alice",
-                        passwordEncoder.encode("correct-password"),
-                        true,
-                        List.of("ROLE_USER", "ROLE_ADMIN")))
-                : Optional.empty();
+        UserRepository userRepository = userRepository(
+                passwordEncoder,
+                true,
+                true);
 
         CustomUserDetailsService userDetailsService =
                 new CustomUserDetailsService(userRepository);
@@ -67,8 +66,17 @@ class AuthenticationFlowTests {
         provider.setPasswordEncoder(passwordEncoder);
         var authenticationManager = new ProviderManager(provider);
         JwtService jwtService = new JwtService(jwtEncoder, ISSUER, 900);
-        AuthServiceImpl authService =
-                new AuthServiceImpl(authenticationManager, jwtService);
+        RefreshTokenService refreshTokenService =
+                Mockito.mock(RefreshTokenService.class);
+        Mockito.when(refreshTokenService.createRefreshToken(1L))
+                .thenReturn(new RefreshTokenService.IssuedRefreshToken(
+                        "test-refresh-token",
+                        3600));
+        AuthServiceImpl authService = authService(
+                authenticationManager,
+                jwtService,
+                userRepository,
+                refreshTokenService);
 
         LoginResponse response = authService.login(
                 new LoginRequest(" alice ", "correct-password"));
@@ -76,6 +84,7 @@ class AuthenticationFlowTests {
 
         assertEquals("Bearer", response.tokenType());
         assertEquals(900, response.expiresInSeconds());
+        assertEquals("test-refresh-token", response.refreshToken());
         assertEquals("alice", response.username());
         assertEquals(ISSUER, decodedToken.getClaimAsString("iss"));
         assertEquals("alice", decodedToken.getSubject());
@@ -87,24 +96,24 @@ class AuthenticationFlowTests {
     @Test
     void invalidPasswordIsRejectedWithoutIssuingAToken() {
         var passwordEncoder = new BCryptPasswordEncoder(4);
-        UserRepository userRepository = username -> Optional.of(new UserAccount(
-                1L,
-                username,
-                passwordEncoder.encode("correct-password"),
+        UserRepository userRepository = userRepository(
+                passwordEncoder,
                 true,
-                List.of("ROLE_USER")));
+                true);
         CustomUserDetailsService userDetailsService =
                 new CustomUserDetailsService(userRepository);
         DaoAuthenticationProvider provider =
                 new DaoAuthenticationProvider(userDetailsService);
         provider.setPasswordEncoder(passwordEncoder);
-        var authService = new AuthServiceImpl(
+        var authService = authService(
                 new ProviderManager(provider),
                 new JwtService(
                         new JwtConfig().jwtEncoder(
                                 new JwtConfig().jwtSecretKey(TEST_SECRET)),
                         ISSUER,
-                        900));
+                        900),
+                userRepository,
+                Mockito.mock(RefreshTokenService.class));
 
         assertThrows(
                 BadCredentialsException.class,
@@ -114,12 +123,10 @@ class AuthenticationFlowTests {
     @Test
     void disabledAccountCannotAuthenticate() {
         var passwordEncoder = new BCryptPasswordEncoder(4);
-        UserRepository userRepository = username -> Optional.of(new UserAccount(
-                1L,
-                username,
-                passwordEncoder.encode("correct-password"),
+        UserRepository userRepository = userRepository(
+                passwordEncoder,
                 false,
-                List.of("ROLE_USER")));
+                true);
         CustomUserDetailsService userDetailsService =
                 new CustomUserDetailsService(userRepository);
         DaoAuthenticationProvider provider =
@@ -168,7 +175,11 @@ class AuthenticationFlowTests {
     void rolesClaimConverterIgnoresBlankAndDuplicateAuthorities() {
         Jwt token = Jwt.withTokenValue("test-token")
                 .header("alg", "HS256")
-                .claim("roles", List.of("ROLE_USER", " ", "ROLE_USER", "ROLE_ADMIN"))
+                .claim("roles", List.of(
+                        "ROLE_ADMIN",
+                        " ",
+                        "ROLE_ADMIN",
+                        "ROLE_CASHIER"))
                 .build();
 
         List<GrantedAuthority> authorities =
@@ -176,11 +187,41 @@ class AuthenticationFlowTests {
 
         assertEquals(
                 List.of(
-                        new SimpleGrantedAuthority("ROLE_USER"),
-                        new SimpleGrantedAuthority("ROLE_ADMIN")),
+                        new SimpleGrantedAuthority("ROLE_ADMIN"),
+                        new SimpleGrantedAuthority("ROLE_CASHIER")),
                 authorities);
         assertFalse(authorities.isEmpty());
         assertTrue(authorities.stream()
                 .noneMatch(authority -> authority.getAuthority().isBlank()));
+    }
+
+    private static UserRepository userRepository(
+            BCryptPasswordEncoder passwordEncoder,
+            boolean enabled,
+            boolean accountNonLocked) {
+        UserRepository userRepository = Mockito.mock(UserRepository.class);
+        Mockito.when(userRepository.findByUsername("alice"))
+                .thenReturn(Optional.of(new UserAccount(
+                        1L,
+                        "alice",
+                        passwordEncoder.encode("correct-password"),
+                        enabled,
+                        accountNonLocked,
+                        List.of("ROLE_USER", "ROLE_ADMIN"))));
+        return userRepository;
+    }
+
+    private static AuthServiceImpl authService(
+            AuthenticationManager authenticationManager,
+            JwtService jwtService,
+            UserRepository userRepository,
+            RefreshTokenService refreshTokenService) {
+        return new AuthServiceImpl(
+                authenticationManager,
+                jwtService,
+                userRepository,
+                5,
+                900,
+                refreshTokenService);
     }
 }

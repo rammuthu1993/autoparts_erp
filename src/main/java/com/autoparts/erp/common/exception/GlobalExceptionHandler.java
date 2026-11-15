@@ -2,6 +2,7 @@
 package com.autoparts.erp.common.exception;
 
 import java.time.Instant;
+import java.util.Map;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -15,7 +16,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.autoparts.erp.ai.exception.AiProviderTimeoutException;
 import com.autoparts.erp.common.response.ApiError;
+import java.util.concurrent.CancellationException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -142,6 +145,42 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
+                .body(error);
+    }
+    
+    @ExceptionHandler(AiProviderTimeoutException.class)
+    public ResponseEntity<ApiError> handleAiProviderTimeout(
+            AiProviderTimeoutException exception,
+            HttpServletRequest request) {
+
+        ApiError error = new ApiError(
+                Instant.now(),
+                HttpStatus.GATEWAY_TIMEOUT.value(),
+                "Gateway Timeout",
+                exception.getMessage(),
+                request.getRequestURI()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.GATEWAY_TIMEOUT)
+                .body(error);
+    }
+    
+    @ExceptionHandler(CancellationException.class)
+    public ResponseEntity<ApiError> handleCancellationException(
+            CancellationException exception,
+            HttpServletRequest request) {
+
+        ApiError error = new ApiError(
+                Instant.now(),
+                HttpStatus.CONFLICT.value(),
+                "AI Execution Cancelled",
+                "The AI agent execution was cancelled.",
+                request.getRequestURI()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
                 .body(error);
     }
 }

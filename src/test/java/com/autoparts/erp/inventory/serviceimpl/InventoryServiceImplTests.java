@@ -16,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.common.exception.ApiException;
 import com.autoparts.erp.inventory.enums.InventoryMovementType;
 import com.autoparts.erp.inventory.enums.InventoryReferenceType;
@@ -31,7 +32,9 @@ class InventoryServiceImplTests {
     @BeforeEach
     void setUp() {
         repository = Mockito.mock(InventoryRepository.class);
-        service = new InventoryServiceImpl(repository);
+        service = new InventoryServiceImpl(
+                repository,
+                Mockito.mock(AuditLogService.class));
     }
 
     @Test

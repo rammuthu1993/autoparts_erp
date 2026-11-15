@@ -3,6 +3,7 @@ package com.autoparts.erp.ai.tools;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,6 +12,10 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import javax.sql.DataSource;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 @Component
 public class ProductLookupTool {
@@ -20,7 +25,9 @@ public class ProductLookupTool {
 
     private final JdbcTemplate jdbcTemplate;
 
-    public ProductLookupTool(JdbcTemplate jdbcTemplate) {
+    public ProductLookupTool(
+            @Qualifier("aiToolJdbcTemplate") JdbcTemplate jdbcTemplate
+    ) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -37,6 +44,8 @@ public class ProductLookupTool {
         This tool only reads product information.
         """)
     public List<Map<String, Object>> searchProducts(String searchText) {
+    	
+    	checkCancellation();
 
         if (!StringUtils.hasText(searchText)) {
             log.warn("AI tool searchProducts called with empty search text");
@@ -105,7 +114,7 @@ public class ProductLookupTool {
         This counts product records, not inventory quantity.
         """)
     public Long countProducts() {
-
+    	checkCancellation();
         long startTime = System.nanoTime();
 
         log.info("AI tool execution started: countProducts");
@@ -156,7 +165,7 @@ public class ProductLookupTool {
         Use this when the user asks for details about a specific product.
         """)
     public List<Map<String, Object>> getProductDetails(String searchText) {
-
+    	checkCancellation();
         if (!StringUtils.hasText(searchText)) {
             log.warn("AI tool getProductDetails called with empty search text");
             return List.of();
@@ -230,7 +239,7 @@ public class ProductLookupTool {
         that need restocking.
         """)
     public List<Map<String, Object>> getLowStockProducts() {
-
+    	checkCancellation();
         long startTime = System.nanoTime();
 
         log.info("AI tool execution started: getLowStockProducts");
@@ -292,7 +301,7 @@ public class ProductLookupTool {
         for a specific product.
         """)
     public List<Map<String, Object>> getProductStock(String searchText) {
-
+    	checkCancellation();
         if (!StringUtils.hasText(searchText)) {
             log.warn("AI tool getProductStock called with empty search text");
             return List.of();
@@ -355,4 +364,17 @@ public class ProductLookupTool {
     private long getDurationMs(long startTime) {
         return (System.nanoTime() - startTime) / 1_000_000;
     }
+    
+    private void checkCancellation() {
+        if (Thread.currentThread().isInterrupted()) {
+            log.warn("AI tool execution cancelled");
+
+            throw new CancellationException(
+                    "AI tool execution was cancelled."
+            );
+        }
+    }
+    
+    
+    
 }

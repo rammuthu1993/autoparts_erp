@@ -6,6 +6,8 @@ import com.autoparts.erp.ai.dto.AiMessageResponse;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import com.autoparts.erp.ai.model.AiAgentRun;
+import com.autoparts.erp.ai.enums.AiAgentRunStatus;
 
 public interface AiRepository {
 
@@ -63,4 +65,17 @@ public interface AiRepository {
             UUID id,
             String userSubject
     );
+    
+    UUID createAgentRun(
+            UUID conversationId,
+            String userSubject
+    );
+
+    int updateAgentRunStatus(
+            UUID runId,
+            AiAgentRunStatus status,
+            String errorMessage
+    );
+
+    AiAgentRun getAgentRun(UUID runId);
 }
