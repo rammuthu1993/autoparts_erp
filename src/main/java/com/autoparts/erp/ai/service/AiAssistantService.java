@@ -188,11 +188,10 @@ public class AiAssistantService {
 
         } catch (AiAgentExecutionTimeoutException exception) {
 
-            log.error(
+            log.warn(
                     "AI agent execution timed out. Conversation: {}, Run: {}",
                     activeConversationId,
-                    runId,
-                    exception
+                    runId
             );
 
             recordStatusPreservingException(
@@ -206,7 +205,6 @@ public class AiAssistantService {
                     "AI agent execution exceeded the configured time limit. Please try again.",
                     exception
             );
-
         } catch (CancellationException exception) {
 
             log.info(

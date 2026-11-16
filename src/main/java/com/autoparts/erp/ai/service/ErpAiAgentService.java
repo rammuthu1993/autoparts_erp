@@ -1,4 +1,3 @@
-
 package com.autoparts.erp.ai.service;
 
 import java.time.Duration;
@@ -45,6 +44,8 @@ import jakarta.annotation.PreDestroy;
 import static org.bsc.langgraph4j.StateGraph.START;
 import static org.bsc.langgraph4j.StateGraph.END;
 import org.springframework.ai.chat.model.ChatModel;
+
+import com.autoparts.erp.ai.tools.InventoryHistoryLookupTool;
 import com.autoparts.erp.ai.tools.ProductLookupTool;
 
 @Service
@@ -99,20 +100,6 @@ public class ErpAiAgentService {
             );
         }
     }
-    
-    public ErpAiAgentService(
-            ChatModel chatModel,
-            ProductLookupTool productLookupTool
-    ) {
-        this(
-                new ErpAiGraphNodes(
-                        chatModel,
-                        productLookupTool,
-                        new ErpAiIntentClassifier()
-                ),
-                Duration.ofSeconds(60)
-        );
-    }
 
     // --------------------------------------------------
     // TEST CONSTRUCTOR
@@ -133,22 +120,22 @@ public class ErpAiAgentService {
     // --------------------------------------------------
 
 
-private CompiledGraph<ErpAiGraphState> buildWorkflow(
-        ErpAiGraphNodes nodes
-) throws GraphStateException {
-
-    var graph = new StateGraph<>(
-            ErpAiGraphState.SCHEMA,
-            ErpAiGraphState::new
-    );
-
-    // 1. Intent classification
-    graph.addNode(
-            "classify",
-            (state, config) -> CompletableFuture.completedFuture(
-                    nodes.classifyIntent(state, config)
-            )
-    );
+	private CompiledGraph<ErpAiGraphState> buildWorkflow(
+	        ErpAiGraphNodes nodes
+	) throws GraphStateException {
+	
+	    var graph = new StateGraph<>(
+	            ErpAiGraphState.SCHEMA,
+	            ErpAiGraphState::new
+	    );
+	
+	    // 1. Intent classification
+	    graph.addNode(
+	            "classify",
+	            (state, config) -> CompletableFuture.completedFuture(
+	                    nodes.classifyIntent(state, config)
+	            )
+	    );
 
     // 2. Product tool execution
     graph.addNode(

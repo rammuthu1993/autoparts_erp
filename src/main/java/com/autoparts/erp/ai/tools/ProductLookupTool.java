@@ -1,6 +1,7 @@
-
 package com.autoparts.erp.ai.tools;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
@@ -103,6 +104,47 @@ public class ProductLookupTool {
                     "Unable to search products at this time.",
                     exception
             );
+        }
+    }
+
+    // --------------------------------------------------
+    // Product comparison lookup (exact identifiers only)
+    // --------------------------------------------------
+
+    public List<Map<String, Object>> getProductsByIdentifiers(List<String> identifiers) {
+        checkCancellation();
+        if (identifiers == null || identifiers.size() < 2 || identifiers.size() > 5) {
+            throw new IllegalArgumentException("Compare between 2 and 5 products.");
+        }
+
+        List<String> values = identifiers.stream()
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .map(value -> value.toLowerCase(java.util.Locale.ROOT))
+                .distinct()
+                .toList();
+        if (values.size() < 2 || values.size() != identifiers.size()) {
+            throw new IllegalArgumentException("Product identifiers must be non-empty and unique.");
+        }
+
+        String placeholders = String.join(",", Collections.nCopies(values.size(), "?"));
+        String sql = """
+                SELECT product_code, part_no, name, qty, minimum_stock, unit,
+                       purchase_price, selling_price
+                FROM products
+                WHERE active = TRUE
+                  AND (LOWER(product_code) IN (%s) OR LOWER(part_no) IN (%s))
+                ORDER BY product_code
+                """.formatted(placeholders, placeholders);
+        List<Object> parameters = new ArrayList<>(values.size() * 2);
+        parameters.addAll(values);
+        parameters.addAll(values);
+
+        try {
+            return jdbcTemplate.queryForList(sql, parameters.toArray());
+        } catch (DataAccessException exception) {
+            log.error("AI tool execution failed: getProductsByIdentifiers", exception);
+            throw new IllegalStateException("Unable to compare products at this time.", exception);
         }
     }
 

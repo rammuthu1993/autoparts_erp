@@ -1,4 +1,3 @@
-
 package com.autoparts.erp.ai.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -21,7 +20,6 @@ class ErpAiIntentClassifierTest {
     @Test
     void shouldReturnClarificationForNullMessage() {
         ErpAiIntentResult result = classifier.classify(null);
-
         assertEquals("CLARIFICATION", result.intent());
         assertEquals("", result.searchText());
     }
@@ -30,7 +28,6 @@ class ErpAiIntentClassifierTest {
     @ValueSource(strings = {"", " ", "\t", "\n"})
     void shouldReturnClarificationForBlankMessage(String message) {
         ErpAiIntentResult result = classifier.classify(message);
-
         assertEquals("CLARIFICATION", result.intent());
         assertEquals("", result.searchText());
     }
@@ -172,4 +169,57 @@ class ErpAiIntentClassifierTest {
 
         assertEquals("GENERAL", result.intent());
     }
+
+    @Test
+    void shouldClassifyMovementSummaryAndExtractProductCode() {
+        ErpAiIntentResult result = classifier.classify(
+                "Show movement summary for GAP-000001");
+        assertEquals("PRODUCT_MOVEMENT_SUMMARY", result.intent());
+        assertEquals("GAP-000001", result.searchText());
+    }
+
+    @Test
+    void shouldClassifyDateRangeMovementRequestAndExtractDates() {
+        ErpAiIntentResult result = classifier.classify(
+                "Show movements for GAP-000001 from 2026-11-01 to 2026-11-15");
+        assertEquals("PRODUCT_MOVEMENTS_BY_DATE_RANGE", result.intent());
+        assertEquals("GAP-000001", result.searchText());
+        assertEquals("2026-11-01", result.startDate());
+        assertEquals("2026-11-15", result.endDate());
+    }
+
+    @Test
+    void shouldClarifyWhenDateRangeIsIncompleteOrReversed() {
+        assertEquals("CLARIFICATION", classifier.classify(
+                "Show movements for GAP-000001 from 2026-11-01").intent());
+        assertEquals("CLARIFICATION", classifier.classify(
+                "Show movements for GAP-000001 from 2026-11-15 to 2026-11-01").intent());
+    }
+
+    @Test
+    void shouldClassifyRecentMovementsAndExtractLimit() {
+        ErpAiIntentResult result = classifier.classify(
+                "Show the last 12 inventory movements");
+        assertEquals("RECENT_INVENTORY_MOVEMENTS", result.intent());
+        assertEquals(12, result.limit());
+    }
+
+    @Test
+    void shouldUseSafeDefaultForRecentMovements() {
+        ErpAiIntentResult result = classifier.classify("Show recent inventory movements");
+        assertEquals("RECENT_INVENTORY_MOVEMENTS", result.intent());
+        assertEquals(10, result.limit());
+    }
+
+    @Test
+    void shouldClassifyInventoryAdjustmentsWithOptionalProductFilter() {
+        ErpAiIntentResult all = classifier.classify("Show all inventory adjustments");
+        ErpAiIntentResult product = classifier.classify(
+                "Show adjustment history for GAP-000001");
+        assertEquals("INVENTORY_ADJUSTMENTS", all.intent());
+        assertEquals("", all.searchText());
+        assertEquals("INVENTORY_ADJUSTMENTS", product.intent());
+        assertEquals("GAP-000001", product.searchText());
+    }
+
 }

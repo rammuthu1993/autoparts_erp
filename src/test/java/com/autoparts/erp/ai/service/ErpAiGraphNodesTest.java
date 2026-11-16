@@ -1,4 +1,3 @@
-
 package com.autoparts.erp.ai.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,6 +29,7 @@ import org.springframework.ai.chat.prompt.Prompt;
 
 import com.autoparts.erp.ai.exception.AiProviderResponseException;
 import com.autoparts.erp.ai.tools.ProductLookupTool;
+import com.autoparts.erp.ai.tools.InventoryHistoryLookupTool;
 
 @ExtendWith(MockitoExtension.class)
 class ErpAiGraphNodesTest {
@@ -39,6 +39,9 @@ class ErpAiGraphNodesTest {
 
     @Mock
     private ProductLookupTool productLookupTool;
+    
+    @Mock
+    private InventoryHistoryLookupTool inventoryHistoryLookupTool;
 
     private ErpAiGraphNodes nodes;
 
@@ -46,10 +49,12 @@ class ErpAiGraphNodesTest {
 
     @BeforeEach
     void setUp() {
+
         nodes = new ErpAiGraphNodes(
                 chatModel,
                 productLookupTool,
-                new ErpAiIntentClassifier()
+                new ErpAiIntentClassifier(),
+                inventoryHistoryLookupTool
         );
 
         config = RunnableConfig.builder().build();
@@ -234,6 +239,11 @@ class ErpAiGraphNodesTest {
             "PRODUCT_STOCK, TOOL",
             "COUNT_PRODUCTS, TOOL",
             "LOW_STOCK_PRODUCTS, TOOL",
+            "PRODUCT_MOVEMENT_HISTORY, TOOL",
+            "PRODUCT_MOVEMENT_SUMMARY, TOOL",
+            "PRODUCT_MOVEMENTS_BY_DATE_RANGE, TOOL",
+            "RECENT_INVENTORY_MOVEMENTS, TOOL",
+            "INVENTORY_ADJUSTMENTS, TOOL",
             "GENERAL, GENERAL",
             "UNSUPPORTED, UNSUPPORTED",
             "CLARIFICATION, CLARIFICATION",
@@ -392,4 +402,219 @@ class ErpAiGraphNodesTest {
         );
         return nodes.classifyIntent(state, config);
     }
+
+    @Test
+    void shouldClassifyMovementSummaryAndRouteToTool() {
+        var result = classify("Show movement summary for GAP-000002");
+        assertEquals("PRODUCT_MOVEMENT_SUMMARY", result.get("intent"));
+        assertEquals("GAP-000002", result.get("searchText"));
+        assertEquals("TOOL", ErpAiGraphNodes.routeIntent(
+                new ErpAiGraphState(Map.of("intent", "PRODUCT_MOVEMENT_SUMMARY"))));
+    }
+
+    @Test
+    void shouldClassifyDateRangeAndPreserveParametersInGraphState() {
+        var result = classify("Show movements for GAP-000002 from 2026-11-01 to 2026-11-15");
+        assertEquals("PRODUCT_MOVEMENTS_BY_DATE_RANGE", result.get("intent"));
+        assertEquals("2026-11-01", result.get("startDate"));
+        assertEquals("2026-11-15", result.get("endDate"));
+        assertEquals("TOOL", ErpAiGraphNodes.routeIntent(
+                new ErpAiGraphState(Map.of("intent", "PRODUCT_MOVEMENTS_BY_DATE_RANGE"))));
+    }
+
+    @Test
+    void shouldClassifyRecentMovementsAndAdjustmentHistory() {
+        assertEquals("RECENT_INVENTORY_MOVEMENTS",
+                classify("Show the last 10 inventory movements").get("intent"));
+        assertEquals("INVENTORY_ADJUSTMENTS",
+                classify("Show all inventory adjustments").get("intent"));
+    }
+
+    @Test
+    void shouldExecuteMovementSummaryTool() {
+        List<Map<String, Object>> summary = List.of(Map.of(
+                "movement_type", "PURCHASE_RECEIPT",
+                "movement_count", 2L,
+                "total_quantity_moved", 40,
+                "net_quantity_change", 40));
+        when(inventoryHistoryLookupTool.getProductMovementSummary("GAP-000002"))
+                .thenReturn(summary);
+        var state = new ErpAiGraphState(Map.of(
+                "intent", "PRODUCT_MOVEMENT_SUMMARY",
+                "searchText", "GAP-000002"));
+        var result = nodes.executeProductTool(state, config);
+        assertEquals(summary, result.get("toolResult"));
+        verify(inventoryHistoryLookupTool).getProductMovementSummary("GAP-000002");
+    }
+
+    @Test
+    void shouldExecuteDateRangeMovementTool() {
+        List<Map<String, Object>> movements = List.of(Map.of("movement_type", "SALE"));
+        when(inventoryHistoryLookupTool.getProductMovementsByDateRange(
+                "GAP-000002", "2026-11-01", "2026-11-15")).thenReturn(movements);
+        var state = new ErpAiGraphState(Map.of(
+                "intent", "PRODUCT_MOVEMENTS_BY_DATE_RANGE",
+                "searchText", "GAP-000002",
+                "startDate", "2026-11-01",
+                "endDate", "2026-11-15"));
+        assertEquals(movements, nodes.executeProductTool(state, config).get("toolResult"));
+    }
+
+    @Test
+    void shouldExecuteRecentMovementsWithRequestedLimit() {
+        List<Map<String, Object>> movements = List.of(Map.of("movement_type", "SALE"));
+        when(inventoryHistoryLookupTool.getRecentInventoryMovements(12)).thenReturn(movements);
+        var state = new ErpAiGraphState(Map.of(
+                "intent", "RECENT_INVENTORY_MOVEMENTS", "limit", 12));
+        assertEquals(movements, nodes.executeProductTool(state, config).get("toolResult"));
+    }
+
+    @Test
+    void shouldExecuteFilteredInventoryAdjustments() {
+        List<Map<String, Object>> adjustments = List.of(Map.of("reason", "Damaged"));
+        when(inventoryHistoryLookupTool.getInventoryAdjustments("GAP-000002", 50))
+                .thenReturn(adjustments);
+        var state = new ErpAiGraphState(Map.of(
+                "intent", "INVENTORY_ADJUSTMENTS",
+                "searchText", "GAP-000002",
+                "limit", 50));
+        assertEquals(adjustments, nodes.executeProductTool(state, config).get("toolResult"));
+    }
+
+    @Test
+    void shouldFormatMovementSummaryWithoutCallingProvider() {
+        var state = new ErpAiGraphState(Map.of(
+                "intent", "PRODUCT_MOVEMENT_SUMMARY",
+                "toolError", "",
+                "toolResult", List.of(Map.of(
+                        "product_name", "Brake Pad",
+                        "product_code", "GAP-000002",
+                        "current_stock", 51,
+                        "unit", "PCS",
+                        "movement_type", "PURCHASE_RECEIPT",
+                        "movement_count", 2,
+                        "total_quantity_moved", 40,
+                        "net_quantity_change", 40,
+                        "first_movement_at", "2026-11-01",
+                        "latest_movement_at", "2026-11-15"))));
+        var response = nodes.generateResponse(state, config);
+        assertEquals(true, String.valueOf(response.get("finalResponse"))
+                .contains("Current stock: 51"));
+        verify(chatModel, never()).call(any(Prompt.class));
+    }
+
+
+    @Test
+    void shouldResolveItsStockFromMostRecentProductInConversation() {
+        List<Map<String, String>> history = List.of(
+                Map.of("role", "USER", "content", "Show product GAP-000002"),
+                Map.of("role", "ASSISTANT", "content", "Product details for GAP-000002")
+        );
+
+        var result = classify("Show its stock", history);
+
+        assertEquals("PRODUCT_STOCK", result.get("intent"));
+        assertEquals("GAP-000002", result.get("searchText"));
+    }
+
+    @Test
+    void shouldResolveProductContextAcrossMultipleFollowUps() {
+        List<Map<String, String>> history = List.of(
+                Map.of("role", "USER", "content", "Find GAP-000002"),
+                Map.of("role", "ASSISTANT", "content", "Found Brake Pad GAP-000002"),
+                Map.of("role", "USER", "content", "Show its stock"),
+                Map.of("role", "ASSISTANT", "content", "Current stock is 45 PCS")
+        );
+
+        var result = classify("Show its movement history", history);
+
+        assertEquals("PRODUCT_MOVEMENT_HISTORY", result.get("intent"));
+        assertEquals("GAP-000002", result.get("searchText"));
+    }
+
+    @Test
+    void shouldPreserveExplicitProductIdentifierOverPreviousContext() {
+        List<Map<String, String>> history = List.of(
+                Map.of("role", "USER", "content", "Find GAP-000001")
+        );
+
+        var result = classify("Show stock for GAP-000002", history);
+
+        assertEquals("PRODUCT_STOCK", result.get("intent"));
+        assertEquals("GAP-000002", result.get("searchText"));
+    }
+
+    @Test
+    void shouldAskForProductWhenFollowUpHasNoPreviousProductContext() {
+        var result = classify("Show its stock", List.of());
+
+        assertEquals("CLARIFICATION", result.get("intent"));
+        assertEquals(true, String.valueOf(result.get("clarificationMessage")).contains("Which product"));
+    }
+
+    @Test
+    void shouldAskForClarificationWhenPreviousMessageContainsMultipleProducts() {
+        List<Map<String, String>> history = List.of(
+                Map.of("role", "USER", "content", "Compare GAP-000001 and GAP-000002")
+        );
+
+        var result = classify("Show its stock", history);
+
+        assertEquals("CLARIFICATION", result.get("intent"));
+        assertEquals(true, String.valueOf(result.get("clarificationMessage")).contains("more than one product"));
+    }
+
+    @Test
+    void shouldNotApplyProductContextToGlobalLowStockRequest() {
+        List<Map<String, String>> history = List.of(
+                Map.of("role", "USER", "content", "Find GAP-000002")
+        );
+
+        var result = classify("Show low stock products", history);
+
+        assertEquals("LOW_STOCK_PRODUCTS", result.get("intent"));
+        assertEquals("", result.get("searchText"));
+    }
+
+
+    @Test
+    void shouldResolveProductContextForAdjustmentHistoryFollowUp() {
+        List<Map<String, String>> history = List.of(
+                Map.of("role", "USER", "content", "Find GAP-000002")
+        );
+
+        var result = classify("Show its adjustment history", history);
+
+        assertEquals("INVENTORY_ADJUSTMENTS", result.get("intent"));
+        assertEquals("GAP-000002", result.get("searchText"));
+    }
+
+    @Test
+    void shouldResolveProductContextForDateRangeFollowUp() {
+        List<Map<String, String>> history = List.of(
+                Map.of("role", "USER", "content", "Find GAP-000002")
+        );
+
+        var result = classify(
+                "Show movements from 2026-11-01 to 2026-11-15",
+                history
+        );
+
+        assertEquals("PRODUCT_MOVEMENTS_BY_DATE_RANGE", result.get("intent"));
+        assertEquals("GAP-000002", result.get("searchText"));
+        assertEquals("2026-11-01", result.get("startDate"));
+        assertEquals("2026-11-15", result.get("endDate"));
+    }
+
+    private Map<String, Object> classify(
+            String message,
+            List<Map<String, String>> history
+    ) {
+        var state = new ErpAiGraphState(Map.of(
+                "currentMessage", message,
+                "history", history
+        ));
+        return nodes.classifyIntent(state, config);
+    }
+
 }

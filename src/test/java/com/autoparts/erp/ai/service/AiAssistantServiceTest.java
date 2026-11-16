@@ -669,10 +669,10 @@ class AiAssistantServiceTest {
 
     @Test
     void shouldRejectInvalidExecutionTimeoutConfiguration() throws Exception {
-        ErpAiAgentService service = new ErpAiAgentService(
-                mock(ChatModel.class),
-                mock(ProductLookupTool.class)
-        );
+    	ErpAiAgentService service = new ErpAiAgentService(
+    	        mock(ErpAiGraphNodes.class),
+    	        Duration.ofSeconds(60)
+    	);
 
         Field field = ErpAiAgentService.class.getDeclaredField("executionTimeout");
         field.setAccessible(true);
