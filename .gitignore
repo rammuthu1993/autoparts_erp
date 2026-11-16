@@ -32,3 +32,4 @@ logs/
 
 ### VS Code ###
 .vscode/
+config/application-secrets.properties
