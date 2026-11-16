@@ -137,8 +137,8 @@ public class AiAssistantService {
 
         try {
 
-            // Execute Spring AI ChatClient agent.
-            // Keep conversation/run context in the agent execution call.
+            // Execute LangGraph4j agent.
+            // Retain your existing two-argument method signature.
         	String assistantResponse = erpAiAgentService.chat(
         	        activeConversationId,
         	        runId,

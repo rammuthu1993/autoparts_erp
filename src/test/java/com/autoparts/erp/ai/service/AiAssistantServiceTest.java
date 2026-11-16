@@ -668,16 +668,19 @@ class AiAssistantServiceTest {
     }
 
     @Test
-    void shouldRejectInvalidExecutionTimeoutConfiguration() {
+    void shouldRejectInvalidExecutionTimeoutConfiguration() throws Exception {
+    	ErpAiAgentService service = new ErpAiAgentService(
+    	        mock(ErpAiGraphNodes.class),
+    	        Duration.ofSeconds(60)
+    	);
+
+        Field field = ErpAiAgentService.class.getDeclaredField("executionTimeout");
+        field.setAccessible(true);
+        field.set(service, Duration.ZERO);
+
         assertThrows(
                 IllegalStateException.class,
-                () -> new ErpAiAgentService(
-                        null,
-                        mock(com.autoparts.erp.ai.tools.ErpAiTools.class),
-                        new AiPerformanceMetrics(),
-                        Duration.ZERO,
-                        1,
-                        1)
+                service::validateExecutionTimeout
         );
     }
 
