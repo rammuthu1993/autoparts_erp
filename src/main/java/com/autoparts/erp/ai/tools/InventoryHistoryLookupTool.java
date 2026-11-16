@@ -11,12 +11,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataAccessException;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
-
-import com.autoparts.erp.ai.service.AiPerformanceMetrics;
 
 @Component
 public class InventoryHistoryLookupTool {
@@ -26,15 +23,11 @@ public class InventoryHistoryLookupTool {
     private static final int DEFAULT_RECENT_LIMIT = 10;
     private static final int MAX_LIMIT = 50;
 
-    private final NamedParameterJdbcTemplate jdbcTemplate;
-    private final AiPerformanceMetrics performanceMetrics;
+    private final JdbcTemplate jdbcTemplate;
 
     public InventoryHistoryLookupTool(
-            @Qualifier("aiToolNamedParameterJdbcTemplate")
-            NamedParameterJdbcTemplate jdbcTemplate,
-            AiPerformanceMetrics performanceMetrics) {
+            @Qualifier("aiToolJdbcTemplate") JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
-        this.performanceMetrics = performanceMetrics;
     }
 
     @Tool(description = "Retrieve the latest 50 inventory movements for an exact product code.")
@@ -52,13 +45,11 @@ public class InventoryHistoryLookupTool {
                 JOIN products p ON p.id = im.product_id
                 LEFT JOIN inventory_adjustments ia
                   ON im.reference_type = 'ADJUSTMENT' AND im.reference_id = ia.id
-                WHERE LOWER(p.product_code) = LOWER(:productCode)
-                   OR LOWER(p.part_no) = LOWER(:partNumber)
+                WHERE LOWER(p.product_code) = LOWER(?)
+                   OR LOWER(p.part_no) = LOWER(?)
                 ORDER BY im.created_at DESC, im.id DESC
                 LIMIT 50
-                """, new MapSqlParameterSource()
-                        .addValue("productCode", productCode.trim())
-                        .addValue("partNumber", productCode.trim()));
+                """, productCode.trim(), productCode.trim());
     }
 
     @Tool(description = "Summarize inventory movements grouped by movement type for a product code or part number.")
@@ -76,13 +67,11 @@ public class InventoryHistoryLookupTool {
                        MAX(im.created_at) AS latest_movement_at
                 FROM inventory_movements im
                 JOIN products p ON p.id = im.product_id
-                WHERE LOWER(p.product_code) = LOWER(:productCode)
-                   OR LOWER(p.part_no) = LOWER(:partNumber)
+                WHERE LOWER(p.product_code) = LOWER(?)
+                   OR LOWER(p.part_no) = LOWER(?)
                 GROUP BY p.id, p.product_code, p.part_no, p.name, p.qty, p.unit, im.movement_type
                 ORDER BY im.movement_type
-                """, new MapSqlParameterSource()
-                        .addValue("productCode", productIdentifier.trim())
-                        .addValue("partNumber", productIdentifier.trim()));
+                """, productIdentifier.trim(), productIdentifier.trim());
     }
 
     @Tool(description = "Retrieve a product's inventory movements between inclusive YYYY-MM-DD dates.")
@@ -111,19 +100,15 @@ public class InventoryHistoryLookupTool {
                 JOIN products p ON p.id = im.product_id
                 LEFT JOIN inventory_adjustments ia
                   ON im.reference_type = 'ADJUSTMENT' AND im.reference_id = ia.id
-                WHERE (LOWER(p.product_code) = LOWER(:productCode)
-                       OR LOWER(p.part_no) = LOWER(:partNumber))
-                  AND im.created_at >= :startDate
-                  AND im.created_at < :endDate
+                WHERE (LOWER(p.product_code) = LOWER(?) OR LOWER(p.part_no) = LOWER(?))
+                  AND im.created_at >= ?
+                  AND im.created_at < ?
                 ORDER BY im.created_at DESC, im.id DESC
                 LIMIT 100
-                """, new MapSqlParameterSource()
-                        .addValue("productCode", productIdentifier.trim())
-                        .addValue("partNumber", productIdentifier.trim())
-                        .addValue("startDate",
-                                from.atStartOfDay(BUSINESS_ZONE).toOffsetDateTime())
-                        .addValue("endDate",
-                                to.plusDays(1).atStartOfDay(BUSINESS_ZONE).toOffsetDateTime()));
+                """,
+                productIdentifier.trim(), productIdentifier.trim(),
+                from.atStartOfDay(BUSINESS_ZONE).toOffsetDateTime(),
+                to.plusDays(1).atStartOfDay(BUSINESS_ZONE).toOffsetDateTime());
     }
 
     @Tool(description = "Retrieve recent inventory movements across all products. Limit must be 1 to 50.")
@@ -142,8 +127,8 @@ public class InventoryHistoryLookupTool {
                 LEFT JOIN inventory_adjustments ia
                   ON im.reference_type = 'ADJUSTMENT' AND im.reference_id = ia.id
                 ORDER BY im.created_at DESC, im.id DESC
-                LIMIT :limit
-                """, new MapSqlParameterSource().addValue("limit", limit));
+                LIMIT ?
+                """, limit);
     }
 
     public List<Map<String, Object>> getRecentInventoryMovements() {
@@ -167,36 +152,30 @@ public class InventoryHistoryLookupTool {
                   ON im.reference_type = 'ADJUSTMENT' AND im.reference_id = ia.id
                 LEFT JOIN products p ON p.id = im.product_id
                 """ + (filterByProduct
-                ? " WHERE LOWER(p.product_code) = LOWER(:productCode) OR LOWER(p.part_no) = LOWER(:partNumber) "
+                ? " WHERE LOWER(p.product_code) = LOWER(?) OR LOWER(p.part_no) = LOWER(?) "
                 : "") + """
                 ORDER BY ia.created_at DESC, ia.id DESC
-                LIMIT :limit
+                LIMIT ?
                 """;
-        MapSqlParameterSource parameters =
-                new MapSqlParameterSource().addValue("limit", limit);
-        if (filterByProduct) {
-            parameters.addValue("productCode", productIdentifier.trim())
-                    .addValue("partNumber", productIdentifier.trim());
-        }
-        return query("getInventoryAdjustments", sql, parameters);
+        return filterByProduct
+                ? query("getInventoryAdjustments", sql,
+                    productIdentifier.trim(), productIdentifier.trim(), limit)
+                : query("getInventoryAdjustments", sql, limit);
     }
 
     public List<Map<String, Object>> getInventoryAdjustments() {
         return getInventoryAdjustments("", MAX_LIMIT);
     }
 
-    private List<Map<String, Object>> query(
-            String operation,
-            String sql,
-            MapSqlParameterSource parameters
-    ) {
+    private List<Map<String, Object>> query(String operation, String sql, Object... args) {
         checkCancellation();
+        long start = System.nanoTime();
+        log.info("AI tool execution started: {}", operation);
         try {
-            List<Map<String, Object>> rows =
-                    performanceMetrics.measureDatabaseQuery(
-                            "inventory." + operation,
-                            () -> jdbcTemplate.queryForList(sql, parameters));
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, args);
             checkCancellation();
+            log.info("AI tool execution completed: {}, resultCount={}, durationMs={}",
+                    operation, rows.size(), (System.nanoTime() - start) / 1_000_000);
             return rows;
         } catch (DataAccessException ex) {
             log.error("AI tool execution failed: {}", operation, ex);

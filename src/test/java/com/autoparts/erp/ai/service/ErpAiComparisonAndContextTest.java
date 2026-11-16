@@ -25,8 +25,7 @@ class ErpAiComparisonAndContextTest {
         tools = new ErpAiTools(
                 products,
                 mock(PurchaseLookupTool.class),
-                mock(InventoryHistoryLookupTool.class),
-                new AiPerformanceMetrics());
+                mock(InventoryHistoryLookupTool.class));
     }
 
     @Test

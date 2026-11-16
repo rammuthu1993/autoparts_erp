@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.Supplier;
 import java.util.concurrent.CancellationException;
 
 import org.springframework.security.access.AccessDeniedException;
@@ -64,59 +63,32 @@ public class AiAssistantService {
             String message,
             String userSubject
     ) {
-        ChatRequestTiming timing = new ChatRequestTiming(conversationId);
-        try {
-            return chatInternal(conversationId, message, userSubject, timing);
-        } catch (CancellationException exception) {
-            timing.status = "CANCELLED";
-            throw exception;
-        } catch (RuntimeException | Error exception) {
-            timing.status = "FAILED";
-            throw exception;
-        } finally {
-            timing.logCompletion();
-        }
-    }
-
-    private AiChatResponse chatInternal(
-            UUID conversationId,
-            String message,
-            String userSubject,
-            ChatRequestTiming timing
-    ) {
 
         validateMessage(message);
         validateUserSubject(userSubject);
 
         UUID activeConversationId = conversationId;
-        timing.conversationId = activeConversationId;
 
         // Create a new conversation if conversationId is null.
         if (activeConversationId == null) {
 
-            UUID createdConversationId = UUID.randomUUID();
-            activeConversationId = createdConversationId;
+            activeConversationId = UUID.randomUUID();
 
             String title = generateConversationTitle(message);
 
-            timing.conversationId = activeConversationId;
-            timing.measure("conversationCreate", () -> {
-                aiRepository.createConversation(
-                        createdConversationId,
-                        userSubject,
-                        title);
-                return null;
-            });
+            aiRepository.createConversation(
+                    activeConversationId,
+                    userSubject,
+                    title
+            );
 
         } else {
 
             // Verify conversation ownership.
-            UUID conversationToCheck = activeConversationId;
-            boolean exists = timing.measure(
-                    "conversationOwnership",
-                    () -> aiRepository.conversationExists(
-                            conversationToCheck,
-                            userSubject));
+            boolean exists = aiRepository.conversationExists(
+                    activeConversationId,
+                    userSubject
+            );
 
             if (!exists) {
                 throw new AccessDeniedException(
@@ -125,47 +97,53 @@ public class AiAssistantService {
             }
         }
 
-        UUID effectiveConversationId = activeConversationId;
-
         // Save user message.
-        timing.measure("userMessagePersistence", () -> {
-            aiRepository.saveMessage(
-                    effectiveConversationId,
-                    "USER",
-                    message);
-            return null;
-        });
+        aiRepository.saveMessage(
+                activeConversationId,
+                "USER",
+                message
+        );
 
         // Load conversation history.
         List<Map<String, Object>> history =
-                timing.measure(
-                        "conversationHistoryLoad",
-                        () -> aiRepository.getMessages(effectiveConversationId));
+                aiRepository.getMessages(activeConversationId);
 
-        List<Message> messages = timing.measure(
-                "conversationHistoryMapping",
-                () -> history.stream()
-                        .map(this::mapToSpringAiMessage)
-                        .toList());
+//        List<Message> messages = new ArrayList<>();
+
+//        for (Map<String, Object> item : history) {
+//
+//            String role = String.valueOf(item.get("role"));
+//            String content = String.valueOf(item.get("content"));
+//
+//            if ("USER".equalsIgnoreCase(role)) {
+//
+//                messages.add(new UserMessage(content));
+//
+//            } else if ("ASSISTANT".equalsIgnoreCase(role)) {
+//
+//                messages.add(new AssistantMessage(content));
+//            }
+//        }
+        
+        List<Message> messages = history.stream()
+                .map(this::mapToSpringAiMessage)
+                .toList();
 
         // Create agent execution record.
-        UUID runId = timing.measure(
-                "agentRunPersistence",
-                () -> aiRepository.createAgentRun(
-                        effectiveConversationId,
-                        userSubject));
-        timing.runId = runId;
+        UUID runId = aiRepository.createAgentRun(
+                activeConversationId,
+                userSubject
+        );
 
         try {
 
             // Execute Spring AI ChatClient agent.
             // Keep conversation/run context in the agent execution call.
-            String assistantResponse = timing.measure(
-                    "agentExecution",
-                    () -> erpAiAgentService.chat(
-                            effectiveConversationId,
-                            runId,
-                            messages));
+        	String assistantResponse = erpAiAgentService.chat(
+        	        activeConversationId,
+        	        runId,
+        	        messages
+        	);
         	
             if (!StringUtils.hasText(assistantResponse)) {
                 throw new IllegalStateException(
@@ -173,15 +151,11 @@ public class AiAssistantService {
                 );
             }
 
-            timing.measure("assistantMessagePersistence", () -> {
-                completeRunAndSaveAssistantMessage(
-                        effectiveConversationId,
-                        runId,
-                        assistantResponse);
-                return null;
-            });
-
-            timing.status = "COMPLETED";
+            completeRunAndSaveAssistantMessage(
+                    activeConversationId,
+                    runId,
+                    assistantResponse
+            );
 
             return new AiChatResponse(
                     activeConversationId,
@@ -373,51 +347,6 @@ public class AiAssistantService {
 
         private AiAgentRunCompletionException(String message) {
             super(message);
-        }
-    }
-
-    private final class ChatRequestTiming {
-
-        private final long startedAtNanos = System.nanoTime();
-        private UUID conversationId;
-        private UUID runId;
-        private String status = "FAILED";
-
-        private ChatRequestTiming(UUID conversationId) {
-            this.conversationId = conversationId;
-        }
-
-        private <T> T measure(String stage, Supplier<T> action) {
-            long stageStartedAtNanos = System.nanoTime();
-            String stageStatus = "COMPLETED";
-            try {
-                return action.get();
-            } catch (CancellationException exception) {
-                stageStatus = "CANCELLED";
-                throw exception;
-            } catch (RuntimeException | Error exception) {
-                stageStatus = "FAILED";
-                throw exception;
-            } finally {
-                log.info(
-                        "AI chat stage timing. conversationId={}, runId={}, stage={}, "
-                                + "durationMs={}, executionStatus={}",
-                        conversationId,
-                        runId,
-                        stage,
-                        (System.nanoTime() - stageStartedAtNanos) / 1_000_000,
-                        stageStatus);
-            }
-        }
-
-        private void logCompletion() {
-            log.info(
-                    "AI chat service request completed. conversationId={}, runId={}, "
-                            + "durationMs={}, executionStatus={}",
-                    conversationId,
-                    runId,
-                    (System.nanoTime() - startedAtNanos) / 1_000_000,
-                    status);
         }
     }
     
