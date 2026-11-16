@@ -28,6 +28,8 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 
+import com.autoparts.erp.ai.service.AiPerformanceMetrics;
+
 @ExtendWith(MockitoExtension.class)
 class ProductLookupToolTest {
 
@@ -38,7 +40,9 @@ class ProductLookupToolTest {
 
     @BeforeEach
     void setUp() {
-        productLookupTool = new ProductLookupTool(jdbcTemplate);
+        productLookupTool = new ProductLookupTool(
+                jdbcTemplate,
+                new AiPerformanceMetrics());
     }
 
     @Test

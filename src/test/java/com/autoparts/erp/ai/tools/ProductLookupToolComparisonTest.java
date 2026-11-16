@@ -10,21 +10,30 @@ import static org.mockito.Mockito.when;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 
+import com.autoparts.erp.ai.service.AiPerformanceMetrics;
+
 @ExtendWith(MockitoExtension.class)
 class ProductLookupToolComparisonTest {
 
     @Mock NamedParameterJdbcTemplate jdbcTemplate;
-    @InjectMocks ProductLookupTool tool;
+    ProductLookupTool tool;
+
+    @BeforeEach
+    void setUp() {
+        tool = new ProductLookupTool(
+                jdbcTemplate,
+                new AiPerformanceMetrics());
+    }
 
     @Test
     void performsExactParameterizedLookupForAllRequestedProducts() {

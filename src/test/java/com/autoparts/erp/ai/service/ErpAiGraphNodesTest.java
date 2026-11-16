@@ -26,7 +26,11 @@ class ErpAiGraphNodesTest {
         products = mock(ProductLookupTool.class);
         purchases = mock(PurchaseLookupTool.class);
         inventory = mock(InventoryHistoryLookupTool.class);
-        tools = new ErpAiTools(products, purchases, inventory);
+        tools = new ErpAiTools(
+                products,
+                purchases,
+                inventory,
+                new AiPerformanceMetrics());
     }
 
     @Test

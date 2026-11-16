@@ -70,9 +70,10 @@ public class AiRepositoryImpl implements AiRepository {
 
         Boolean exists = jdbc.queryForObject(
                 sql,
-                new MapSqlParameterSource()
-                        .addValue("id", id)
-                        .addValue("userSubject", userSubject),
+                Map.of(
+                        "id", id,
+                        "userSubject", userSubject
+                ),
                 Boolean.class
         );
 
@@ -100,10 +101,11 @@ public class AiRepositoryImpl implements AiRepository {
 
         return jdbc.update(
                 sql,
-                new MapSqlParameterSource()
-                        .addValue("id", id)
-                        .addValue("userSubject", userSubject)
-                        .addValue("title", title)
+                Map.of(
+                        "id", id,
+                        "userSubject", userSubject,
+                        "title", title
+                )
         );
     }
 
@@ -130,9 +132,10 @@ public class AiRepositoryImpl implements AiRepository {
 
         List<AiConversationResponse> results = jdbc.query(
                 sql,
-                new MapSqlParameterSource()
-                        .addValue("id", id)
-                        .addValue("userSubject", userSubject),
+                Map.of(
+                        "id", id,
+                        "userSubject", userSubject
+                ),
                 (rs, rowNum) -> new AiConversationResponse(
                         rs.getObject("id", UUID.class),
                         rs.getString("title"),
@@ -170,10 +173,11 @@ public class AiRepositoryImpl implements AiRepository {
 
         jdbc.update(
                 insertSql,
-                new MapSqlParameterSource()
-                        .addValue("conversationId", conversationId)
-                        .addValue("role", role)
-                        .addValue("content", content)
+                Map.of(
+                        "conversationId", conversationId,
+                        "role", role,
+                        "content", content
+                )
         );
 
         String updateSql = """
@@ -185,8 +189,7 @@ public class AiRepositoryImpl implements AiRepository {
 
         jdbc.update(
                 updateSql,
-                new MapSqlParameterSource()
-                        .addValue("conversationId", conversationId)
+                Map.of("conversationId", conversationId)
         );
     }
 
@@ -212,8 +215,7 @@ public class AiRepositoryImpl implements AiRepository {
 
         return jdbc.queryForList(
                 sql,
-                new MapSqlParameterSource()
-                        .addValue("conversationId", conversationId)
+                Map.of("conversationId", conversationId)
         );
     }
 
@@ -239,8 +241,7 @@ public class AiRepositoryImpl implements AiRepository {
 
         return jdbc.query(
                 sql,
-                new MapSqlParameterSource()
-                        .addValue("userSubject", userSubject),
+                Map.of("userSubject", userSubject),
                 (rs, rowNum) -> new AiConversationResponse(
                         rs.getObject("id", UUID.class),
                         rs.getString("title"),
@@ -325,8 +326,7 @@ public class AiRepositoryImpl implements AiRepository {
 
         return jdbc.query(
                 sql,
-                new MapSqlParameterSource()
-                        .addValue("conversationId", conversationId),
+                Map.of("conversationId", conversationId),
                 (rs, rowNum) -> new AiMessageResponse(
                         rs.getLong("id"),
                         rs.getString("role"),
@@ -356,9 +356,10 @@ public class AiRepositoryImpl implements AiRepository {
 
         return jdbc.update(
                 sql,
-                new MapSqlParameterSource()
-                        .addValue("id", id)
-                        .addValue("userSubject", userSubject)
+                Map.of(
+                        "id", id,
+                        "userSubject", userSubject
+                )
         );
     }
     

@@ -674,6 +674,7 @@ class AiAssistantServiceTest {
                 () -> new ErpAiAgentService(
                         null,
                         mock(com.autoparts.erp.ai.tools.ErpAiTools.class),
+                        new AiPerformanceMetrics(),
                         Duration.ZERO,
                         1,
                         1)

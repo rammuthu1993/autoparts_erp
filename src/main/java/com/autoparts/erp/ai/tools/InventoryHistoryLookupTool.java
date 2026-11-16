@@ -16,6 +16,8 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import com.autoparts.erp.ai.service.AiPerformanceMetrics;
+
 @Component
 public class InventoryHistoryLookupTool {
 
@@ -25,11 +27,14 @@ public class InventoryHistoryLookupTool {
     private static final int MAX_LIMIT = 50;
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final AiPerformanceMetrics performanceMetrics;
 
     public InventoryHistoryLookupTool(
             @Qualifier("aiToolNamedParameterJdbcTemplate")
-            NamedParameterJdbcTemplate jdbcTemplate) {
+            NamedParameterJdbcTemplate jdbcTemplate,
+            AiPerformanceMetrics performanceMetrics) {
         this.jdbcTemplate = jdbcTemplate;
+        this.performanceMetrics = performanceMetrics;
     }
 
     @Tool(description = "Retrieve the latest 50 inventory movements for an exact product code.")
@@ -186,14 +191,12 @@ public class InventoryHistoryLookupTool {
             MapSqlParameterSource parameters
     ) {
         checkCancellation();
-        long start = System.nanoTime();
-        log.info("AI tool execution started: {}", operation);
         try {
             List<Map<String, Object>> rows =
-                    jdbcTemplate.queryForList(sql, parameters);
+                    performanceMetrics.measureDatabaseQuery(
+                            "inventory." + operation,
+                            () -> jdbcTemplate.queryForList(sql, parameters));
             checkCancellation();
-            log.info("AI tool execution completed: {}, resultCount={}, durationMs={}",
-                    operation, rows.size(), (System.nanoTime() - start) / 1_000_000);
             return rows;
         } catch (DataAccessException ex) {
             log.error("AI tool execution failed: {}", operation, ex);

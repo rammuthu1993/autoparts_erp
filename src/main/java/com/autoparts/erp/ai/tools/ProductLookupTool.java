@@ -16,6 +16,8 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import com.autoparts.erp.ai.service.AiPerformanceMetrics;
+
 @Component
 public class ProductLookupTool {
 
@@ -23,12 +25,15 @@ public class ProductLookupTool {
             LoggerFactory.getLogger(ProductLookupTool.class);
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final AiPerformanceMetrics performanceMetrics;
 
     public ProductLookupTool(
             @Qualifier("aiToolNamedParameterJdbcTemplate")
-            NamedParameterJdbcTemplate jdbcTemplate
+            NamedParameterJdbcTemplate jdbcTemplate,
+            AiPerformanceMetrics performanceMetrics
     ) {
         this.jdbcTemplate = jdbcTemplate;
+        this.performanceMetrics = performanceMetrics;
     }
 
     // --------------------------------------------------
@@ -52,10 +57,6 @@ public class ProductLookupTool {
             return List.of();
         }
 
-        long startTime = System.nanoTime();
-
-        log.info("AI tool execution started: searchProducts");
-
         try {
 
             String sql = """
@@ -77,25 +78,15 @@ public class ProductLookupTool {
                     new MapSqlParameterSource()
                             .addValue("searchPattern", searchPattern);
             List<Map<String, Object>> products =
-                    jdbcTemplate.queryForList(sql, parameters);
-
-            long duration = getDurationMs(startTime);
-
-            log.info(
-                    "AI tool execution completed: searchProducts, resultCount={}, durationMs={}",
-                    products.size(),
-                    duration
-            );
+                    performanceMetrics.measureDatabaseQuery(
+                            "products.search",
+                            () -> jdbcTemplate.queryForList(sql, parameters));
 
             return products;
 
         } catch (DataAccessException exception) {
 
-            log.error(
-                    "AI tool execution failed: searchProducts, durationMs={}",
-                    getDurationMs(startTime),
-                    exception
-            );
+            log.error("AI tool execution failed: searchProducts", exception);
 
             throw new IllegalStateException(
                     "Unable to search products at this time.",
@@ -149,7 +140,9 @@ public class ProductLookupTool {
                 """.formatted(productPlaceholders, partNumberPlaceholders);
 
         try {
-            return jdbcTemplate.queryForList(sql, parameters);
+            return performanceMetrics.measureDatabaseQuery(
+                    "products.compare",
+                    () -> jdbcTemplate.queryForList(sql, parameters));
         } catch (DataAccessException exception) {
             log.error("AI tool execution failed: getProductsByIdentifiers", exception);
             throw new IllegalStateException("Unable to compare products at this time.", exception);
@@ -170,10 +163,6 @@ public class ProductLookupTool {
         """)
     public Long countProducts() {
     	checkCancellation();
-        long startTime = System.nanoTime();
-
-        log.info("AI tool execution started: countProducts");
-
         try {
 
             String sql = """
@@ -182,29 +171,18 @@ public class ProductLookupTool {
                 WHERE active = TRUE
                 """;
 
-            Long count = jdbcTemplate.queryForObject(
-                    sql,
-                    new MapSqlParameterSource(),
-                    Long.class
-            );
-
-            long duration = getDurationMs(startTime);
-
-            log.info(
-                    "AI tool execution completed: countProducts, result={}, durationMs={}",
-                    count,
-                    duration
-            );
+            Long count = performanceMetrics.measureDatabaseQuery(
+                    "products.count",
+                    () -> jdbcTemplate.queryForObject(
+                            sql,
+                            new MapSqlParameterSource(),
+                            Long.class));
 
             return count;
 
         } catch (DataAccessException exception) {
 
-            log.error(
-                    "AI tool execution failed: countProducts, durationMs={}",
-                    getDurationMs(startTime),
-                    exception
-            );
+            log.error("AI tool execution failed: countProducts", exception);
 
             throw new IllegalStateException(
                     "Unable to retrieve the product count at this time.",
@@ -229,10 +207,6 @@ public class ProductLookupTool {
             log.warn("AI tool getProductDetails called with empty search text");
             return List.of();
         }
-
-        long startTime = System.nanoTime();
-
-        log.info("AI tool execution started: getProductDetails");
 
         try {
 
@@ -263,25 +237,15 @@ public class ProductLookupTool {
                             .addValue("productCode", value)
                             .addValue("partNumber", value);
             List<Map<String, Object>> products =
-                    jdbcTemplate.queryForList(sql, parameters);
-
-            long duration = getDurationMs(startTime);
-
-            log.info(
-                    "AI tool execution completed: getProductDetails, resultCount={}, durationMs={}",
-                    products.size(),
-                    duration
-            );
+                    performanceMetrics.measureDatabaseQuery(
+                            "products.details",
+                            () -> jdbcTemplate.queryForList(sql, parameters));
 
             return products;
 
         } catch (DataAccessException exception) {
 
-            log.error(
-                    "AI tool execution failed: getProductDetails, durationMs={}",
-                    getDurationMs(startTime),
-                    exception
-            );
+            log.error("AI tool execution failed: getProductDetails", exception);
 
             throw new IllegalStateException(
                     "Unable to retrieve product details at this time.",
@@ -303,10 +267,6 @@ public class ProductLookupTool {
         """)
     public List<Map<String, Object>> getLowStockProducts() {
     	checkCancellation();
-        long startTime = System.nanoTime();
-
-        log.info("AI tool execution started: getLowStockProducts");
-
         try {
 
             String sql = """
@@ -325,28 +285,17 @@ public class ProductLookupTool {
                 """;
 
             List<Map<String, Object>> products =
-                    jdbcTemplate.queryForList(
-                            sql,
-                            new MapSqlParameterSource()
-                    );
-
-            long duration = getDurationMs(startTime);
-
-            log.info(
-                    "AI tool execution completed: getLowStockProducts, resultCount={}, durationMs={}",
-                    products.size(),
-                    duration
-            );
+                    performanceMetrics.measureDatabaseQuery(
+                            "products.lowStock",
+                            () -> jdbcTemplate.queryForList(
+                                    sql,
+                                    new MapSqlParameterSource()));
 
             return products;
 
         } catch (DataAccessException exception) {
 
-            log.error(
-                    "AI tool execution failed: getLowStockProducts, durationMs={}",
-                    getDurationMs(startTime),
-                    exception
-            );
+            log.error("AI tool execution failed: getLowStockProducts", exception);
 
             throw new IllegalStateException(
                     "Unable to retrieve low-stock products at this time.",
@@ -373,10 +322,6 @@ public class ProductLookupTool {
             return List.of();
         }
 
-        long startTime = System.nanoTime();
-
-        log.info("AI tool execution started: getProductStock");
-
         try {
 
             String sql = """
@@ -400,25 +345,15 @@ public class ProductLookupTool {
                             .addValue("productCode", value)
                             .addValue("partNumber", value);
             List<Map<String, Object>> products =
-                    jdbcTemplate.queryForList(sql, parameters);
-
-            long duration = getDurationMs(startTime);
-
-            log.info(
-                    "AI tool execution completed: getProductStock, resultCount={}, durationMs={}",
-                    products.size(),
-                    duration
-            );
+                    performanceMetrics.measureDatabaseQuery(
+                            "products.stock",
+                            () -> jdbcTemplate.queryForList(sql, parameters));
 
             return products;
 
         } catch (DataAccessException exception) {
 
-            log.error(
-                    "AI tool execution failed: getProductStock, durationMs={}",
-                    getDurationMs(startTime),
-                    exception
-            );
+            log.error("AI tool execution failed: getProductStock", exception);
 
             throw new IllegalStateException(
                     "Unable to retrieve product stock at this time.",
@@ -427,14 +362,6 @@ public class ProductLookupTool {
         }
     }
 
-    // --------------------------------------------------
-    // Common Execution Timing
-    // --------------------------------------------------
-
-    private long getDurationMs(long startTime) {
-        return (System.nanoTime() - startTime) / 1_000_000;
-    }
-    
     private void checkCancellation() {
         if (Thread.currentThread().isInterrupted()) {
             log.warn("AI tool execution cancelled");

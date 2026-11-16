@@ -10,8 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataAccessException;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -25,9 +24,8 @@ class PostgresQueryTimeoutIntegrationTest {
     void shouldCancelPostgresQueryWhenQueryTimeoutIsExceeded() {
 
         // Dedicated test template with a short timeout.
-        NamedParameterJdbcTemplate jdbcTemplate =
-                new NamedParameterJdbcTemplate(dataSource);
-        jdbcTemplate.getJdbcTemplate().setQueryTimeout(1);
+        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+        jdbcTemplate.setQueryTimeout(1);
 
         long startTime = System.nanoTime();
 
@@ -35,7 +33,6 @@ class PostgresQueryTimeoutIntegrationTest {
                 DataAccessException.class,
                 () -> jdbcTemplate.queryForObject(
                         "SELECT 1 FROM pg_sleep(5)",
-                        new MapSqlParameterSource(),
                         Integer.class
                 )
         );
