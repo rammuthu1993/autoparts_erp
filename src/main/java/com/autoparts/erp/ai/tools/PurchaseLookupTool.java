@@ -1,5 +1,7 @@
 package com.autoparts.erp.ai.tools;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
@@ -21,35 +23,58 @@ public class PurchaseLookupTool {
     private static final Logger log =
             LoggerFactory.getLogger(PurchaseLookupTool.class);
 
+    private static final int DEFAULT_SEARCH_RESULTS = 10;
     private static final int MAX_SEARCH_RESULTS = 50;
     private static final int MAX_DETAIL_ROWS = 100;
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
-    
+
     public PurchaseLookupTool(
             @Qualifier("aiToolNamedParameterJdbcTemplate")
-            NamedParameterJdbcTemplate jdbcTemplate
-    ) {
+            NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
     /**
-     * Search recent purchases by purchase number,
-     * supplier invoice number, or supplier name.
+     * Backward-compatible search signature.
      */
     @AdminOrManager
     public List<Map<String, Object>> searchPurchases(
             String searchText,
-            int requestedLimit
-    ) {
+            int requestedLimit) {
+        return searchPurchases(
+                searchText,
+                null,
+                null,
+                null,
+                null,
+                requestedLimit);
+    }
+
+    /**
+     * Search purchases using optional identifier, supplier, status and date filters.
+     * End date is inclusive from the user's perspective.
+     */
+    @AdminOrManager
+    public List<Map<String, Object>> searchPurchases(
+            String searchText,
+            String supplierName,
+            String status,
+            String startDate,
+            String endDate,
+            int requestedLimit) {
+
         checkCancellation();
 
-        int limit = Math.max(
-                1,
-                Math.min(MAX_SEARCH_RESULTS, requestedLimit)
-        );
+        int limit = normalizeLimit(requestedLimit);
 
-        boolean hasSearchText = StringUtils.hasText(searchText);
+        LocalDate fromDate = parseOptionalDate(startDate, "startDate");
+        LocalDate toDate = parseOptionalDate(endDate, "endDate");
+
+        if (fromDate != null && toDate != null && toDate.isBefore(fromDate)) {
+            throw new IllegalArgumentException(
+                    "End date must not be before start date.");
+        }
 
         StringBuilder sql = new StringBuilder("""
                 SELECT
@@ -68,48 +93,62 @@ public class PurchaseLookupTool {
                     ON s.id = p.supplier_id
                 LEFT JOIN purchase_products pp
                     ON pp.purchase_id = p.id
+                WHERE 1 = 1
                 """);
 
-        MapSqlParameterSource parameters =
-                new MapSqlParameterSource();
+        MapSqlParameterSource parameters = new MapSqlParameterSource();
 
-        if (hasSearchText) {
+        if (StringUtils.hasText(searchText)) {
             sql.append("""
-                    WHERE LOWER(p.purchase_number) = LOWER(:purchaseNumber)
-                       OR LOWER(p.supplier_invoice_no) = LOWER(:invoiceNumber)
-                       OR s.supplier_name ILIKE :supplierName
+                    AND (
+                        LOWER(p.purchase_number) = LOWER(:identifier)
+                        OR LOWER(p.supplier_invoice_no) = LOWER(:identifier)
+                        OR s.supplier_name ILIKE :identifierSupplier
+                    )
                     """);
-
             String value = searchText.trim();
+            parameters.addValue("identifier", value);
+            parameters.addValue("identifierSupplier", "%" + value + "%");
+        }
 
-            parameters.addValue("purchaseNumber", value);
-            parameters.addValue("invoiceNumber", value);
-            parameters.addValue(
-                    "supplierName",
-                    "%" + value + "%"
-            );
+        if (StringUtils.hasText(supplierName)) {
+            sql.append(" AND s.supplier_name ILIKE :supplierName ");
+            parameters.addValue("supplierName", "%" + supplierName.trim() + "%");
+        }
+
+        if (StringUtils.hasText(status)) {
+            sql.append(" AND UPPER(p.status::text) = UPPER(:status) ");
+            parameters.addValue("status", status.trim());
+        }
+
+        if (fromDate != null) {
+            sql.append(" AND p.purchase_date >= :startDate ");
+            parameters.addValue("startDate", fromDate);
+        }
+
+        if (toDate != null) {
+            sql.append(" AND p.purchase_date < :endDateExclusive ");
+            parameters.addValue("endDateExclusive", toDate.plusDays(1));
         }
 
         sql.append("""
                 GROUP BY p.id, s.supplier_name
-                ORDER BY p.purchase_date DESC, p.created_at DESC
+                ORDER BY
+                    p.purchase_date DESC,
+                    p.created_at DESC,
+                    p.id DESC
                 LIMIT :limit
                 """);
 
         parameters.addValue("limit", limit);
 
         try {
-            return jdbcTemplate.queryForList(
-                    sql.toString(),
-                    parameters
-            );
+            return jdbcTemplate.queryForList(sql.toString(), parameters);
         } catch (DataAccessException exception) {
             log.error("AI purchase search failed", exception);
-
             throw new IllegalStateException(
                     "Unable to retrieve purchase records at this time.",
-                    exception
-            );
+                    exception);
         }
     }
 
@@ -118,9 +157,7 @@ public class PurchaseLookupTool {
      * or supplier invoice number.
      */
     @AdminOrManager
-    public List<Map<String, Object>> getPurchaseDetails(
-            String identifier
-    ) {
+    public List<Map<String, Object>> getPurchaseDetails(String identifier) {
         checkCancellation();
 
         if (!StringUtils.hasText(identifier)) {
@@ -173,25 +210,40 @@ public class PurchaseLookupTool {
                         .addValue("limit", MAX_DETAIL_ROWS);
 
         try {
-            return jdbcTemplate.queryForList(
-                    sql,
-                    parameters
-            );
+            return jdbcTemplate.queryForList(sql, parameters);
         } catch (DataAccessException exception) {
             log.error("AI purchase detail lookup failed", exception);
-
             throw new IllegalStateException(
                     "Unable to retrieve purchase details at this time.",
-                    exception
-            );
+                    exception);
         }
+    }
+
+    private LocalDate parseOptionalDate(String value, String fieldName) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+
+        try {
+            return LocalDate.parse(value.trim());
+        } catch (DateTimeParseException exception) {
+            throw new IllegalArgumentException(
+                    fieldName + " must use YYYY-MM-DD format.",
+                    exception);
+        }
+    }
+
+    private int normalizeLimit(int requestedLimit) {
+        int requested = requestedLimit <= 0
+                ? DEFAULT_SEARCH_RESULTS
+                : requestedLimit;
+        return Math.min(MAX_SEARCH_RESULTS, requested);
     }
 
     private void checkCancellation() {
         if (Thread.currentThread().isInterrupted()) {
             throw new CancellationException(
-                    "AI purchase lookup was cancelled."
-            );
+                    "AI purchase lookup was cancelled.");
         }
     }
 }

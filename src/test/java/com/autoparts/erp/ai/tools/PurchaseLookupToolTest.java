@@ -74,56 +74,61 @@ class PurchaseLookupToolTest {
         assertEquals(50, parameters.getValue("limit"));
     }
 
-    @Test
-    void searchesBySupplierAndPurchaseIdentifiers() {
 
-        when(jdbcTemplate.queryForList(
-                anyString(),
-                any(SqlParameterSource.class)
-        )).thenReturn(List.of());
+	@Test
+	void searchesBySupplierAndPurchaseIdentifiers() {
+	
+	    when(jdbcTemplate.queryForList(
+	            anyString(),
+	            any(SqlParameterSource.class)
+	    )).thenReturn(List.of());
+	
+	    tool.searchPurchases("ABC Auto Parts", 10);
+	
+	    ArgumentCaptor<String> sqlCaptor =
+	            ArgumentCaptor.forClass(String.class);
+	
+	    ArgumentCaptor<SqlParameterSource> parametersCaptor =
+	            ArgumentCaptor.forClass(SqlParameterSource.class);
+	
+	    verify(jdbcTemplate).queryForList(
+	            sqlCaptor.capture(),
+	            parametersCaptor.capture()
+	    );
+	
+	    String sql = sqlCaptor.getValue();
+	
+	    assertTrue(
+	            sql.contains("LOWER(p.purchase_number) = LOWER(:identifier)")
+	    );
+	
+	    assertTrue(
+	            sql.contains("LOWER(p.supplier_invoice_no) = LOWER(:identifier)")
+	    );
+	
+	    assertTrue(
+	            sql.contains("s.supplier_name ILIKE :identifierSupplier")
+	    );
+	
+	    MapSqlParameterSource parameters =
+	            (MapSqlParameterSource) parametersCaptor.getValue();
+	
+	    assertEquals(
+	            "ABC Auto Parts",
+	            parameters.getValue("identifier")
+	    );
+	
+	    assertEquals(
+	            "%ABC Auto Parts%",
+	            parameters.getValue("identifierSupplier")
+	    );
+	
+	    assertEquals(
+	            10,
+	            parameters.getValue("limit")
+	    );
+	}
 
-        tool.searchPurchases("ABC Auto Parts", 10);
-
-        ArgumentCaptor<String> sqlCaptor =
-                ArgumentCaptor.forClass(String.class);
-
-        ArgumentCaptor<SqlParameterSource> parametersCaptor =
-                ArgumentCaptor.forClass(SqlParameterSource.class);
-
-        verify(jdbcTemplate).queryForList(
-                sqlCaptor.capture(),
-                parametersCaptor.capture()
-        );
-
-        assertTrue(
-                sqlCaptor.getValue().contains(
-                        "s.supplier_name ILIKE :supplierName"
-                )
-        );
-
-        MapSqlParameterSource parameters =
-                (MapSqlParameterSource) parametersCaptor.getValue();
-
-        assertEquals(
-                "ABC Auto Parts",
-                parameters.getValue("purchaseNumber")
-        );
-
-        assertEquals(
-                "ABC Auto Parts",
-                parameters.getValue("invoiceNumber")
-        );
-
-        assertEquals(
-                "%ABC Auto Parts%",
-                parameters.getValue("supplierName")
-        );
-
-        assertEquals(
-                10,
-                parameters.getValue("limit")
-        );
-    }
 
     @Test
     void returnsEmptyForBlankPurchaseIdentifier() {
