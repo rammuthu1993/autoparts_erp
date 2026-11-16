@@ -70,10 +70,9 @@ public class AiRepositoryImpl implements AiRepository {
 
         Boolean exists = jdbc.queryForObject(
                 sql,
-                Map.of(
-                        "id", id,
-                        "userSubject", userSubject
-                ),
+                new MapSqlParameterSource()
+                        .addValue("id", id)
+                        .addValue("userSubject", userSubject),
                 Boolean.class
         );
 
@@ -101,11 +100,10 @@ public class AiRepositoryImpl implements AiRepository {
 
         return jdbc.update(
                 sql,
-                Map.of(
-                        "id", id,
-                        "userSubject", userSubject,
-                        "title", title
-                )
+                new MapSqlParameterSource()
+                        .addValue("id", id)
+                        .addValue("userSubject", userSubject)
+                        .addValue("title", title)
         );
     }
 
@@ -132,10 +130,9 @@ public class AiRepositoryImpl implements AiRepository {
 
         List<AiConversationResponse> results = jdbc.query(
                 sql,
-                Map.of(
-                        "id", id,
-                        "userSubject", userSubject
-                ),
+                new MapSqlParameterSource()
+                        .addValue("id", id)
+                        .addValue("userSubject", userSubject),
                 (rs, rowNum) -> new AiConversationResponse(
                         rs.getObject("id", UUID.class),
                         rs.getString("title"),
@@ -173,11 +170,10 @@ public class AiRepositoryImpl implements AiRepository {
 
         jdbc.update(
                 insertSql,
-                Map.of(
-                        "conversationId", conversationId,
-                        "role", role,
-                        "content", content
-                )
+                new MapSqlParameterSource()
+                        .addValue("conversationId", conversationId)
+                        .addValue("role", role)
+                        .addValue("content", content)
         );
 
         String updateSql = """
@@ -189,7 +185,8 @@ public class AiRepositoryImpl implements AiRepository {
 
         jdbc.update(
                 updateSql,
-                Map.of("conversationId", conversationId)
+                new MapSqlParameterSource()
+                        .addValue("conversationId", conversationId)
         );
     }
 
@@ -215,7 +212,8 @@ public class AiRepositoryImpl implements AiRepository {
 
         return jdbc.queryForList(
                 sql,
-                Map.of("conversationId", conversationId)
+                new MapSqlParameterSource()
+                        .addValue("conversationId", conversationId)
         );
     }
 
@@ -241,7 +239,8 @@ public class AiRepositoryImpl implements AiRepository {
 
         return jdbc.query(
                 sql,
-                Map.of("userSubject", userSubject),
+                new MapSqlParameterSource()
+                        .addValue("userSubject", userSubject),
                 (rs, rowNum) -> new AiConversationResponse(
                         rs.getObject("id", UUID.class),
                         rs.getString("title"),
@@ -326,7 +325,8 @@ public class AiRepositoryImpl implements AiRepository {
 
         return jdbc.query(
                 sql,
-                Map.of("conversationId", conversationId),
+                new MapSqlParameterSource()
+                        .addValue("conversationId", conversationId),
                 (rs, rowNum) -> new AiMessageResponse(
                         rs.getLong("id"),
                         rs.getString("role"),
@@ -356,10 +356,9 @@ public class AiRepositoryImpl implements AiRepository {
 
         return jdbc.update(
                 sql,
-                Map.of(
-                        "id", id,
-                        "userSubject", userSubject
-                )
+                new MapSqlParameterSource()
+                        .addValue("id", id)
+                        .addValue("userSubject", userSubject)
         );
     }
     

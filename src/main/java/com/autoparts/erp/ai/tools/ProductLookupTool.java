@@ -1,22 +1,20 @@
 package com.autoparts.erp.ai.tools;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataAccessException;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
-import javax.sql.DataSource;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 
 @Component
 public class ProductLookupTool {
@@ -24,10 +22,11 @@ public class ProductLookupTool {
     private static final Logger log =
             LoggerFactory.getLogger(ProductLookupTool.class);
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
     public ProductLookupTool(
-            @Qualifier("aiToolJdbcTemplate") JdbcTemplate jdbcTemplate
+            @Qualifier("aiToolNamedParameterJdbcTemplate")
+            NamedParameterJdbcTemplate jdbcTemplate
     ) {
         this.jdbcTemplate = jdbcTemplate;
     }
@@ -64,9 +63,9 @@ public class ProductLookupTool {
                 FROM products
                 WHERE active = TRUE
                   AND (
-                    LOWER(product_code) LIKE LOWER(?)
-                    OR LOWER(part_no) LIKE LOWER(?)
-                    OR LOWER(name) LIKE LOWER(?)
+                    LOWER(product_code) LIKE LOWER(:searchPattern)
+                    OR LOWER(part_no) LIKE LOWER(:searchPattern)
+                    OR LOWER(name) LIKE LOWER(:searchPattern)
                   )
                 ORDER BY product_code
                 LIMIT 20
@@ -74,13 +73,11 @@ public class ProductLookupTool {
 
             String searchPattern = "%" + searchText.trim() + "%";
 
+            MapSqlParameterSource parameters =
+                    new MapSqlParameterSource()
+                            .addValue("searchPattern", searchPattern);
             List<Map<String, Object>> products =
-                    jdbcTemplate.queryForList(
-                            sql,
-                            searchPattern,
-                            searchPattern,
-                            searchPattern
-                    );
+                    jdbcTemplate.queryForList(sql, parameters);
 
             long duration = getDurationMs(startTime);
 
@@ -127,7 +124,21 @@ public class ProductLookupTool {
             throw new IllegalArgumentException("Product identifiers must be non-empty and unique.");
         }
 
-        String placeholders = String.join(",", Collections.nCopies(values.size(), "?"));
+        MapSqlParameterSource parameters = new MapSqlParameterSource();
+        String productPlaceholders = IntStream.range(0, values.size())
+                .mapToObj(index -> {
+                    String name = "product" + index;
+                    parameters.addValue(name, values.get(index));
+                    return ":" + name;
+                })
+                .collect(Collectors.joining(","));
+        String partNumberPlaceholders = IntStream.range(0, values.size())
+                .mapToObj(index -> {
+                    String name = "partNumber" + index;
+                    parameters.addValue(name, values.get(index));
+                    return ":" + name;
+                })
+                .collect(Collectors.joining(","));
         String sql = """
                 SELECT product_code, part_no, name, qty, minimum_stock, unit,
                        purchase_price, selling_price
@@ -135,13 +146,10 @@ public class ProductLookupTool {
                 WHERE active = TRUE
                   AND (LOWER(product_code) IN (%s) OR LOWER(part_no) IN (%s))
                 ORDER BY product_code
-                """.formatted(placeholders, placeholders);
-        List<Object> parameters = new ArrayList<>(values.size() * 2);
-        parameters.addAll(values);
-        parameters.addAll(values);
+                """.formatted(productPlaceholders, partNumberPlaceholders);
 
         try {
-            return jdbcTemplate.queryForList(sql, parameters.toArray());
+            return jdbcTemplate.queryForList(sql, parameters);
         } catch (DataAccessException exception) {
             log.error("AI tool execution failed: getProductsByIdentifiers", exception);
             throw new IllegalStateException("Unable to compare products at this time.", exception);
@@ -174,7 +182,11 @@ public class ProductLookupTool {
                 WHERE active = TRUE
                 """;
 
-            Long count = jdbcTemplate.queryForObject(sql, Long.class);
+            Long count = jdbcTemplate.queryForObject(
+                    sql,
+                    new MapSqlParameterSource(),
+                    Long.class
+            );
 
             long duration = getDurationMs(startTime);
 
@@ -239,15 +251,19 @@ public class ProductLookupTool {
                     barcode,
                     active
                 FROM products
-                WHERE LOWER(product_code) = LOWER(?)
-                   OR LOWER(part_no) = LOWER(?)
+                WHERE LOWER(product_code) = LOWER(:productCode)
+                   OR LOWER(part_no) = LOWER(:partNumber)
                 LIMIT 2
                 """;
 
             String value = searchText.trim();
 
+            MapSqlParameterSource parameters =
+                    new MapSqlParameterSource()
+                            .addValue("productCode", value)
+                            .addValue("partNumber", value);
             List<Map<String, Object>> products =
-                    jdbcTemplate.queryForList(sql, value, value);
+                    jdbcTemplate.queryForList(sql, parameters);
 
             long duration = getDurationMs(startTime);
 
@@ -309,7 +325,10 @@ public class ProductLookupTool {
                 """;
 
             List<Map<String, Object>> products =
-                    jdbcTemplate.queryForList(sql);
+                    jdbcTemplate.queryForList(
+                            sql,
+                            new MapSqlParameterSource()
+                    );
 
             long duration = getDurationMs(startTime);
 
@@ -369,15 +388,19 @@ public class ProductLookupTool {
                     minimum_stock,
                     unit
                 FROM products
-                WHERE LOWER(product_code) = LOWER(?)
-                   OR LOWER(part_no) = LOWER(?)
+                WHERE LOWER(product_code) = LOWER(:productCode)
+                   OR LOWER(part_no) = LOWER(:partNumber)
                 LIMIT 2
                 """;
 
             String value = searchText.trim();
 
+            MapSqlParameterSource parameters =
+                    new MapSqlParameterSource()
+                            .addValue("productCode", value)
+                            .addValue("partNumber", value);
             List<Map<String, Object>> products =
-                    jdbcTemplate.queryForList(sql, value, value);
+                    jdbcTemplate.queryForList(sql, parameters);
 
             long duration = getDurationMs(startTime);
 

@@ -15,12 +15,19 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import com.autoparts.erp.ai.exception.AiProviderResponseException;
 import com.autoparts.erp.ai.tools.ProductLookupTool;
 import com.autoparts.erp.ai.tools.InventoryHistoryLookupTool;
+import com.autoparts.erp.ai.tools.PurchaseLookupTool;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @Component
 public class ErpAiGraphNodes {
@@ -33,18 +40,32 @@ public class ErpAiGraphNodes {
     private final ProductLookupTool productLookupTool;
     private final ErpAiIntentClassifier intentClassifier;
     private final String systemPrompt;
+    private final PurchaseLookupTool purchaseLookupTool;
 
+    @Autowired
     public ErpAiGraphNodes(
             ChatModel chatModel,
             ProductLookupTool productLookupTool,
             ErpAiIntentClassifier intentClassifier,
-            InventoryHistoryLookupTool inventoryHistoryLookupTool
+            InventoryHistoryLookupTool inventoryHistoryLookupTool,
+            PurchaseLookupTool purchaseLookupTool
     ) {
         this.chatModel = chatModel;
         this.productLookupTool = productLookupTool;
         this.intentClassifier = intentClassifier;
         this.systemPrompt = loadSystemPrompt();
         this.inventoryHistoryLookupTool = inventoryHistoryLookupTool;
+        this.purchaseLookupTool = purchaseLookupTool;
+    }
+
+    /** Backward-compatible constructor for existing unit tests. */
+    public ErpAiGraphNodes(
+            ChatModel chatModel,
+            ProductLookupTool productLookupTool,
+            ErpAiIntentClassifier intentClassifier,
+            InventoryHistoryLookupTool inventoryHistoryLookupTool
+    ) {
+        this(chatModel, productLookupTool, intentClassifier, inventoryHistoryLookupTool, null);
     }
 
     // --------------------------------------------------
@@ -100,6 +121,25 @@ public class ErpAiGraphNodes {
                 "ERP AI tool execution started. Tool intent: {}",
                 intent
         );
+        
+        Authentication authentication =
+                state.object("authentication") instanceof Authentication auth
+                        ? auth
+                        : null;
+
+        // Preserve any context already present on this worker thread.
+        SecurityContext previousContext =
+                SecurityContextHolder.getContext();
+
+        // Create an isolated context for this graph execution.
+        SecurityContext workerContext =
+                SecurityContextHolder.createEmptyContext();
+
+        if (authentication != null) {
+            workerContext.setAuthentication(authentication);
+        }
+
+        SecurityContextHolder.setContext(workerContext);
 
         try {
 
@@ -142,6 +182,13 @@ public class ErpAiGraphNodes {
                         inventoryHistoryLookupTool.getInventoryAdjustments(
                                 searchText, parseLimit(state.object("limit")));
 
+                case "PURCHASE_SEARCH" ->
+                        purchaseLookupTool.searchPurchases(
+                                searchText, parseLimit(state.object("limit")));
+
+                case "PURCHASE_DETAILS" ->
+                        purchaseLookupTool.getPurchaseDetails(searchText);
+
                 default -> throw new IllegalArgumentException(
                         "Unsupported product tool intent: " + intent
                 );
@@ -161,6 +208,10 @@ public class ErpAiGraphNodes {
 
             throw exception;
 
+        } catch (AuthenticationException exception) {
+
+            throw exception;
+
         } catch (RuntimeException exception) {
 
             log.error(
@@ -174,6 +225,14 @@ public class ErpAiGraphNodes {
                     "toolError",
                     "Unable to retrieve the requested ERP information."
             );
+        } finally {
+
+            // Never leave an authentication context on a reusable worker thread.
+            if (previousContext.getAuthentication() == null) {
+                SecurityContextHolder.clearContext();
+            } else {
+                SecurityContextHolder.setContext(previousContext);
+            }
         }
     }
 
@@ -212,6 +271,8 @@ public class ErpAiGraphNodes {
                     "There are currently no active products below their minimum stock level.";
             case "PRODUCT_COMPARISON" ->
                     "None of the requested products could be found. Please verify the product codes or part numbers.";
+            case "PURCHASE_SEARCH", "PURCHASE_DETAILS" ->
+                    "No matching purchase records were found. Please check the purchase number, supplier invoice number, or supplier name.";
             default -> "I couldn't find any matching records in the ERP system.";
         };
         return Map.of("finalResponse", emptyMessage);
@@ -288,6 +349,8 @@ public class ErpAiGraphNodes {
                  "RECENT_INVENTORY_MOVEMENTS" -> formatMovementHistoryResponse(rows);
             case "PRODUCT_MOVEMENT_SUMMARY" -> formatMovementSummary(rows);
             case "INVENTORY_ADJUSTMENTS" -> formatAdjustmentHistory(rows);
+            case "PURCHASE_SEARCH" -> formatPurchaseSearch(rows);
+            case "PURCHASE_DETAILS" -> formatPurchaseDetails(rows);
             default -> null;
         };
         if (formatted != null) {
@@ -535,6 +598,76 @@ public class ErpAiGraphNodes {
         return index == 0 ? "No inventory adjustment records were found." : out.toString();
     }
 
+    private String formatPurchaseSearch(List<?> rows) {
+        StringBuilder out = new StringBuilder("Purchase records:");
+        int index = 0;
+        for (Object row : rows) {
+            if (!(row instanceof Map<?, ?> purchase)) continue;
+            index++;
+            out.append("\n\n").append(index).append(". Purchase: ")
+                    .append(value(purchase, "purchase_number"))
+                    .append("\nSupplier: ").append(value(purchase, "supplier_name"))
+                    .append("\nSupplier invoice: ").append(value(purchase, "supplier_invoice_no"))
+                    .append("\nPurchase date: ").append(value(purchase, "purchase_date"))
+                    .append("\nStatus: ").append(value(purchase, "status"))
+                    .append("\nProducts: ").append(value(purchase, "product_count"))
+                    .append("\nGrand total: ").append(value(purchase, "grand_total"));
+        }
+        return index == 0 ? "No matching purchase records were found." : out.toString();
+    }
+
+    private String formatPurchaseDetails(List<?> rows) {
+        java.util.Map<String, List<Map<?, ?>>> grouped = new java.util.LinkedHashMap<>();
+        for (Object row : rows) {
+            if (row instanceof Map<?, ?> purchase) {
+                String purchaseNumber = value(purchase, "purchase_number");
+                grouped.computeIfAbsent(purchaseNumber, ignored -> new ArrayList<>()).add(purchase);
+            }
+        }
+        if (grouped.isEmpty()) {
+            return "No matching purchase was found.";
+        }
+
+        StringBuilder out = new StringBuilder("Purchase details:");
+        int purchaseIndex = 0;
+        for (Map.Entry<String, List<Map<?, ?>>> entry : grouped.entrySet()) {
+            Map<?, ?> header = entry.getValue().get(0);
+            purchaseIndex++;
+            out.append("\n\n").append(purchaseIndex).append(". Purchase: ")
+                    .append(value(header, "purchase_number"))
+                    .append("\nSupplier: ").append(value(header, "supplier_name"))
+                    .append("\nSupplier invoice: ").append(value(header, "supplier_invoice_no"))
+                    .append("\nPurchase date: ").append(value(header, "purchase_date"))
+                    .append("\nStatus: ").append(value(header, "status"))
+                    .append("\nSubtotal: ").append(value(header, "subtotal"))
+                    .append("\nDiscount: ").append(value(header, "discount_total"))
+                    .append("\nTax: ").append(value(header, "tax_total"))
+                    .append("\nGrand total: ").append(value(header, "grand_total"));
+
+            int productIndex = 0;
+            for (Map<?, ?> line : entry.getValue()) {
+                if (line.get("product_code") == null && line.get("product_name") == null) continue;
+                productIndex++;
+                out.append("\n\n  Product ").append(productIndex).append(": ")
+                        .append(value(line, "product_name"))
+                        .append("\n  Product code: ").append(value(line, "product_code"))
+                        .append("\n  Part number: ").append(value(line, "part_no"))
+                        .append("\n  Quantity: ").append(value(line, "quantity"))
+                        .append("\n  Purchase price: ").append(value(line, "purchase_price"))
+                        .append("\n  Discount: ").append(value(line, "discount_amount"))
+                        .append("\n  Tax: ").append(value(line, "tax_amount"))
+                        .append("\n  Line total: ").append(value(line, "line_total"));
+            }
+            if (header.get("notes") != null && StringUtils.hasText(String.valueOf(header.get("notes")))) {
+                out.append("\nNotes: ").append(value(header, "notes"));
+            }
+        }
+        if (grouped.size() > 1) {
+            out.append("\n\nMultiple purchases matched this supplier invoice number. The results are shown separately by purchase number.");
+        }
+        return out.toString();
+    }
+
     private int parseLimit(Object rawLimit) {
         if (rawLimit instanceof Number number) {
             return Math.max(1, Math.min(50, number.intValue()));
@@ -751,7 +884,9 @@ public class ErpAiGraphNodes {
                  "PRODUCT_MOVEMENT_SUMMARY",
                  "PRODUCT_MOVEMENTS_BY_DATE_RANGE",
                  "RECENT_INVENTORY_MOVEMENTS",
-                 "INVENTORY_ADJUSTMENTS" -> "TOOL";
+                 "INVENTORY_ADJUSTMENTS",
+                 "PURCHASE_SEARCH",
+                 "PURCHASE_DETAILS" -> "TOOL";
 	
 	        case "UNSUPPORTED" -> "UNSUPPORTED";
 	

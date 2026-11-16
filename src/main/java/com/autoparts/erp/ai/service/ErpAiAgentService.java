@@ -47,6 +47,10 @@ import org.springframework.ai.chat.model.ChatModel;
 
 import com.autoparts.erp.ai.tools.InventoryHistoryLookupTool;
 import com.autoparts.erp.ai.tools.ProductLookupTool;
+import java.util.HashMap;
+
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @Service
 public class ErpAiAgentService {
@@ -289,12 +293,19 @@ public class ErpAiAgentService {
 
             String currentMessage =
                     findLatestUserMessage(messages);
+            
+            Authentication authentication =
+                    SecurityContextHolder.getContext().getAuthentication();
 
-            Map<String, Object> graphInput = Map.of(
-                    "conversationId", conversationId.toString(),
-                    "currentMessage", currentMessage,
-                    "history", history
-            );
+            Map<String, Object> graphInput = new HashMap<>();
+
+            graphInput.put("conversationId", conversationId.toString());
+            graphInput.put("currentMessage", currentMessage);
+            graphInput.put("history", history);
+
+            if (authentication != null) {
+                graphInput.put("authentication", authentication);
+            }
 
             var generator = execution.initializeGenerator(
                     () -> workflow.stream(

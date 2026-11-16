@@ -5,20 +5,22 @@ import javax.sql.DataSource;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 @Configuration
 public class AiToolJdbcConfiguration {
 
     private static final int QUERY_TIMEOUT_SECONDS = 30;
 
-    @Bean("aiToolJdbcTemplate")
-    public JdbcTemplate aiToolJdbcTemplate(DataSource dataSource) {
+    @Bean("aiToolNamedParameterJdbcTemplate")
+    public NamedParameterJdbcTemplate aiToolNamedParameterJdbcTemplate(
+            DataSource dataSource
+    ) {
+        NamedParameterJdbcTemplate jdbcTemplate =
+                new NamedParameterJdbcTemplate(dataSource);
 
-        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
-
-        jdbcTemplate.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
-
+        jdbcTemplate.getJdbcTemplate()
+                .setQueryTimeout(QUERY_TIMEOUT_SECONDS);
         return jdbcTemplate;
     }
 }

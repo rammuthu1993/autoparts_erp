@@ -17,6 +17,26 @@ public class ErpAiIntentClassifier {
             "\\b(?=[A-Z0-9-]*[A-Z])(?=[A-Z0-9-]*\\d)[A-Z0-9]+(?:-[A-Z0-9]+)*\\b",
             Pattern.CASE_INSENSITIVE);
 
+    private static final Pattern PURCHASE_NUMBER = Pattern.compile(
+            "\\bPUR-[A-Z0-9-]+\\b", Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern SUPPLIER_INVOICE_NUMBER = Pattern.compile(
+            "\\b(?:supplier\\s+)?invoice(?:\\s+(?:number|no\\.?|#))?\\s*[:#-]?\\s*([A-Z0-9][A-Z0-9/-]*)",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern PURCHASE_MENTION = Pattern.compile(
+            "\\b(?:purchases?|purchase\\s+invoices?|supplier\\s+invoices?)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern PURCHASE_LOOKUP_CUE = Pattern.compile(
+            "\\b(?:show|find|search|list|get|view|recent|latest|all|details?|information|status|"
+                    + "amount|total|history|invoice|number|from|for|by)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern PURCHASE_DETAIL_CUE = Pattern.compile(
+            "\\b(?:details?|information|status|amount|total|invoice\\s+(?:number|no\\.?|#))\\b",
+            Pattern.CASE_INSENSITIVE);
+
     private static final Pattern PRODUCT_COMPARISON_REQUEST = Pattern.compile(
             "\\b(?:compare|comparison|differences?\\s+between|versus|vs\\.?)\\b",
             Pattern.CASE_INSENSITIVE);
@@ -102,6 +122,21 @@ public class ErpAiIntentClassifier {
 
         if (isUnsupportedRequest(normalized)) {
             return new ErpAiIntentResult("UNSUPPORTED", extractSearchText(message));
+        }
+
+        if (isPurchaseReadRequest(message)) {
+            String purchaseIdentifier = extractPurchaseIdentifier(message);
+            boolean details = !purchaseIdentifier.isEmpty()
+                    || PURCHASE_DETAIL_CUE.matcher(message).find();
+            if (details) {
+                if (purchaseIdentifier.isEmpty()) {
+                    return ErpAiIntentResult.clarification(
+                            "Please provide the purchase number or supplier invoice number to retrieve purchase details.");
+                }
+                return new ErpAiIntentResult("PURCHASE_DETAILS", purchaseIdentifier);
+            }
+            return new ErpAiIntentResult(
+                    "PURCHASE_SEARCH", extractPurchaseSearchText(message), "", "", extractLimit(message), "");
         }
 
         if (PRODUCT_COMPARISON_REQUEST.matcher(message).find()) {
@@ -220,9 +255,46 @@ public class ErpAiIntentClassifier {
     }
 
     private boolean isUnsupportedRequest(String message) {
-        return message.contains("supplier")
-                || containsAny(message, "create purchase", "create sales", "create invoice",
-                "generate invoice", "make purchase", "make sales", "record purchase", "record sales");
+        boolean purchaseOrSalesWrite = containsAny(message,
+                "create purchase", "create sales", "create invoice",
+                "generate invoice", "make purchase", "make sales",
+                "record purchase", "record sales", "receive purchase",
+                "approve purchase", "cancel purchase", "pay purchase");
+        return purchaseOrSalesWrite
+                || (message.contains("supplier") && !isPurchaseReadRequest(message));
+    }
+
+    private boolean isPurchaseReadRequest(String message) {
+        boolean hasPurchaseMention = PURCHASE_MENTION.matcher(message).find();
+        boolean hasPurchaseNumber = PURCHASE_NUMBER.matcher(message).find();
+        return hasPurchaseNumber
+                || (hasPurchaseMention && PURCHASE_LOOKUP_CUE.matcher(message).find());
+    }
+
+    private String extractPurchaseIdentifier(String message) {
+        Matcher purchaseNumber = PURCHASE_NUMBER.matcher(message);
+        if (purchaseNumber.find()) {
+            return purchaseNumber.group().trim();
+        }
+        Matcher invoiceNumber = SUPPLIER_INVOICE_NUMBER.matcher(message);
+        if (invoiceNumber.find()) {
+            return invoiceNumber.group(1).trim();
+        }
+        return "";
+    }
+
+    private String extractPurchaseSearchText(String message) {
+        String cleaned = message.trim();
+        cleaned = cleaned.replaceFirst("(?i)^(?:please\\s+)?(?:can|could|would)\\s+you\\s+", "");
+        cleaned = cleaned.replaceFirst("(?i)^(?:please\\s+)?(?:show|find|search(?:\\s+for)?|list|get|view)\\s+", "");
+        cleaned = cleaned.replaceFirst("(?i)^(?:the\\s+)?(?:recent|latest(?:\\s+\\d+)?|all|last\\s+\\d+|top\\s+\\d+)\\s+", "");
+        cleaned = cleaned.replaceFirst("(?i)^(?:purchase\\s+invoices?|purchases?|supplier\\s+invoices?|purchase\\s+(?:records?|list))\\b", "");
+        cleaned = cleaned.replaceFirst("(?i)^\\s*(?:from|for|by|of)\\s+(?:supplier\\s+)?", "");
+        cleaned = cleaned.replaceFirst("(?i)^\\s*(?:supplier\\s+)", "");
+        return cleaned.replaceAll("(?i)\\s+(?:last|top|latest)\\s+\\d+$", "")
+                .replaceAll("[?!.;,]+$", "")
+                .replaceAll("(?i)\\s+(?:please|thanks?)$", "")
+                .trim();
     }
 
     private List<String> extractIdentifiers(String message) {

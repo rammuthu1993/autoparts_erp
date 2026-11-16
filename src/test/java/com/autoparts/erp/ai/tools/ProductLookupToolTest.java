@@ -24,13 +24,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.dao.DataAccessResourceFailureException;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 
 @ExtendWith(MockitoExtension.class)
 class ProductLookupToolTest {
 
     @Mock
-    private JdbcTemplate jdbcTemplate;
+    private NamedParameterJdbcTemplate jdbcTemplate;
 
     private ProductLookupTool productLookupTool;
 
@@ -69,7 +71,7 @@ class ProductLookupToolTest {
 
         when(jdbcTemplate.queryForList(
                 anyString(),
-                any(Object[].class)
+                any(SqlParameterSource.class)
         )).thenReturn(List.of(product));
 
         List<Map<String, Object>> result =
@@ -81,8 +83,8 @@ class ProductLookupToolTest {
         ArgumentCaptor<String> sqlCaptor =
                 forClass(String.class);
 
-        ArgumentCaptor<Object[]> argumentsCaptor =
-                forClass(Object[].class);
+        ArgumentCaptor<SqlParameterSource> argumentsCaptor =
+                forClass(SqlParameterSource.class);
 
         verify(jdbcTemplate).queryForList(
                 sqlCaptor.capture(),
@@ -92,17 +94,14 @@ class ProductLookupToolTest {
         String sql = normalizeSql(sqlCaptor.getValue());
 
         assertTrue(sql.contains("where active = true"));
-        assertTrue(sql.contains("lower(product_code) like lower(?)"));
-        assertTrue(sql.contains("lower(part_no) like lower(?)"));
-        assertTrue(sql.contains("lower(name) like lower(?)"));
+        assertTrue(sql.contains("lower(product_code) like lower(:searchpattern)"));
+        assertTrue(sql.contains("lower(part_no) like lower(:searchpattern)"));
+        assertTrue(sql.contains("lower(name) like lower(:searchpattern)"));
 
-        assertArrayEquals(
-                new Object[]{
-                        "%PRD001%",
-                        "%PRD001%",
-                        "%PRD001%"
-                },
-                argumentsCaptor.getValue()
+        assertEquals(
+                "%PRD001%",
+                ((MapSqlParameterSource) argumentsCaptor.getValue())
+                        .getValue("searchPattern")
         );
     }
 
@@ -119,6 +118,7 @@ class ProductLookupToolTest {
     void shouldCountActiveProducts() {
         when(jdbcTemplate.queryForObject(
                 anyString(),
+                any(SqlParameterSource.class),
                 eq(Long.class)
         )).thenReturn(25L);
 
@@ -131,6 +131,7 @@ class ProductLookupToolTest {
 
         verify(jdbcTemplate).queryForObject(
                 sqlCaptor.capture(),
+                any(SqlParameterSource.class),
                 eq(Long.class)
         );
 
@@ -145,6 +146,7 @@ class ProductLookupToolTest {
     void shouldReturnZeroWhenNoActiveProductsExist() {
         when(jdbcTemplate.queryForObject(
                 anyString(),
+                any(SqlParameterSource.class),
                 eq(Long.class)
         )).thenReturn(0L);
 
@@ -162,7 +164,7 @@ class ProductLookupToolTest {
 
         when(jdbcTemplate.queryForList(
                 anyString(),
-                any(Object[].class)
+                any(SqlParameterSource.class)
         )).thenReturn(List.of(product));
 
         List<Map<String, Object>> result =
@@ -174,8 +176,8 @@ class ProductLookupToolTest {
         ArgumentCaptor<String> sqlCaptor =
                 forClass(String.class);
 
-        ArgumentCaptor<Object[]> argumentsCaptor =
-                forClass(Object[].class);
+        ArgumentCaptor<SqlParameterSource> argumentsCaptor =
+                forClass(SqlParameterSource.class);
 
         verify(jdbcTemplate).queryForList(
                 sqlCaptor.capture(),
@@ -184,13 +186,13 @@ class ProductLookupToolTest {
 
         String sql = normalizeSql(sqlCaptor.getValue());
 
-        assertTrue(sql.contains("where lower(product_code) = lower(?)"));
-        assertTrue(sql.contains("or lower(part_no) = lower(?)"));
+        assertTrue(sql.contains("where lower(product_code) = lower(:productcode)"));
+        assertTrue(sql.contains("or lower(part_no) = lower(:partnumber)"));
 
-        assertArrayEquals(
-                new Object[]{"PRD001", "PRD001"},
-                argumentsCaptor.getValue()
-        );
+        MapSqlParameterSource parameters =
+                (MapSqlParameterSource) argumentsCaptor.getValue();
+        assertEquals("PRD001", parameters.getValue("productCode"));
+        assertEquals("PRD001", parameters.getValue("partNumber"));
     }
 
     @Test
@@ -213,7 +215,10 @@ class ProductLookupToolTest {
                 "unit", "PCS"
         );
 
-        when(jdbcTemplate.queryForList(anyString()))
+        when(jdbcTemplate.queryForList(
+                anyString(),
+                any(SqlParameterSource.class)
+        ))
                 .thenReturn(List.of(product));
 
         List<Map<String, Object>> result =
@@ -225,7 +230,10 @@ class ProductLookupToolTest {
         ArgumentCaptor<String> sqlCaptor =
                 forClass(String.class);
 
-        verify(jdbcTemplate).queryForList(sqlCaptor.capture());
+        verify(jdbcTemplate).queryForList(
+                sqlCaptor.capture(),
+                any(SqlParameterSource.class)
+        );
 
         String sql = normalizeSql(sqlCaptor.getValue());
 
@@ -247,7 +255,7 @@ class ProductLookupToolTest {
 
         when(jdbcTemplate.queryForList(
                 anyString(),
-                any(Object[].class)
+                any(SqlParameterSource.class)
         )).thenReturn(List.of(product));
 
         List<Map<String, Object>> result =
@@ -259,8 +267,8 @@ class ProductLookupToolTest {
         ArgumentCaptor<String> sqlCaptor =
                 forClass(String.class);
 
-        ArgumentCaptor<Object[]> argumentsCaptor =
-                forClass(Object[].class);
+        ArgumentCaptor<SqlParameterSource> argumentsCaptor =
+                forClass(SqlParameterSource.class);
 
         verify(jdbcTemplate).queryForList(
                 sqlCaptor.capture(),
@@ -269,13 +277,13 @@ class ProductLookupToolTest {
 
         String sql = normalizeSql(sqlCaptor.getValue());
 
-        assertTrue(sql.contains("where lower(product_code) = lower(?)"));
-        assertTrue(sql.contains("or lower(part_no) = lower(?)"));
+        assertTrue(sql.contains("where lower(product_code) = lower(:productcode)"));
+        assertTrue(sql.contains("or lower(part_no) = lower(:partnumber)"));
 
-        assertArrayEquals(
-                new Object[]{"PRD001", "PRD001"},
-                argumentsCaptor.getValue()
-        );
+        MapSqlParameterSource parameters =
+                (MapSqlParameterSource) argumentsCaptor.getValue();
+        assertEquals("PRD001", parameters.getValue("productCode"));
+        assertEquals("PRD001", parameters.getValue("partNumber"));
     }
 
     @Test
@@ -291,7 +299,7 @@ class ProductLookupToolTest {
     void shouldExposeSearchDatabaseFailureAsIllegalStateException() {
         when(jdbcTemplate.queryForList(
                 anyString(),
-                any(Object[].class)
+                any(SqlParameterSource.class)
         )).thenThrow(
                 new DataAccessResourceFailureException(
                         "Database unavailable"
@@ -318,6 +326,7 @@ class ProductLookupToolTest {
     void shouldExposeCountDatabaseFailureAsIllegalStateException() {
         when(jdbcTemplate.queryForObject(
                 anyString(),
+                any(SqlParameterSource.class),
                 eq(Long.class)
         )).thenThrow(
                 new DataAccessResourceFailureException(
@@ -340,7 +349,7 @@ class ProductLookupToolTest {
     void shouldExposeProductDetailsDatabaseFailure() {
         when(jdbcTemplate.queryForList(
                 anyString(),
-                any(Object[].class)
+                any(SqlParameterSource.class)
         )).thenThrow(
                 new DataAccessResourceFailureException(
                         "Database unavailable"
@@ -360,7 +369,10 @@ class ProductLookupToolTest {
 
     @Test
     void shouldExposeLowStockDatabaseFailure() {
-        when(jdbcTemplate.queryForList(anyString()))
+        when(jdbcTemplate.queryForList(
+                anyString(),
+                any(SqlParameterSource.class)
+        ))
                 .thenThrow(
                         new DataAccessResourceFailureException(
                                 "Database unavailable"
@@ -382,7 +394,7 @@ class ProductLookupToolTest {
     void shouldExposeProductStockDatabaseFailure() {
         when(jdbcTemplate.queryForList(
                 anyString(),
-                any(Object[].class)
+                any(SqlParameterSource.class)
         )).thenThrow(
                 new DataAccessResourceFailureException(
                         "Database unavailable"
@@ -411,7 +423,7 @@ class ProductLookupToolTest {
 
         when(jdbcTemplate.queryForList(
                 anyString(),
-                any(Object[].class)
+                any(SqlParameterSource.class)
         )).thenReturn(List.of(product));
 
         ToolCallback callback = java.util.Arrays.stream(

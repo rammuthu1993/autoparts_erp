@@ -2,6 +2,7 @@ package com.autoparts.erp.ai.service;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
@@ -107,7 +108,8 @@ public class AiToolRegistry {
 
         List<Map<String, Object>> results = jdbc.queryForList(
                 sql,
-                Map.of("query", "%" + query + "%")
+                new MapSqlParameterSource()
+                        .addValue("query", "%" + query + "%")
         );
 
         return objectMapper.valueToTree(results);
@@ -131,7 +133,8 @@ public class AiToolRegistry {
                 LIMIT 100
                 """;
 
-        List<Map<String, Object>> results = jdbc.queryForList(sql, Map.of());
+        List<Map<String, Object>> results =
+                jdbc.queryForList(sql, new MapSqlParameterSource());
 
         return objectMapper.valueToTree(results);
     }

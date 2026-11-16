@@ -163,6 +163,47 @@ class ErpAiIntentClassifierTest {
     }
 
     @Test
+    void shouldClassifyRecentPurchaseSearch() {
+        ErpAiIntentResult result = classifier.classify("Show recent purchases");
+        assertEquals("PURCHASE_SEARCH", result.intent());
+        assertEquals("", result.searchText());
+        assertEquals(10, result.limit());
+    }
+
+    @Test
+    void shouldExtractLimitWithoutTreatingItAsSupplierSearchText() {
+        ErpAiIntentResult result = classifier.classify("Show the last 5 purchases");
+        assertEquals("PURCHASE_SEARCH", result.intent());
+        assertEquals("", result.searchText());
+        assertEquals(5, result.limit());
+    }
+
+    @Test
+    void shouldClassifyPurchaseSearchBySupplierName() {
+        ErpAiIntentResult result = classifier.classify("Show purchases from supplier ABC Auto Parts");
+        assertEquals("PURCHASE_SEARCH", result.intent());
+        assertEquals("ABC Auto Parts", result.searchText());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "Show purchase details for PUR-00000012",
+            "Find purchase PUR-00000012"
+    })
+    void shouldClassifyPurchaseDetailsByPurchaseNumber(String message) {
+        ErpAiIntentResult result = classifier.classify(message);
+        assertEquals("PURCHASE_DETAILS", result.intent());
+        assertEquals("PUR-00000012", result.searchText());
+    }
+
+    @Test
+    void shouldClassifyPurchaseDetailsBySupplierInvoiceNumber() {
+        ErpAiIntentResult result = classifier.classify("Show purchase invoice number INV/2026/009");
+        assertEquals("PURCHASE_DETAILS", result.intent());
+        assertEquals("INV/2026/009", result.searchText());
+    }
+
+    @Test
     void shouldClassifyGeneralQuestion() {
         ErpAiIntentResult result =
                 classifier.classify("What is an ERP system?");
