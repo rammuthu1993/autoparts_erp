@@ -30,7 +30,12 @@ public class ErpAiGraphState extends AgentState {
             Map.entry("toolResult", Channels.<Object>base((o, n) -> n)),
             Map.entry("toolError", Channels.<String>base((o, n) -> n)),
             Map.entry("finalResponse", Channels.<String>base((o, n) -> n)),
-            Map.entry("validationError", Channels.<String>base((o, n) -> n))
+            Map.entry("validationError", Channels.<String>base((o, n) -> n)),
+            Map.entry("confidence", Channels.<Double>base((o, n) -> n)),
+            Map.entry("source", Channels.<String>base((o, n) -> n)),
+            Map.entry("isMultiIntent", Channels.<Boolean>base((o, n) -> n)),
+            Map.entry("secondaryIntent", Channels.<String>base((o, n) -> n)),
+            Map.entry("pendingSlotName", Channels.<String>base((o, n) -> n))
     );
 
     public ErpAiGraphState(Map<String, Object> initData) {
@@ -78,11 +83,39 @@ public class ErpAiGraphState extends AgentState {
         return text("searchText");
     }
 
+    public String startDate() {
+        return text("startDate");
+    }
+
+    public String endDate() {
+        return text("endDate");
+    }
+
     public String toolError() {
         return text("toolError");
     }
 
     public Object toolResult() {
         return object("toolResult");
+    }
+
+    public Double confidence() {
+        return value("confidence").map(Double.class::cast).orElse(1.0);
+    }
+
+    public String source() {
+        return text("source");
+    }
+
+    public boolean isMultiIntent() {
+        return value("isMultiIntent").map(Boolean.class::cast).orElse(false);
+    }
+
+    public String secondaryIntent() {
+        return text("secondaryIntent");
+    }
+
+    public String pendingSlotName() {
+        return text("pendingSlotName");
     }
 }

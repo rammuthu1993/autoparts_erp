@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CancellationException;
 
 import org.bsc.langgraph4j.RunnableConfig;
@@ -51,6 +52,7 @@ public class ErpAiGraphNodes {
     private final FinancialLookupTool financialLookupTool;
     private final ReportLookupTool reportLookupTool;
     private final AuditLogLookupTool auditLogLookupTool;
+    private final ErpAiHybridIntentRouter hybridRouter;
     private final String systemPrompt;
 
     @Autowired
@@ -66,7 +68,8 @@ public class ErpAiGraphNodes {
             ReturnLookupTool returnLookupTool,
             FinancialLookupTool financialLookupTool,
             ReportLookupTool reportLookupTool,
-            AuditLogLookupTool auditLogLookupTool
+            AuditLogLookupTool auditLogLookupTool,
+            ErpAiHybridIntentRouter hybridRouter
     ) {
         this.chatModel = chatModel;
         this.productLookupTool = productLookupTool;
@@ -80,7 +83,30 @@ public class ErpAiGraphNodes {
         this.financialLookupTool = financialLookupTool;
         this.reportLookupTool = reportLookupTool;
         this.auditLogLookupTool = auditLogLookupTool;
+        this.hybridRouter = hybridRouter != null
+                ? hybridRouter
+                : new ErpAiHybridIntentRouter(intentClassifier, new ErpAiPendingClarificationStore(), null);
         this.systemPrompt = loadSystemPrompt();
+    }
+
+    public ErpAiGraphNodes(
+            ChatModel chatModel,
+            ProductLookupTool productLookupTool,
+            ErpAiIntentClassifier intentClassifier,
+            InventoryHistoryLookupTool inventoryHistoryLookupTool,
+            PurchaseLookupTool purchaseLookupTool,
+            SalesLookupTool salesLookupTool,
+            CustomerLookupTool customerLookupTool,
+            SupplierLookupTool supplierLookupTool,
+            ReturnLookupTool returnLookupTool,
+            FinancialLookupTool financialLookupTool,
+            ReportLookupTool reportLookupTool,
+            AuditLogLookupTool auditLogLookupTool
+    ) {
+        this(chatModel, productLookupTool, intentClassifier, inventoryHistoryLookupTool,
+                purchaseLookupTool, salesLookupTool, customerLookupTool, supplierLookupTool,
+                returnLookupTool, financialLookupTool, reportLookupTool, auditLogLookupTool,
+                null);
     }
 
     public ErpAiGraphNodes(
@@ -117,31 +143,47 @@ public class ErpAiGraphNodes {
             RunnableConfig config
     ) {
         String currentMessage = state.text("currentMessage");
-        ErpAiIntentResult classification = intentClassifier.classify(currentMessage);
 
-        // Resolve deterministic product references from this conversation's USER history.
-        ErpAiConversationContextResolver.Resolution resolution =
-                ErpAiConversationContextResolver.resolve(currentMessage, state.history(), classification);
-        if (resolution.needsClarification()) {
-            classification = ErpAiIntentResult.clarification(resolution.clarificationMessage());
-        } else if (resolution.contextApplied()) {
-            classification = intentClassifier.classify(resolution.resolvedMessage());
+        ErpAiExecutionContext context = (config != null)
+                ? config.metadata("executionContext")
+                        .filter(ErpAiExecutionContext.class::isInstance)
+                        .map(ErpAiExecutionContext.class::cast)
+                        .orElse(null)
+                : null;
+
+        UUID conversationId = context != null ? context.conversationId() : null;
+        if (conversationId == null && StringUtils.hasText(state.text("conversationId"))) {
+            try {
+                conversationId = UUID.fromString(state.text("conversationId"));
+            } catch (Exception ignored) {
+            }
         }
 
+        ErpAiIntentResult classification = (hybridRouter != null)
+                ? hybridRouter.route(currentMessage, state.history(), conversationId, context)
+                : intentClassifier.classify(currentMessage);
+
         log.info(
-                "ERP AI intent classified. Intent: {}, Conversation: {}",
+                "ERP AI intent classified. Intent: {}, Source: {}, Confidence: {}, Conversation: {}",
                 classification.intent(),
+                classification.source(),
+                classification.confidence(),
                 state.text("conversationId")
         );
 
-        return Map.of(
-                "intent", classification.intent(),
-                "searchText", classification.searchText(),
-                "startDate", classification.startDate(),
-                "endDate", classification.endDate(),
-                "limit", classification.limit() == null ? 10 : classification.limit(),
-                "clarificationMessage", classification.clarificationMessage(),
-                "productIdentifiers", classification.productIdentifiers()
+        return Map.ofEntries(
+                Map.entry("intent", classification.intent()),
+                Map.entry("searchText", classification.searchText()),
+                Map.entry("startDate", classification.startDate()),
+                Map.entry("endDate", classification.endDate()),
+                Map.entry("limit", classification.limit() == null ? 10 : classification.limit()),
+                Map.entry("clarificationMessage", classification.clarificationMessage()),
+                Map.entry("productIdentifiers", classification.productIdentifiers()),
+                Map.entry("confidence", classification.confidence()),
+                Map.entry("source", classification.source() != null ? classification.source().name() : "DETERMINISTIC"),
+                Map.entry("isMultiIntent", classification.isMultiIntent()),
+                Map.entry("secondaryIntent", classification.secondaryIntent()),
+                Map.entry("pendingSlotName", classification.pendingSlotName())
         );
     }
 
@@ -175,6 +217,10 @@ public class ErpAiGraphNodes {
 
         try {
             Object result = executeWithContext(intent, searchText, state, context);
+
+            if (hybridRouter != null && context != null) {
+                hybridRouter.clearPendingClarification(context.conversationId(), context.userSubject());
+            }
 
             log.info("ERP AI tool execution completed. Intent: {}", intent);
 
@@ -406,7 +452,7 @@ public class ErpAiGraphNodes {
                 case "AI_TOOL_RUNS_LOG" -> "No recent AI tool execution records found.";
                 default -> "I couldn't find any matching records in the ERP system.";
             };
-            return Map.of("finalResponse", emptyMessage);
+            return Map.of("finalResponse", appendSecondaryGuidance(emptyMessage, state));
         }
 
         // Empty map handling
@@ -425,7 +471,7 @@ public class ErpAiGraphNodes {
                 case "RECONCILIATION_DISCREPANCIES" -> "No cross-ledger reconciliation discrepancies detected. All ledgers are balanced.";
                 default -> "No matching records were found.";
             };
-            return Map.of("finalResponse", emptyMessage);
+            return Map.of("finalResponse", appendSecondaryGuidance(emptyMessage, state));
         }
 
         // Product Count
@@ -433,7 +479,7 @@ public class ErpAiGraphNodes {
             if (!(toolResult instanceof Number count)) {
                 return Map.of("finalResponse", "I couldn't retrieve the active product count. Please try again.");
             }
-            return Map.of("finalResponse", "There are " + count.longValue() + " active products in the ERP system.");
+            return Map.of("finalResponse", appendSecondaryGuidance("There are " + count.longValue() + " active products in the ERP system.", state));
         }
 
         // Deterministic Map-based formatting (Single record or summary)
@@ -460,7 +506,7 @@ public class ErpAiGraphNodes {
                 default -> null;
             };
             if (formatted != null) {
-                return Map.of("finalResponse", formatted);
+                return Map.of("finalResponse", appendSecondaryGuidance(formatted, state));
             }
         }
 
@@ -494,7 +540,7 @@ public class ErpAiGraphNodes {
                 default -> null;
             };
             if (formatted != null) {
-                return Map.of("finalResponse", formatted);
+                return Map.of("finalResponse", appendSecondaryGuidance(formatted, state));
             }
         }
 
@@ -1650,6 +1696,34 @@ public class ErpAiGraphNodes {
             case "CLARIFICATION" -> "CLARIFICATION";
             case "GENERAL" -> "GENERAL";
             default -> "CLARIFICATION";
+        };
+    }
+
+    private String appendSecondaryGuidance(String response, ErpAiGraphState state) {
+        if (state.isMultiIntent() && StringUtils.hasText(state.secondaryIntent())) {
+            String desc = formatSecondaryIntentDescription(state.secondaryIntent());
+            return response + "\n\nNote: You also asked about " + desc + ". Please ask that as your next query.";
+        }
+        return response;
+    }
+
+    private String formatSecondaryIntentDescription(String intent) {
+        if (!StringUtils.hasText(intent)) {
+            return "additional records";
+        }
+        return switch (intent) {
+            case "SALES_SEARCH", "SALE_DETAILS", "SALES_SUMMARY" -> "sales invoices";
+            case "PURCHASE_SEARCH", "PURCHASE_DETAILS", "PURCHASE_SUMMARY" -> "purchase orders";
+            case "CUSTOMER_SEARCH", "CUSTOMER_DETAILS", "CUSTOMER_OUTSTANDING" -> "customer information or balance";
+            case "SUPPLIER_SEARCH", "SUPPLIER_DETAILS", "SUPPLIER_SUMMARY" -> "supplier information or spend";
+            case "PRODUCT_STOCK" -> "product stock levels";
+            case "PRODUCT_SEARCH", "PRODUCT_DETAILS" -> "product catalog details";
+            case "LOW_STOCK_PRODUCTS" -> "low-stock items";
+            case "RETURN_SUMMARY", "SALES_RETURN_SEARCH", "PURCHASE_RETURN_SEARCH" -> "returns and refunds";
+            case "EXPENSE_SUMMARY", "EXPENSES_BY_CATEGORY" -> "operating expenses";
+            case "DAILY_CLOSING" -> "daily closing reports";
+            case "KPI_SUMMARY" -> "executive KPIs";
+            default -> intent.toLowerCase(Locale.ROOT).replace('_', ' ');
         };
     }
 

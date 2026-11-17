@@ -3,6 +3,8 @@ package com.autoparts.erp.ai.service;
 import java.util.List;
 import java.util.Set;
 
+import com.autoparts.erp.ai.enums.ClassificationSource;
+
 public record ErpAiIntentResult(
         String intent,
         String searchText,
@@ -10,9 +12,14 @@ public record ErpAiIntentResult(
         String endDate,
         Integer limit,
         String clarificationMessage,
-        List<String> productIdentifiers
+        List<String> productIdentifiers,
+        double confidence,
+        ClassificationSource source,
+        boolean isMultiIntent,
+        String secondaryIntent,
+        String pendingSlotName
 ) {
-    private static final Set<String> SUPPORTED_INTENTS = Set.of(
+    public static final Set<String> SUPPORTED_INTENTS = Set.of(
             // Products & Inventory (Stage 2B)
             "PRODUCT_SEARCH", "PRODUCT_DETAILS", "PRODUCT_STOCK", "COUNT_PRODUCTS",
             "LOW_STOCK_PRODUCTS", "PRODUCT_MOVEMENT_HISTORY", "PRODUCT_MOVEMENT_SUMMARY",
@@ -54,15 +61,25 @@ public record ErpAiIntentResult(
             "GENERAL", "UNSUPPORTED", "CLARIFICATION"
     );
 
-    /** Backward-compatible constructor used by existing classifier/tests. */
+    /** Backward-compatible constructor for two-field record. */
     public ErpAiIntentResult(String intent, String searchText) {
-        this(intent, searchText, "", "", null, "", List.of());
+        this(intent, searchText, "", "", null, "", List.of(), 1.0,
+                ClassificationSource.DETERMINISTIC, false, "", "");
     }
 
-    /** Backward-compatible constructor for the previous six-field record. */
+    /** Backward-compatible constructor for six-field record. */
     public ErpAiIntentResult(String intent, String searchText, String startDate,
                              String endDate, Integer limit, String clarificationMessage) {
-        this(intent, searchText, startDate, endDate, limit, clarificationMessage, List.of());
+        this(intent, searchText, startDate, endDate, limit, clarificationMessage, List.of(), 1.0,
+                ClassificationSource.DETERMINISTIC, false, "", "");
+    }
+
+    /** Backward-compatible constructor for seven-field record. */
+    public ErpAiIntentResult(String intent, String searchText, String startDate,
+                             String endDate, Integer limit, String clarificationMessage,
+                             List<String> productIdentifiers) {
+        this(intent, searchText, startDate, endDate, limit, clarificationMessage, productIdentifiers,
+                1.0, ClassificationSource.DETERMINISTIC, false, "", "");
     }
 
     public ErpAiIntentResult {
@@ -78,6 +95,13 @@ public record ErpAiIntentResult(
                 .map(String::trim)
                 .distinct()
                 .toList();
+        source = source == null ? ClassificationSource.DETERMINISTIC : source;
+        secondaryIntent = secondaryIntent == null ? "" : secondaryIntent.trim();
+        pendingSlotName = pendingSlotName == null ? "" : pendingSlotName.trim();
+        if (confidence < 0.0 || confidence > 1.0) {
+            confidence = Math.max(0.0, Math.min(1.0, confidence));
+        }
+
         if (limit != null && (limit < 1 || limit > 50)) {
             throw new IllegalArgumentException("Inventory result limit must be between 1 and 50.");
         }
@@ -87,7 +111,21 @@ public record ErpAiIntentResult(
         }
     }
 
+    public static boolean isSupported(String intent) {
+        return intent != null && SUPPORTED_INTENTS.contains(intent);
+    }
+
+    public static Set<String> supportedIntents() {
+        return SUPPORTED_INTENTS;
+    }
+
     public static ErpAiIntentResult clarification(String message) {
-        return new ErpAiIntentResult("CLARIFICATION", "", "", "", null, message, List.of());
+        return new ErpAiIntentResult("CLARIFICATION", "", "", "", null, message, List.of(),
+                1.0, ClassificationSource.DETERMINISTIC, false, "", "");
+    }
+
+    public static ErpAiIntentResult clarification(String message, String pendingSlotName) {
+        return new ErpAiIntentResult("CLARIFICATION", "", "", "", null, message, List.of(),
+                1.0, ClassificationSource.DETERMINISTIC, false, "", pendingSlotName);
     }
 }
