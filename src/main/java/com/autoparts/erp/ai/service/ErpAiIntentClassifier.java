@@ -17,6 +17,18 @@ public class ErpAiIntentClassifier {
             "\\b(?=[A-Z0-9-]*[A-Z])(?=[A-Z0-9-]*\\d)[A-Z0-9]+(?:-[A-Z0-9]+)*\\b",
             Pattern.CASE_INSENSITIVE);
 
+    private static final Pattern PURCHASE_IDENTIFIER = Pattern.compile(
+            "\\bPUR-\\d+\\b", Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern INVOICE_IDENTIFIER = Pattern.compile(
+            "\\bINV-\\d+(?:-\\d+)*\\b", Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern CUSTOMER_IDENTIFIER = Pattern.compile(
+            "\\bCUS(?:T-)?\\d+\\b", Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern PHONE_NUMBER = Pattern.compile(
+            "\\b\\d{10}\\b");
+
     private static final Pattern PRODUCT_COMPARISON_REQUEST = Pattern.compile(
             "\\b(?:compare|comparison|differences?\\s+between|versus|vs\\.?)\\b",
             Pattern.CASE_INSENSITIVE);
@@ -79,6 +91,74 @@ public class ErpAiIntentClassifier {
             Pattern.compile("^(?:current\\s+)?(?:stock|inventory|quantity|availability)$",
                     Pattern.CASE_INSENSITIVE);
 
+    // Stage 2C Regex Patterns: Purchase
+    private static final Pattern PURCHASE_SUMMARY_REQUEST = Pattern.compile(
+            "\\b(?:purchase\\s+summary|purchase\\s+totals?|total\\s+purchases?|procurement\\s+summary|how\\s+much\\s+(?:did\\s+we\\s+)?purchase)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern PURCHASE_STATUS_REQUEST = Pattern.compile(
+            "\\b(?:purchase\\s+status|status\\s+of\\s+purchase|order\\s+status)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern PURCHASE_DETAILS_REQUEST = Pattern.compile(
+            "\\b(?:purchase\\s+details?|details?\\s+of\\s+purchase|view\\s+purchase|purchase\\s+info(?:rmation)?)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern PURCHASE_SEARCH_REQUEST = Pattern.compile(
+            "\\b(?:purchases?|purchase\\s+orders?)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    // Stage 2C Regex Patterns: Sales
+    private static final Pattern SALES_SUMMARY_REQUEST = Pattern.compile(
+            "\\b(?:sales?\\s+summary|sales?\\s+totals?|total\\s+sales?|revenue\\s+summary|total\\s+revenue|sales?\\s+revenue)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern SALE_STATUS_REQUEST = Pattern.compile(
+            "\\b(?:sales?\\s+status|invoice\\s+status|status\\s+of\\s+(?:sale|invoice)|payment\\s+status\\s+of\\s+invoice)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern SALE_DETAILS_REQUEST = Pattern.compile(
+            "\\b(?:sales?\\s+details?|invoice\\s+details?|details?\\s+of\\s+(?:sale|invoice)|show\\s+invoice)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern SALES_SEARCH_REQUEST = Pattern.compile(
+            "\\b(?:sales?|invoices?)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    // Stage 2C Regex Patterns: Customer
+    private static final Pattern CUSTOMER_OUTSTANDING_REQUEST = Pattern.compile(
+            "\\b(?:outstanding(?:\\s+balance)?|pending\\s+balance|customer\\s+balance|balance\\s+for\\s+customer|how\\s+much\\s+does\\s+.*\\s+owe)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern CUSTOMER_SALES_HISTORY_REQUEST = Pattern.compile(
+            "\\b(?:customer\\s+sales?\\s+history|sales?\\s+history\\s+for\\s+customer|customer\\s+purchase\\s+history|invoices?\\s+for\\s+customer)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern CUSTOMER_DETAILS_REQUEST = Pattern.compile(
+            "\\b(?:customer\\s+details?|details?\\s+of\\s+customer|customer\\s+info(?:rmation)?|who\\s+is\\s+customer)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern CUSTOMER_SEARCH_REQUEST = Pattern.compile(
+            "\\b(?:customers?)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    // Stage 2C Regex Patterns: Supplier
+    private static final Pattern SUPPLIER_SUMMARY_REQUEST = Pattern.compile(
+            "\\b(?:supplier\\s+(?:purchase\\s+)?summary|supplier\\s+spend|spend\\s+summary|how\\s+much\\s+(?:did\\s+we\\s+)?buy\\s+from)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern SUPPLIER_PURCHASE_HISTORY_REQUEST = Pattern.compile(
+            "\\b(?:supplier\\s+purchase\\s+history|purchase\\s+history\\s+for\\s+supplier|purchases?\\s+from\\s+supplier|order\\s+history\\s+from)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern SUPPLIER_DETAILS_REQUEST = Pattern.compile(
+            "\\b(?:supplier\\s+details?|details?\\s+of\\s+supplier|supplier\\s+info(?:rmation)?|contact\\s+(?:info|details)\\s+for\\s+supplier)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern SUPPLIER_SEARCH_REQUEST = Pattern.compile(
+            "\\b(?:suppliers?|vendors?)\\b",
+            Pattern.CASE_INSENSITIVE);
+
     private static final List<Pattern> SEARCH_PREFIXES = List.of(
             Pattern.compile("^(?:(?:please|kindly)\\s+)+", Pattern.CASE_INSENSITIVE),
             Pattern.compile("^(?:(?:can|could|would)\\s+you\\s+)+", Pattern.CASE_INSENSITIVE),
@@ -88,21 +168,236 @@ public class ErpAiIntentClassifier {
                     Pattern.CASE_INSENSITIVE),
             Pattern.compile("^(?:the\\s+)?(?:stock(?:\\s+level|\\s+quantity)?|inventory|(?:available\\s+)?quantity|details?|information|price|description|specifications?)\\b(?:\\s+(?:of|for|on|about))?\\s*",
                     Pattern.CASE_INSENSITIVE),
-            Pattern.compile("^(?:the\\s+)?(?:products?|items?)(?:\\s+(?:named|called|by\\s+name))?\\b\\s*",
+            Pattern.compile("^(?:the\\s+)?(?:products?|items?|purchases?|sales?|invoices?|customers?|suppliers?)(?:\\s+(?:named|called|by\\s+name))?\\b\\s*",
                     Pattern.CASE_INSENSITIVE),
             Pattern.compile("^(?:for|about|of|a|an|the)\\b\\s*", Pattern.CASE_INSENSITIVE));
 
     public ErpAiIntentResult classify(String message) {
         if (!StringUtils.hasText(message)) {
-            return ErpAiIntentResult.clarification("Please tell me what product or inventory information you need.");
+            return ErpAiIntentResult.clarification("Please tell me what ERP information you need.");
         }
 
         String normalized = message.toLowerCase(Locale.ROOT);
-        String identifier = extractIdentifier(message);
 
         if (isUnsupportedRequest(normalized)) {
             return new ErpAiIntentResult("UNSUPPORTED", extractSearchText(message));
         }
+
+        // -------------------------------------------------------------
+        // 1. PURCHASE INTENTS
+        // -------------------------------------------------------------
+        String purchaseId = extractPurchaseNumber(message);
+
+        if (PURCHASE_SUMMARY_REQUEST.matcher(message).find()) {
+            Matcher dates = ISO_DATE.matcher(message);
+            String firstDate = dates.find() ? dates.group() : "";
+            String secondDate = dates.find() ? dates.group() : "";
+            return new ErpAiIntentResult("PURCHASE_SUMMARY", "", firstDate, secondDate, 50, "");
+        }
+
+        if (PURCHASE_STATUS_REQUEST.matcher(message).find() || (purchaseId != null && normalized.contains("status"))) {
+            if (purchaseId == null) {
+                return ErpAiIntentResult.clarification("Please provide the purchase number to check its status.");
+            }
+            return new ErpAiIntentResult("PURCHASE_STATUS", purchaseId);
+        }
+
+        if (PURCHASE_DETAILS_REQUEST.matcher(message).find() || (purchaseId != null && !normalized.contains("movements"))) {
+            if (purchaseId == null) {
+                String search = extractSearchText(message);
+                if (!search.isEmpty()) {
+                    return new ErpAiIntentResult("PURCHASE_DETAILS", search);
+                }
+                return ErpAiIntentResult.clarification("Please provide the purchase number or supplier invoice number.");
+            }
+            return new ErpAiIntentResult("PURCHASE_DETAILS", purchaseId);
+        }
+
+        if (PURCHASE_SEARCH_REQUEST.matcher(message).find() && !normalized.contains("movement")
+                && !normalized.contains("supplier purchase") && !(normalized.contains("supplier") && normalized.contains("history"))) {
+            Matcher dates = ISO_DATE.matcher(message);
+            String firstDate = dates.find() ? dates.group() : "";
+            String secondDate = dates.find() ? dates.group() : "";
+
+            if (!firstDate.isEmpty() && !secondDate.isEmpty()) {
+                return validateDateRange("PURCHASE_DATE_RANGE", "", firstDate, secondDate);
+            }
+
+            if (!normalized.contains("history") && (normalized.contains("from supplier") || normalized.contains("for supplier") || normalized.contains("by supplier"))) {
+                String supplierQuery = extractEntityQuery(message, "supplier");
+                if (supplierQuery.isEmpty()) {
+                    return ErpAiIntentResult.clarification("Please provide the supplier name to search purchases.");
+                }
+                return new ErpAiIntentResult("PURCHASES_BY_SUPPLIER", supplierQuery);
+            }
+
+            String search = extractSearchText(message);
+            if (StringUtils.hasText(search) && !search.equalsIgnoreCase("purchases") && !search.equalsIgnoreCase("purchase")) {
+                return new ErpAiIntentResult("PURCHASE_SEARCH", search);
+            }
+            return new ErpAiIntentResult("PURCHASE_SEARCH", "");
+        }
+
+        // -------------------------------------------------------------
+        // 2. CUSTOMER INTENTS
+        // -------------------------------------------------------------
+        String customerId = extractCustomerCode(message);
+        if (customerId == null) {
+            customerId = extractPhoneNumber(message);
+        }
+
+        if (CUSTOMER_OUTSTANDING_REQUEST.matcher(message).find()) {
+            String query = customerId != null ? customerId : extractEntityQuery(message, "customer");
+            if (query.isEmpty()) {
+                query = extractSearchText(message);
+            }
+            if (query.isEmpty()) {
+                return ErpAiIntentResult.clarification("Please provide the customer name, phone, or customer code.");
+            }
+            return new ErpAiIntentResult("CUSTOMER_OUTSTANDING", query);
+        }
+
+        if (CUSTOMER_SALES_HISTORY_REQUEST.matcher(message).find()) {
+            String query = customerId != null ? customerId : extractEntityQuery(message, "customer");
+            if (query.isEmpty()) {
+                query = extractSearchText(message);
+            }
+            if (query.isEmpty()) {
+                return ErpAiIntentResult.clarification("Please provide the customer name, phone, or customer code.");
+            }
+            return new ErpAiIntentResult("CUSTOMER_SALES_HISTORY", query);
+        }
+
+        if (CUSTOMER_DETAILS_REQUEST.matcher(message).find()) {
+            String query = customerId != null ? customerId : extractEntityQuery(message, "customer");
+            if (query.isEmpty()) {
+                query = extractSearchText(message);
+            }
+            if (query.isEmpty()) {
+                return ErpAiIntentResult.clarification("Please provide the customer name, phone, or customer code.");
+            }
+            return new ErpAiIntentResult("CUSTOMER_DETAILS", query);
+        }
+
+        if (CUSTOMER_SEARCH_REQUEST.matcher(message).find()
+                && !normalized.contains("sale") && !normalized.contains("sales") && !normalized.contains("invoice")) {
+            String query = customerId != null ? customerId : extractEntityQuery(message, "customer");
+            if (query.isEmpty()) {
+                query = extractSearchText(message);
+            }
+            if (StringUtils.hasText(query) && !query.equalsIgnoreCase("customer") && !query.equalsIgnoreCase("customers")) {
+                return new ErpAiIntentResult("CUSTOMER_SEARCH", query);
+            }
+            return ErpAiIntentResult.clarification("Please provide a customer name, phone number, or customer code.");
+        }
+
+        // -------------------------------------------------------------
+        // 3. SALES INTENTS
+        // -------------------------------------------------------------
+        String invoiceId = extractInvoiceNumber(message);
+
+        if (SALES_SUMMARY_REQUEST.matcher(message).find()) {
+            Matcher dates = ISO_DATE.matcher(message);
+            String firstDate = dates.find() ? dates.group() : "";
+            String secondDate = dates.find() ? dates.group() : "";
+            return new ErpAiIntentResult("SALES_SUMMARY", "", firstDate, secondDate, 50, "");
+        }
+
+        if (SALE_STATUS_REQUEST.matcher(message).find() || (invoiceId != null && normalized.contains("status"))) {
+            if (invoiceId == null) {
+                return ErpAiIntentResult.clarification("Please provide the invoice number to check sale status.");
+            }
+            return new ErpAiIntentResult("SALE_STATUS", invoiceId);
+        }
+
+        if (SALE_DETAILS_REQUEST.matcher(message).find() || (invoiceId != null && !normalized.contains("movement"))) {
+            if (invoiceId == null) {
+                String search = extractSearchText(message);
+                if (!search.isEmpty()) {
+                    return new ErpAiIntentResult("SALE_DETAILS", search);
+                }
+                return ErpAiIntentResult.clarification("Please provide the invoice number to view sales details.");
+            }
+            return new ErpAiIntentResult("SALE_DETAILS", invoiceId);
+        }
+
+        if (SALES_SEARCH_REQUEST.matcher(message).find() && !normalized.contains("movement")) {
+            Matcher dates = ISO_DATE.matcher(message);
+            String firstDate = dates.find() ? dates.group() : "";
+            String secondDate = dates.find() ? dates.group() : "";
+
+            if (!firstDate.isEmpty() && !secondDate.isEmpty()) {
+                return validateDateRange("SALES_DATE_RANGE", "", firstDate, secondDate);
+            }
+
+            if (normalized.contains("customer") || normalized.contains("for customer") || normalized.contains("to customer")) {
+                String customerQuery = extractEntityQuery(message, "customer");
+                if (customerQuery.isEmpty()) {
+                    return ErpAiIntentResult.clarification("Please provide the customer name or phone number.");
+                }
+                return new ErpAiIntentResult("SALES_BY_CUSTOMER", customerQuery);
+            }
+
+            String search = extractSearchText(message);
+            if (StringUtils.hasText(search) && !search.equalsIgnoreCase("sales") && !search.equalsIgnoreCase("sale")
+                    && !search.equalsIgnoreCase("invoices") && !search.equalsIgnoreCase("invoice")) {
+                return new ErpAiIntentResult("SALES_SEARCH", search);
+            }
+            return new ErpAiIntentResult("SALES_SEARCH", "");
+        }
+
+        // -------------------------------------------------------------
+        // 4. SUPPLIER INTENTS
+        // -------------------------------------------------------------
+        if (SUPPLIER_SUMMARY_REQUEST.matcher(message).find()) {
+            String query = extractEntityQuery(message, "supplier");
+            if (query.isEmpty()) {
+                query = extractSearchText(message);
+            }
+            if (query.isEmpty()) {
+                return ErpAiIntentResult.clarification("Please provide the supplier name to view procurement summary.");
+            }
+            return new ErpAiIntentResult("SUPPLIER_SUMMARY", query);
+        }
+
+        if (SUPPLIER_PURCHASE_HISTORY_REQUEST.matcher(message).find()) {
+            String query = extractEntityQuery(message, "supplier");
+            if (query.isEmpty()) {
+                query = extractSearchText(message);
+            }
+            if (query.isEmpty()) {
+                return ErpAiIntentResult.clarification("Please provide the supplier name to view purchase history.");
+            }
+            return new ErpAiIntentResult("SUPPLIER_PURCHASE_HISTORY", query);
+        }
+
+        if (SUPPLIER_DETAILS_REQUEST.matcher(message).find()) {
+            String query = extractEntityQuery(message, "supplier");
+            if (query.isEmpty()) {
+                query = extractSearchText(message);
+            }
+            if (query.isEmpty()) {
+                return ErpAiIntentResult.clarification("Please provide the supplier name to retrieve supplier details.");
+            }
+            return new ErpAiIntentResult("SUPPLIER_DETAILS", query);
+        }
+
+        if (SUPPLIER_SEARCH_REQUEST.matcher(message).find()) {
+            String query = extractEntityQuery(message, "supplier");
+            if (query.isEmpty()) {
+                query = extractSearchText(message);
+            }
+            if (StringUtils.hasText(query) && !query.equalsIgnoreCase("supplier") && !query.equalsIgnoreCase("suppliers")
+                    && !query.equalsIgnoreCase("vendor") && !query.equalsIgnoreCase("vendors")) {
+                return new ErpAiIntentResult("SUPPLIER_SEARCH", query);
+            }
+            return ErpAiIntentResult.clarification("Please provide a supplier name, contact person, or phone number.");
+        }
+
+        // -------------------------------------------------------------
+        // 5. PRODUCT & INVENTORY INTENTS (PRESERVED STAGE 2B)
+        // -------------------------------------------------------------
+        String identifier = extractIdentifier(message);
 
         if (PRODUCT_COMPARISON_REQUEST.matcher(message).find()) {
             List<String> identifiers = extractIdentifiers(message);
@@ -150,19 +445,7 @@ public class ErpAiIntentClassifier {
                     return ErpAiIntentResult.clarification(
                             "Please provide both start and end dates in YYYY-MM-DD format.");
                 }
-                try {
-                    LocalDate from = LocalDate.parse(firstDate);
-                    LocalDate to = LocalDate.parse(secondDate);
-                    if (to.isBefore(from)) {
-                        return ErpAiIntentResult.clarification(
-                                "The end date must be on or after the start date.");
-                    }
-                } catch (DateTimeParseException ex) {
-                    return ErpAiIntentResult.clarification(
-                            "Please provide valid dates in YYYY-MM-DD format.");
-                }
-                return new ErpAiIntentResult(
-                        "PRODUCT_MOVEMENTS_BY_DATE_RANGE", identifier, firstDate, secondDate, 50, "");
+                return validateDateRange("PRODUCT_MOVEMENTS_BY_DATE_RANGE", identifier, firstDate, secondDate);
             }
 
             if (identifier.isEmpty()) {
@@ -202,6 +485,19 @@ public class ErpAiIntentClassifier {
         return new ErpAiIntentResult("GENERAL", searchText);
     }
 
+    private ErpAiIntentResult validateDateRange(String intent, String identifier, String firstDate, String secondDate) {
+        try {
+            LocalDate from = LocalDate.parse(firstDate);
+            LocalDate to = LocalDate.parse(secondDate);
+            if (to.isBefore(from)) {
+                return ErpAiIntentResult.clarification("The end date must be on or after the start date.");
+            }
+        } catch (DateTimeParseException ex) {
+            return ErpAiIntentResult.clarification("Please provide valid dates in YYYY-MM-DD format.");
+        }
+        return new ErpAiIntentResult(intent, identifier, firstDate, secondDate, 50, "");
+    }
+
     private int extractLimit(String message) {
         Matcher matcher = RESULT_LIMIT.matcher(message);
         if (!matcher.find()) {
@@ -220,9 +516,36 @@ public class ErpAiIntentClassifier {
     }
 
     private boolean isUnsupportedRequest(String message) {
-        return message.contains("supplier")
-                || containsAny(message, "create purchase", "create sales", "create invoice",
-                "generate invoice", "make purchase", "make sales", "record purchase", "record sales");
+        if (Pattern.compile("\\b(?:create|make|record|add|update|delete|generate|register)\\s+(?:a\\s+)?(?:new\\s+)?(?:purchase|sale|sales|invoice|customer|supplier|vendor)\\b", Pattern.CASE_INSENSITIVE).matcher(message).find()) {
+            return true;
+        }
+        return containsAny(message,
+                "create purchase", "create sale", "create sales", "create invoice", "generate invoice",
+                "make purchase", "make sale", "make sales", "record purchase", "record sale", "record sales",
+                "add customer", "delete customer", "add supplier", "delete supplier",
+                "create customer", "create supplier", "update customer", "update supplier",
+                "sales return", "purchase return", "refund", "credit note",
+                "expense", "cash register", "daily closing");
+    }
+
+    private String extractPurchaseNumber(String message) {
+        Matcher matcher = PURCHASE_IDENTIFIER.matcher(message);
+        return matcher.find() ? matcher.group().trim().toUpperCase(Locale.ROOT) : null;
+    }
+
+    private String extractInvoiceNumber(String message) {
+        Matcher matcher = INVOICE_IDENTIFIER.matcher(message);
+        return matcher.find() ? matcher.group().trim().toUpperCase(Locale.ROOT) : null;
+    }
+
+    private String extractCustomerCode(String message) {
+        Matcher matcher = CUSTOMER_IDENTIFIER.matcher(message);
+        return matcher.find() ? matcher.group().trim().toUpperCase(Locale.ROOT) : null;
+    }
+
+    private String extractPhoneNumber(String message) {
+        Matcher matcher = PHONE_NUMBER.matcher(message);
+        return matcher.find() ? matcher.group().trim() : null;
     }
 
     private List<String> extractIdentifiers(String message) {
@@ -242,6 +565,42 @@ public class ErpAiIntentClassifier {
         return matcher.find() ? matcher.group().trim() : "";
     }
 
+    private String extractEntityQuery(String message, String entityType) {
+        String lower = message.toLowerCase(Locale.ROOT);
+        String[] triggers = {
+                entityType + " details for ",
+                entityType + " details of ",
+                "details for " + entityType + " ",
+                "details of " + entityType + " ",
+                "details for ",
+                "details of ",
+                "sales history for " + entityType + " ",
+                "purchase history for " + entityType + " ",
+                "history for " + entityType + " ",
+                entityType + " named ",
+                entityType + " called ",
+                "for " + entityType + " ",
+                "to " + entityType + " ",
+                "from " + entityType + " ",
+                entityType + " "
+        };
+        for (String trigger : triggers) {
+            int idx = lower.indexOf(trigger);
+            if (idx >= 0) {
+                String sub = message.substring(idx + trigger.length()).trim();
+                return cleanTrailingPunctuation(sub);
+            }
+        }
+        return "";
+    }
+
+    private String cleanTrailingPunctuation(String text) {
+        return text.replaceAll("[?!.;,]+$", "")
+                .replaceAll("\\s+(?:please|thanks?)$", "")
+                .replaceAll("^[\\p{Punct}\\s]+|[\\p{Punct}\\s]+$", "")
+                .trim();
+    }
+
     private String extractSearchText(String message) {
         String identifier = extractIdentifier(message);
         if (!identifier.isEmpty()) {
@@ -256,10 +615,7 @@ public class ErpAiIntentClassifier {
             }
             changed = !cleaned.equals(previous);
         } while (changed);
-        return cleaned.replaceAll("[?!.;,]+$", "")
-                .replaceAll("\\s+(?:please|thanks?)$", "")
-                .replaceAll("^[\\p{Punct}\\s]+|[\\p{Punct}\\s]+$", "")
-                .trim();
+        return cleanTrailingPunctuation(cleaned);
     }
 
     private boolean containsAny(String message, String... values) {

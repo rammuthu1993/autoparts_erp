@@ -786,6 +786,11 @@ class AiAssistantServiceTest {
                 Map.of("role", "USER", "content", message)
         ));
         when(aiRepository.createAgentRun(conversationId, user)).thenReturn(runId);
+        when(aiRepository.updateAgentRunStatus(
+                runId,
+                AiAgentRunStatus.COMPLETED,
+                null
+        )).thenReturn(1);
 
         ErpAiExecutionContext validContext = ErpAiExecutionContext.create(
                 conversationId, user, List.of("ROLE_CASHIER"));

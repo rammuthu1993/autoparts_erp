@@ -229,7 +229,7 @@ class ErpAiGraphNodesTest {
         var state = new ErpAiGraphState(
                 Map.of(
                         "currentMessage",
-                        "Show supplier details"
+                        "Create a new sale"
                 )
         );
 

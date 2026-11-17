@@ -140,9 +140,9 @@ class ErpAiIntentClassifierTest {
     }
 
     @Test
-    void shouldClassifySupplierRequestAsUnsupported() {
+    void shouldClassifySupplierMutationAsUnsupported() {
         ErpAiIntentResult result =
-                classifier.classify("Show supplier details");
+                classifier.classify("Add supplier Acme Parts");
 
         assertEquals("UNSUPPORTED", result.intent());
     }

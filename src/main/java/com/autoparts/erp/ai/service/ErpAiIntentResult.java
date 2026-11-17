@@ -13,10 +13,30 @@ public record ErpAiIntentResult(
         List<String> productIdentifiers
 ) {
     private static final Set<String> SUPPORTED_INTENTS = Set.of(
+            // Products & Inventory (Stage 2B)
             "PRODUCT_SEARCH", "PRODUCT_DETAILS", "PRODUCT_STOCK", "COUNT_PRODUCTS",
             "LOW_STOCK_PRODUCTS", "PRODUCT_MOVEMENT_HISTORY", "PRODUCT_MOVEMENT_SUMMARY",
             "PRODUCT_MOVEMENTS_BY_DATE_RANGE", "RECENT_INVENTORY_MOVEMENTS",
-            "INVENTORY_ADJUSTMENTS", "PRODUCT_COMPARISON", "GENERAL", "UNSUPPORTED", "CLARIFICATION"
+            "INVENTORY_ADJUSTMENTS", "PRODUCT_COMPARISON",
+
+            // Purchases (Stage 2C)
+            "PURCHASE_SEARCH", "PURCHASE_DETAILS", "PURCHASE_DATE_RANGE",
+            "PURCHASES_BY_SUPPLIER", "PURCHASE_SUMMARY", "PURCHASE_STATUS",
+
+            // Sales (Stage 2C)
+            "SALES_SEARCH", "SALE_DETAILS", "SALES_DATE_RANGE",
+            "SALES_BY_CUSTOMER", "SALES_SUMMARY", "SALE_STATUS",
+
+            // Customers (Stage 2C)
+            "CUSTOMER_SEARCH", "CUSTOMER_DETAILS", "CUSTOMER_SALES_HISTORY",
+            "CUSTOMER_OUTSTANDING",
+
+            // Suppliers (Stage 2C)
+            "SUPPLIER_SEARCH", "SUPPLIER_DETAILS", "SUPPLIER_PURCHASE_HISTORY",
+            "SUPPLIER_SUMMARY",
+
+            // Core
+            "GENERAL", "UNSUPPORTED", "CLARIFICATION"
     );
 
     /** Backward-compatible constructor used by existing classifier/tests. */
