@@ -2,10 +2,12 @@ package com.autoparts.erp.ai.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.bsc.langgraph4j.RunnableConfig;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,6 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.model.ChatModel;
 
+import com.autoparts.erp.ai.security.ErpAiExecutionContext;
 import com.autoparts.erp.ai.tools.InventoryHistoryLookupTool;
 import com.autoparts.erp.ai.tools.ProductLookupTool;
 
@@ -150,10 +153,15 @@ class ErpAiComparisonAndContextTest {
     @Test
     void comparisonExecutionUsesEveryIdentifier() {
         List<String> identifiers = List.of("GAP-000001", "GAP-000002");
-        when(productLookupTool.getProductsByIdentifiers(identifiers)).thenReturn(List.of());
+        ErpAiExecutionContext ctx = ErpAiExecutionContext.create(
+                UUID.randomUUID(), "test-user", List.of("ROLE_ADMIN"));
+        RunnableConfig cfg = RunnableConfig.builder()
+                .addMetadata("executionContext", ctx)
+                .build();
+        when(productLookupTool.getProductsByIdentifiers(eq(identifiers), any(ErpAiExecutionContext.class))).thenReturn(List.of());
         graphNodes.executeProductTool(new ErpAiGraphState(Map.of(
                 "intent", "PRODUCT_COMPARISON",
-                "productIdentifiers", identifiers)), RunnableConfig.builder().build());
-        verify(productLookupTool).getProductsByIdentifiers(identifiers);
+                "productIdentifiers", identifiers)), cfg);
+        verify(productLookupTool).getProductsByIdentifiers(eq(identifiers), eq(ctx));
     }
 }

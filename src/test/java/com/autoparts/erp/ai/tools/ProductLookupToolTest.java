@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,6 +27,9 @@ import org.springframework.ai.tool.ToolCallback;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import com.autoparts.erp.ai.security.ErpAiContextHolder;
+import com.autoparts.erp.ai.security.ErpAiExecutionContext;
+
 @ExtendWith(MockitoExtension.class)
 class ProductLookupToolTest {
 
@@ -37,6 +41,13 @@ class ProductLookupToolTest {
     @BeforeEach
     void setUp() {
         productLookupTool = new ProductLookupTool(jdbcTemplate);
+        ErpAiContextHolder.setContext(ErpAiExecutionContext.create(
+                UUID.randomUUID(), "test-user", List.of("ROLE_ADMIN")));
+    }
+
+    @AfterEach
+    void tearDown() {
+        ErpAiContextHolder.clear();
     }
 
     @Test

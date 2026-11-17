@@ -11,6 +11,9 @@ import java.util.concurrent.CancellationException;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+
+import com.autoparts.erp.ai.security.ErpAiContextHolder;
+import com.autoparts.erp.ai.security.ErpAiExecutionContext;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,6 +65,20 @@ public class AiAssistantService {
             UUID conversationId,
             String message,
             String userSubject
+    ) {
+        return chat(
+                conversationId,
+                message,
+                userSubject,
+                ErpAiContextHolder.getContext().orElse(null)
+        );
+    }
+
+    public AiChatResponse chat(
+            UUID conversationId,
+            String message,
+            String userSubject,
+            ErpAiExecutionContext executionContext
     ) {
 
         validateMessage(message);
@@ -135,15 +152,44 @@ public class AiAssistantService {
                 userSubject
         );
 
+        ErpAiExecutionContext effectiveContext = executionContext;
+        if (effectiveContext != null) {
+            if (!userSubject.equals(effectiveContext.userSubject())) {
+                log.warn(
+                        "AI execution context userSubject mismatch rejected. Authenticated: '{}', Context: '{}', Conversation: {}",
+                        userSubject,
+                        effectiveContext.userSubject(),
+                        activeConversationId
+                );
+                throw new AccessDeniedException(
+                        "Security context userSubject does not match authenticated user."
+                );
+            }
+
+            if (!activeConversationId.equals(effectiveContext.conversationId())) {
+                effectiveContext = ErpAiExecutionContext.create(
+                        activeConversationId,
+                        userSubject,
+                        effectiveContext.authorities()
+                );
+            }
+        }
+
         try {
 
-            // Execute LangGraph4j agent.
-            // Retain your existing two-argument method signature.
-        	String assistantResponse = erpAiAgentService.chat(
-        	        activeConversationId,
-        	        runId,
-        	        messages
-        	);
+            // Execute LangGraph4j agent with propagated execution context.
+            String assistantResponse = (effectiveContext != null)
+                    ? erpAiAgentService.chat(
+                            activeConversationId,
+                            runId,
+                            messages,
+                            effectiveContext
+                    )
+                    : erpAiAgentService.chat(
+                            activeConversationId,
+                            runId,
+                            messages
+                    );
         	
             if (!StringUtils.hasText(assistantResponse)) {
                 throw new IllegalStateException(

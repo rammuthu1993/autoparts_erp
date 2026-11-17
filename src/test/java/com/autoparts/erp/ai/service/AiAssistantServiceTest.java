@@ -6,6 +6,7 @@ import com.autoparts.erp.ai.exception.AiProviderResponseException;
 import com.autoparts.erp.ai.exception.AiProviderTimeoutException;
 import com.autoparts.erp.ai.model.AiAgentRun;
 import com.autoparts.erp.ai.repository.AiRepository;
+import com.autoparts.erp.ai.security.ErpAiExecutionContext;
 import com.autoparts.erp.ai.tools.ProductLookupTool;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,6 +39,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -741,5 +743,59 @@ class AiAssistantServiceTest {
                 eq(AiAgentRunStatus.FAILED),
                 anyString()
         );
+    }
+
+    @Test
+    void shouldRejectExecutionWhenContextUserSubjectMismatchesAuthenticatedUser() {
+        UUID conversationId = UUID.randomUUID();
+        String authenticatedUser = "john_doe";
+        String spoofedUser = "admin";
+        String message = "Find product GAP-000001";
+
+        when(aiRepository.conversationExists(conversationId, authenticatedUser)).thenReturn(true);
+        when(aiRepository.getMessages(conversationId)).thenReturn(List.of(
+                Map.of("role", "USER", "content", message)
+        ));
+        when(aiRepository.createAgentRun(conversationId, authenticatedUser)).thenReturn(UUID.randomUUID());
+
+        // Context contains spoofed "admin" subject while caller is authenticated as "john_doe"
+        ErpAiExecutionContext spoofedContext = ErpAiExecutionContext.create(
+                conversationId, spoofedUser, List.of("ROLE_ADMIN"));
+
+        AccessDeniedException thrown = assertThrows(
+                AccessDeniedException.class,
+                () -> aiAssistantService.chat(conversationId, message, authenticatedUser, spoofedContext)
+        );
+
+        assertTrue(thrown.getMessage().contains("userSubject does not match"),
+                "Mismatched userSubject must be rejected: " + thrown.getMessage());
+
+        // Must never call the agent service with spoofed context
+        verifyNoInteractions(erpAiAgentService);
+    }
+
+    @Test
+    void shouldPermitExecutionWhenContextMatchesAuthenticatedUser() {
+        UUID conversationId = UUID.randomUUID();
+        UUID runId = UUID.randomUUID();
+        String user = "legit_user";
+        String message = "Find product GAP-000001";
+
+        when(aiRepository.conversationExists(conversationId, user)).thenReturn(true);
+        when(aiRepository.getMessages(conversationId)).thenReturn(List.of(
+                Map.of("role", "USER", "content", message)
+        ));
+        when(aiRepository.createAgentRun(conversationId, user)).thenReturn(runId);
+
+        ErpAiExecutionContext validContext = ErpAiExecutionContext.create(
+                conversationId, user, List.of("ROLE_CASHIER"));
+
+        when(erpAiAgentService.chat(eq(conversationId), eq(runId), anyList(), eq(validContext)))
+                .thenReturn("Product found");
+
+        var response = aiAssistantService.chat(conversationId, message, user, validContext);
+
+        assertEquals("Product found", response.response());
+        verify(erpAiAgentService).chat(eq(conversationId), eq(runId), anyList(), eq(validContext));
     }
 }

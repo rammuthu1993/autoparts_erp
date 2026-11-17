@@ -15,6 +15,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import com.autoparts.erp.ai.security.ErpAiContextHolder;
+import com.autoparts.erp.ai.security.ErpAiExecutionContext;
+import com.autoparts.erp.ai.security.ToolAuthorizationException;
+
 @Component
 public class InventoryHistoryLookupTool {
 
@@ -30,9 +34,30 @@ public class InventoryHistoryLookupTool {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    // --------------------------------------------------
+    // Authorization Enforcement
+    // --------------------------------------------------
+
+    private void checkAdminOrManagerAccess(ErpAiExecutionContext context) {
+        if (context == null) {
+            throw new ToolAuthorizationException("Access denied. No authenticated execution context provided for AI inventory history tool.");
+        }
+        context.requireAnyRole("ROLE_ADMIN", "ROLE_MANAGER");
+    }
+
+    private ErpAiExecutionContext resolveContext() {
+        return ErpAiContextHolder.getContext().orElseThrow(() ->
+                new ToolAuthorizationException("Access denied. No authenticated execution context available for AI inventory history tool."));
+    }
+
     @Tool(description = "Retrieve the latest 50 inventory movements for an exact product code.")
     public List<Map<String, Object>> getProductMovementHistory(String productCode) {
+        return getProductMovementHistory(productCode, resolveContext());
+    }
+
+    public List<Map<String, Object>> getProductMovementHistory(String productCode, ErpAiExecutionContext context) {
         checkCancellation();
+        checkAdminOrManagerAccess(context);
         if (!StringUtils.hasText(productCode)) return List.of();
         return query("getProductMovementHistory", """
                 SELECT im.uuid AS movement_uuid, p.product_code, p.part_no,
@@ -54,7 +79,12 @@ public class InventoryHistoryLookupTool {
 
     @Tool(description = "Summarize inventory movements grouped by movement type for a product code or part number.")
     public List<Map<String, Object>> getProductMovementSummary(String productIdentifier) {
+        return getProductMovementSummary(productIdentifier, resolveContext());
+    }
+
+    public List<Map<String, Object>> getProductMovementSummary(String productIdentifier, ErpAiExecutionContext context) {
         checkCancellation();
+        checkAdminOrManagerAccess(context);
         if (!StringUtils.hasText(productIdentifier)) return List.of();
         return query("getProductMovementSummary", """
                 SELECT p.product_code, p.part_no, p.name AS product_name,
@@ -77,7 +107,13 @@ public class InventoryHistoryLookupTool {
     @Tool(description = "Retrieve a product's inventory movements between inclusive YYYY-MM-DD dates.")
     public List<Map<String, Object>> getProductMovementsByDateRange(
             String productIdentifier, String startDate, String endDate) {
+        return getProductMovementsByDateRange(productIdentifier, startDate, endDate, resolveContext());
+    }
+
+    public List<Map<String, Object>> getProductMovementsByDateRange(
+            String productIdentifier, String startDate, String endDate, ErpAiExecutionContext context) {
         checkCancellation();
+        checkAdminOrManagerAccess(context);
         if (!StringUtils.hasText(productIdentifier)
                 || !StringUtils.hasText(startDate) || !StringUtils.hasText(endDate)) {
             throw new IllegalArgumentException("Product identifier, start date and end date are required.");
@@ -113,7 +149,12 @@ public class InventoryHistoryLookupTool {
 
     @Tool(description = "Retrieve recent inventory movements across all products. Limit must be 1 to 50.")
     public List<Map<String, Object>> getRecentInventoryMovements(int requestedLimit) {
+        return getRecentInventoryMovements(requestedLimit, resolveContext());
+    }
+
+    public List<Map<String, Object>> getRecentInventoryMovements(int requestedLimit, ErpAiExecutionContext context) {
         checkCancellation();
+        checkAdminOrManagerAccess(context);
         int limit = normalizeLimit(requestedLimit);
         return query("getRecentInventoryMovements", """
                 SELECT im.uuid AS movement_uuid, p.product_code, p.part_no,
@@ -132,12 +173,21 @@ public class InventoryHistoryLookupTool {
     }
 
     public List<Map<String, Object>> getRecentInventoryMovements() {
-        return getRecentInventoryMovements(DEFAULT_RECENT_LIMIT);
+        return getRecentInventoryMovements(DEFAULT_RECENT_LIMIT, resolveContext());
+    }
+
+    public List<Map<String, Object>> getRecentInventoryMovements(ErpAiExecutionContext context) {
+        return getRecentInventoryMovements(DEFAULT_RECENT_LIMIT, context);
     }
 
     @Tool(description = "Retrieve inventory adjustment history. Product identifier is optional; limit must be 1 to 50.")
     public List<Map<String, Object>> getInventoryAdjustments(String productIdentifier, int requestedLimit) {
+        return getInventoryAdjustments(productIdentifier, requestedLimit, resolveContext());
+    }
+
+    public List<Map<String, Object>> getInventoryAdjustments(String productIdentifier, int requestedLimit, ErpAiExecutionContext context) {
         checkCancellation();
+        checkAdminOrManagerAccess(context);
         int limit = normalizeLimit(requestedLimit);
         boolean filterByProduct = StringUtils.hasText(productIdentifier);
         String sql = """
@@ -164,7 +214,11 @@ public class InventoryHistoryLookupTool {
     }
 
     public List<Map<String, Object>> getInventoryAdjustments() {
-        return getInventoryAdjustments("", MAX_LIMIT);
+        return getInventoryAdjustments("", MAX_LIMIT, resolveContext());
+    }
+
+    public List<Map<String, Object>> getInventoryAdjustments(ErpAiExecutionContext context) {
+        return getInventoryAdjustments("", MAX_LIMIT, context);
     }
 
     private List<Map<String, Object>> query(String operation, String sql, Object... args) {

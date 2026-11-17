@@ -18,6 +18,10 @@ import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 
+import com.autoparts.erp.ai.security.ErpAiContextHolder;
+import com.autoparts.erp.ai.security.ErpAiExecutionContext;
+import com.autoparts.erp.ai.security.ToolAuthorizationException;
+
 @Component
 public class ProductLookupTool {
 
@@ -33,6 +37,22 @@ public class ProductLookupTool {
     }
 
     // --------------------------------------------------
+    // Authorization Enforcement
+    // --------------------------------------------------
+
+    private void checkSalesAccess(ErpAiExecutionContext context) {
+        if (context == null) {
+            throw new ToolAuthorizationException("Access denied. No authenticated execution context provided for AI tool.");
+        }
+        context.requireAnyRole("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_CASHIER");
+    }
+
+    private ErpAiExecutionContext resolveContext() {
+        return ErpAiContextHolder.getContext().orElseThrow(() ->
+                new ToolAuthorizationException("Access denied. No authenticated execution context available for AI tool."));
+    }
+
+    // --------------------------------------------------
     // 1. Search Products
     // --------------------------------------------------
 
@@ -45,8 +65,12 @@ public class ProductLookupTool {
         This tool only reads product information.
         """)
     public List<Map<String, Object>> searchProducts(String searchText) {
-    	
-    	checkCancellation();
+        return searchProducts(searchText, resolveContext());
+    }
+
+    public List<Map<String, Object>> searchProducts(String searchText, ErpAiExecutionContext context) {
+        checkCancellation();
+        checkSalesAccess(context);
 
         if (!StringUtils.hasText(searchText)) {
             log.warn("AI tool searchProducts called with empty search text");
@@ -112,7 +136,13 @@ public class ProductLookupTool {
     // --------------------------------------------------
 
     public List<Map<String, Object>> getProductsByIdentifiers(List<String> identifiers) {
+        return getProductsByIdentifiers(identifiers, resolveContext());
+    }
+
+    public List<Map<String, Object>> getProductsByIdentifiers(List<String> identifiers, ErpAiExecutionContext context) {
         checkCancellation();
+        checkSalesAccess(context);
+
         if (identifiers == null || identifiers.size() < 2 || identifiers.size() > 5) {
             throw new IllegalArgumentException("Compare between 2 and 5 products.");
         }
@@ -161,7 +191,13 @@ public class ProductLookupTool {
         This counts product records, not inventory quantity.
         """)
     public Long countProducts() {
-    	checkCancellation();
+        return countProducts(resolveContext());
+    }
+
+    public Long countProducts(ErpAiExecutionContext context) {
+        checkCancellation();
+        checkSalesAccess(context);
+
         long startTime = System.nanoTime();
 
         log.info("AI tool execution started: countProducts");
@@ -212,7 +248,13 @@ public class ProductLookupTool {
         Use this when the user asks for details about a specific product.
         """)
     public List<Map<String, Object>> getProductDetails(String searchText) {
-    	checkCancellation();
+        return getProductDetails(searchText, resolveContext());
+    }
+
+    public List<Map<String, Object>> getProductDetails(String searchText, ErpAiExecutionContext context) {
+        checkCancellation();
+        checkSalesAccess(context);
+
         if (!StringUtils.hasText(searchText)) {
             log.warn("AI tool getProductDetails called with empty search text");
             return List.of();
@@ -286,7 +328,13 @@ public class ProductLookupTool {
         that need restocking.
         """)
     public List<Map<String, Object>> getLowStockProducts() {
-    	checkCancellation();
+        return getLowStockProducts(resolveContext());
+    }
+
+    public List<Map<String, Object>> getLowStockProducts(ErpAiExecutionContext context) {
+        checkCancellation();
+        checkSalesAccess(context);
+
         long startTime = System.nanoTime();
 
         log.info("AI tool execution started: getLowStockProducts");
@@ -348,7 +396,13 @@ public class ProductLookupTool {
         for a specific product.
         """)
     public List<Map<String, Object>> getProductStock(String searchText) {
-    	checkCancellation();
+        return getProductStock(searchText, resolveContext());
+    }
+
+    public List<Map<String, Object>> getProductStock(String searchText, ErpAiExecutionContext context) {
+        checkCancellation();
+        checkSalesAccess(context);
+
         if (!StringUtils.hasText(searchText)) {
             log.warn("AI tool getProductStock called with empty search text");
             return List.of();

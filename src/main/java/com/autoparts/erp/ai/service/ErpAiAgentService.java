@@ -30,6 +30,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.autoparts.erp.ai.security.ErpAiContextHolder;
+import com.autoparts.erp.ai.security.ErpAiExecutionContext;
+
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -235,6 +238,20 @@ public class ErpAiAgentService {
             UUID runId,
             List<Message> messages
     ) {
+        return chat(
+                conversationId,
+                runId,
+                messages,
+                ErpAiContextHolder.getContext().orElse(null)
+        );
+    }
+
+    public String chat(
+            UUID conversationId,
+            UUID runId,
+            List<Message> messages,
+            ErpAiExecutionContext executionContext
+    ) {
 
         if (conversationId == null) {
             throw new IllegalArgumentException(
@@ -280,9 +297,14 @@ public class ErpAiAgentService {
 
             execution.requireRunning();
 
-            var config = RunnableConfig.builder()
-                    .threadId(conversationId.toString())
-                    .build();
+            var configBuilder = RunnableConfig.builder()
+                    .threadId(conversationId.toString());
+
+            if (executionContext != null) {
+                configBuilder.addMetadata("executionContext", executionContext);
+            }
+
+            var config = configBuilder.build();
 
             List<Map<String, String>> history =
                     convertHistory(messages);

@@ -2,13 +2,17 @@ package com.autoparts.erp.ai.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CancellationException;
 
 import org.bsc.langgraph4j.RunnableConfig;
@@ -28,6 +32,7 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.prompt.Prompt;
 
 import com.autoparts.erp.ai.exception.AiProviderResponseException;
+import com.autoparts.erp.ai.security.ErpAiExecutionContext;
 import com.autoparts.erp.ai.tools.ProductLookupTool;
 import com.autoparts.erp.ai.tools.InventoryHistoryLookupTool;
 
@@ -57,7 +62,11 @@ class ErpAiGraphNodesTest {
                 inventoryHistoryLookupTool
         );
 
-        config = RunnableConfig.builder().build();
+        ErpAiExecutionContext testContext = ErpAiExecutionContext.create(
+                UUID.randomUUID(), "test-user", List.of("ROLE_ADMIN"));
+        config = RunnableConfig.builder()
+                .addMetadata("executionContext", testContext)
+                .build();
     }
 
     @Test
@@ -269,7 +278,7 @@ class ErpAiGraphNodesTest {
                 )
         );
 
-        when(productLookupTool.searchProducts("GAP-000002"))
+        when(productLookupTool.searchProducts(eq("GAP-000002"), any(ErpAiExecutionContext.class)))
                 .thenReturn(products);
 
         var state = new ErpAiGraphState(
@@ -292,13 +301,13 @@ class ErpAiGraphNodesTest {
         );
 
         verify(productLookupTool)
-                .searchProducts("GAP-000002");
+                .searchProducts(eq("GAP-000002"), any(ErpAiExecutionContext.class));
     }
 
     @Test
     void shouldReturnToolErrorWhenDatabaseLookupFails() {
 
-        when(productLookupTool.searchProducts("GAP-000002"))
+        when(productLookupTool.searchProducts(eq("GAP-000002"), any(ErpAiExecutionContext.class)))
                 .thenThrow(
                         new IllegalStateException("Database unavailable")
                 );
@@ -321,7 +330,7 @@ class ErpAiGraphNodesTest {
     @Test
     void shouldPropagateCancellation() {
 
-        when(productLookupTool.searchProducts("GAP-000002"))
+        when(productLookupTool.searchProducts(eq("GAP-000002"), any(ErpAiExecutionContext.class)))
                 .thenThrow(
                         new CancellationException("Cancelled")
                 );
@@ -437,21 +446,21 @@ class ErpAiGraphNodesTest {
                 "movement_count", 2L,
                 "total_quantity_moved", 40,
                 "net_quantity_change", 40));
-        when(inventoryHistoryLookupTool.getProductMovementSummary("GAP-000002"))
+        when(inventoryHistoryLookupTool.getProductMovementSummary(eq("GAP-000002"), any(ErpAiExecutionContext.class)))
                 .thenReturn(summary);
         var state = new ErpAiGraphState(Map.of(
                 "intent", "PRODUCT_MOVEMENT_SUMMARY",
                 "searchText", "GAP-000002"));
         var result = nodes.executeProductTool(state, config);
         assertEquals(summary, result.get("toolResult"));
-        verify(inventoryHistoryLookupTool).getProductMovementSummary("GAP-000002");
+        verify(inventoryHistoryLookupTool).getProductMovementSummary(eq("GAP-000002"), any(ErpAiExecutionContext.class));
     }
 
     @Test
     void shouldExecuteDateRangeMovementTool() {
         List<Map<String, Object>> movements = List.of(Map.of("movement_type", "SALE"));
         when(inventoryHistoryLookupTool.getProductMovementsByDateRange(
-                "GAP-000002", "2026-11-01", "2026-11-15")).thenReturn(movements);
+                eq("GAP-000002"), eq("2026-11-01"), eq("2026-11-15"), any(ErpAiExecutionContext.class))).thenReturn(movements);
         var state = new ErpAiGraphState(Map.of(
                 "intent", "PRODUCT_MOVEMENTS_BY_DATE_RANGE",
                 "searchText", "GAP-000002",
@@ -463,7 +472,7 @@ class ErpAiGraphNodesTest {
     @Test
     void shouldExecuteRecentMovementsWithRequestedLimit() {
         List<Map<String, Object>> movements = List.of(Map.of("movement_type", "SALE"));
-        when(inventoryHistoryLookupTool.getRecentInventoryMovements(12)).thenReturn(movements);
+        when(inventoryHistoryLookupTool.getRecentInventoryMovements(eq(12), any(ErpAiExecutionContext.class))).thenReturn(movements);
         var state = new ErpAiGraphState(Map.of(
                 "intent", "RECENT_INVENTORY_MOVEMENTS", "limit", 12));
         assertEquals(movements, nodes.executeProductTool(state, config).get("toolResult"));
@@ -472,7 +481,7 @@ class ErpAiGraphNodesTest {
     @Test
     void shouldExecuteFilteredInventoryAdjustments() {
         List<Map<String, Object>> adjustments = List.of(Map.of("reason", "Damaged"));
-        when(inventoryHistoryLookupTool.getInventoryAdjustments("GAP-000002", 50))
+        when(inventoryHistoryLookupTool.getInventoryAdjustments(eq("GAP-000002"), eq(50), any(ErpAiExecutionContext.class)))
                 .thenReturn(adjustments);
         var state = new ErpAiGraphState(Map.of(
                 "intent", "INVENTORY_ADJUSTMENTS",
@@ -604,6 +613,46 @@ class ErpAiGraphNodesTest {
         assertEquals("GAP-000002", result.get("searchText"));
         assertEquals("2026-11-01", result.get("startDate"));
         assertEquals("2026-11-15", result.get("endDate"));
+    }
+
+    @Test
+    void shouldFailClosedWhenNoExecutionContextInConfigMetadata() {
+        RunnableConfig emptyConfig = RunnableConfig.builder().build();
+        var state = new ErpAiGraphState(Map.of(
+                "intent", "PRODUCT_SEARCH",
+                "searchText", "GAP-000002"
+        ));
+
+        var result = nodes.executeProductTool(state, emptyConfig);
+
+        assertEquals("", result.get("toolResult"));
+        assertTrue(String.valueOf(result.get("toolError")).startsWith("ACCESS_DENIED"),
+                "Missing context must fail closed with ACCESS_DENIED");
+
+        verifyNoInteractions(productLookupTool, inventoryHistoryLookupTool);
+    }
+
+    @Test
+    void shouldDenyAccessWhenRoleUnauthorizedInToolExecution() {
+        ErpAiExecutionContext userContext = ErpAiExecutionContext.create(
+                UUID.randomUUID(), "customer", List.of("ROLE_USER"));
+        RunnableConfig userConfig = RunnableConfig.builder()
+                .addMetadata("executionContext", userContext)
+                .build();
+
+        when(productLookupTool.searchProducts(eq("GAP-000002"), any(ErpAiExecutionContext.class)))
+                .thenThrow(new com.autoparts.erp.ai.security.ToolAuthorizationException("Access denied"));
+
+        var state = new ErpAiGraphState(Map.of(
+                "intent", "PRODUCT_SEARCH",
+                "searchText", "GAP-000002"
+        ));
+
+        var result = nodes.executeProductTool(state, userConfig);
+
+        assertEquals("", result.get("toolResult"));
+        assertTrue(String.valueOf(result.get("toolError")).startsWith("ACCESS_DENIED"),
+                "Tool authorization rejection must set ACCESS_DENIED in toolError");
     }
 
     private Map<String, Object> classify(

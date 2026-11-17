@@ -9,7 +9,10 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -18,11 +21,25 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import com.autoparts.erp.ai.security.ErpAiContextHolder;
+import com.autoparts.erp.ai.security.ErpAiExecutionContext;
+
 @ExtendWith(MockitoExtension.class)
 class ProductLookupToolComparisonTest {
 
     @Mock JdbcTemplate jdbcTemplate;
     @InjectMocks ProductLookupTool tool;
+
+    @BeforeEach
+    void setUp() {
+        ErpAiContextHolder.setContext(ErpAiExecutionContext.create(
+                UUID.randomUUID(), "test-user", List.of("ROLE_ADMIN")));
+    }
+
+    @AfterEach
+    void tearDown() {
+        ErpAiContextHolder.clear();
+    }
 
     @Test
     void performsExactParameterizedLookupForAllRequestedProducts() {

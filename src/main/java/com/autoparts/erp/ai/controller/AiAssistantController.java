@@ -7,7 +7,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
+
+import com.autoparts.erp.ai.security.ErpAiExecutionContext;
 
 import com.autoparts.erp.ai.dto.AiChatRequest;
 import com.autoparts.erp.ai.dto.AiChatResponse;
@@ -41,11 +44,24 @@ public class AiAssistantController {
     ) {
 
         String userSubject = getAuthenticatedUser(authentication);
+        List<String> authorities = (authentication != null && authentication.getAuthorities() != null)
+                ? authentication.getAuthorities().stream()
+                        .map(GrantedAuthority::getAuthority)
+                        .toList()
+                : List.of();
+
+        UUID conversationId = request.conversationId();
+        ErpAiExecutionContext executionContext = ErpAiExecutionContext.create(
+                conversationId != null ? conversationId : UUID.randomUUID(),
+                userSubject,
+                authorities
+        );
 
         AiChatResponse response = aiAssistantService.chat(
                 request.conversationId(),
                 request.message(),
-                userSubject
+                userSubject,
+                executionContext
         );
 
         return ResponseEntity.ok(response);

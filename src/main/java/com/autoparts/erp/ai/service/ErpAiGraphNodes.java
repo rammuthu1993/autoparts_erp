@@ -19,6 +19,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import com.autoparts.erp.ai.exception.AiProviderResponseException;
+import com.autoparts.erp.ai.security.ErpAiExecutionContext;
+import com.autoparts.erp.ai.security.ToolAuthorizationException;
 import com.autoparts.erp.ai.tools.ProductLookupTool;
 import com.autoparts.erp.ai.tools.InventoryHistoryLookupTool;
 
@@ -101,51 +103,24 @@ public class ErpAiGraphNodes {
                 intent
         );
 
+        ErpAiExecutionContext context = (config != null)
+                ? config.metadata("executionContext")
+                        .filter(ErpAiExecutionContext.class::isInstance)
+                        .map(ErpAiExecutionContext.class::cast)
+                        .orElse(null)
+                : null;
+
+        if (context == null) {
+            log.warn("ERP AI tool execution rejected: No execution context present in RunnableConfig metadata. Intent: {}", intent);
+            return Map.of(
+                    "toolResult", "",
+                    "toolError", "ACCESS_DENIED: No execution context provided. Access denied."
+            );
+        }
+
         try {
 
-            Object result = switch (intent) {
-
-                case "PRODUCT_SEARCH" ->
-                        productLookupTool.searchProducts(searchText);
-
-                case "PRODUCT_COMPARISON" ->
-                        productLookupTool.getProductsByIdentifiers(
-                                productIdentifiers(state.object("productIdentifiers")));
-
-                case "PRODUCT_DETAILS" ->
-                        productLookupTool.getProductDetails(searchText);
-
-                case "PRODUCT_STOCK" ->
-                        productLookupTool.getProductStock(searchText);
-
-                case "COUNT_PRODUCTS" ->
-                        productLookupTool.countProducts();
-
-                case "LOW_STOCK_PRODUCTS" ->
-                        productLookupTool.getLowStockProducts();
-                        
-                case "PRODUCT_MOVEMENT_HISTORY" ->
-                        inventoryHistoryLookupTool.getProductMovementHistory(searchText);
-
-                case "PRODUCT_MOVEMENT_SUMMARY" ->
-                        inventoryHistoryLookupTool.getProductMovementSummary(searchText);
-
-                case "PRODUCT_MOVEMENTS_BY_DATE_RANGE" ->
-                        inventoryHistoryLookupTool.getProductMovementsByDateRange(
-                                searchText, state.text("startDate"), state.text("endDate"));
-
-                case "RECENT_INVENTORY_MOVEMENTS" ->
-                        inventoryHistoryLookupTool.getRecentInventoryMovements(
-                                parseLimit(state.object("limit")));
-
-                case "INVENTORY_ADJUSTMENTS" ->
-                        inventoryHistoryLookupTool.getInventoryAdjustments(
-                                searchText, parseLimit(state.object("limit")));
-
-                default -> throw new IllegalArgumentException(
-                        "Unsupported product tool intent: " + intent
-                );
-            };
+            Object result = executeWithContext(intent, searchText, state, context);
 
             log.info(
                     "ERP AI tool execution completed. Intent: {}",
@@ -160,6 +135,22 @@ public class ErpAiGraphNodes {
         } catch (CancellationException exception) {
 
             throw exception;
+
+        } catch (ToolAuthorizationException exception) {
+
+            log.warn(
+                    "ERP AI tool authorization denied. Intent: {}, Reason: {}",
+                    intent,
+                    exception.getMessage()
+            );
+
+            return Map.of(
+                    "toolResult", "",
+                    "toolError",
+                    "ACCESS_DENIED: You do not have permission to view this ERP data. Required role: " +
+                            (intent.startsWith("PRODUCT_MOVEMENT") || intent.equals("RECENT_INVENTORY_MOVEMENTS") || intent.equals("INVENTORY_ADJUSTMENTS")
+                                    ? "Admin or Manager" : "Cashier, Manager, or Admin") + "."
+            );
 
         } catch (RuntimeException exception) {
 
@@ -177,6 +168,45 @@ public class ErpAiGraphNodes {
         }
     }
 
+    private Object executeWithContext(
+            String intent,
+            String searchText,
+            ErpAiGraphState state,
+            ErpAiExecutionContext context
+    ) {
+        return switch (intent) {
+            case "PRODUCT_SEARCH" ->
+                    productLookupTool.searchProducts(searchText, context);
+            case "PRODUCT_COMPARISON" ->
+                    productLookupTool.getProductsByIdentifiers(
+                            productIdentifiers(state.object("productIdentifiers")), context);
+            case "PRODUCT_DETAILS" ->
+                    productLookupTool.getProductDetails(searchText, context);
+            case "PRODUCT_STOCK" ->
+                    productLookupTool.getProductStock(searchText, context);
+            case "COUNT_PRODUCTS" ->
+                    productLookupTool.countProducts(context);
+            case "LOW_STOCK_PRODUCTS" ->
+                    productLookupTool.getLowStockProducts(context);
+            case "PRODUCT_MOVEMENT_HISTORY" ->
+                    inventoryHistoryLookupTool.getProductMovementHistory(searchText, context);
+            case "PRODUCT_MOVEMENT_SUMMARY" ->
+                    inventoryHistoryLookupTool.getProductMovementSummary(searchText, context);
+            case "PRODUCT_MOVEMENTS_BY_DATE_RANGE" ->
+                    inventoryHistoryLookupTool.getProductMovementsByDateRange(
+                            searchText, state.text("startDate"), state.text("endDate"), context);
+            case "RECENT_INVENTORY_MOVEMENTS" ->
+                    inventoryHistoryLookupTool.getRecentInventoryMovements(
+                            parseLimit(state.object("limit")), context);
+            case "INVENTORY_ADJUSTMENTS" ->
+                    inventoryHistoryLookupTool.getInventoryAdjustments(
+                            searchText, parseLimit(state.object("limit")), context);
+            default -> throw new IllegalArgumentException(
+                    "Unsupported product tool intent: " + intent
+            );
+        };
+    }
+
     // --------------------------------------------------
     // 3. RESPONSE GENERATION NODE
     // --------------------------------------------------
@@ -190,6 +220,12 @@ public class ErpAiGraphNodes {
 	    String toolError = state.text("toolError");
 	
 	    if (StringUtils.hasText(toolError)) {
+	        if (toolError.startsWith("ACCESS_DENIED:")) {
+	            return Map.of(
+	                    "finalResponse",
+	                    toolError.substring("ACCESS_DENIED:".length()).trim()
+	            );
+	        }
 	        return Map.of(
 	                "finalResponse",
 	                "I couldn't retrieve the requested information from the ERP system. Please try again."
