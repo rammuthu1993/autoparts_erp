@@ -35,6 +35,21 @@ public record ErpAiIntentResult(
             "SUPPLIER_SEARCH", "SUPPLIER_DETAILS", "SUPPLIER_PURCHASE_HISTORY",
             "SUPPLIER_SUMMARY",
 
+            // Returns (Stage 2D)
+            "SALES_RETURN_SEARCH", "SALES_RETURN_DETAILS", "PURCHASE_RETURN_SEARCH",
+            "PURCHASE_RETURN_DETAILS", "RETURN_SUMMARY",
+
+            // Financials (Stage 2D)
+            "CASH_REGISTER_STATUS", "OPEN_CASH_REGISTERS", "EXPENSE_SUMMARY", "EXPENSE_BY_CATEGORY",
+            "EXPENSES_BY_CATEGORY", "DAILY_CLOSING", "CASH_DISCREPANCIES",
+
+            // Reports (Stage 2D)
+            "KPI_SUMMARY", "INVENTORY_ABC_XYZ", "INVENTORY_ABC_ANALYSIS", "CUSTOMER_RFM",
+            "CUSTOMER_RFM_ANALYSIS", "RECONCILIATION_DISCREPANCIES", "COGS_PROFIT_EXPLANATION",
+
+            // Audit Logs (Stage 2D)
+            "AUDIT_LOG_SEARCH", "AI_TOOL_RUNS_LOG",
+
             // Core
             "GENERAL", "UNSUPPORTED", "CLARIFICATION"
     );

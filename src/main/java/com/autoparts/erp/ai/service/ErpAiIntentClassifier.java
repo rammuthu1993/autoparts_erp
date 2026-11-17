@@ -159,6 +159,78 @@ public class ErpAiIntentClassifier {
             "\\b(?:suppliers?|vendors?)\\b",
             Pattern.CASE_INSENSITIVE);
 
+    // Stage 2D Regex Patterns: Returns
+    private static final Pattern RETURN_SUMMARY_REQUEST = Pattern.compile(
+            "\\b(?:returns?\\s+summary|returns?\\s+totals?|total\\s+returns?|summary\\s+of\\s+returns?)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern SALES_RETURN_DETAILS_REQUEST = Pattern.compile(
+            "\\b(?:sales?\\s+returns?\\s+details?|details?\\s+of\\s+sales?\\s+return|customer\\s+returns?\\s+details?|refund\\s+details?)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern SALES_RETURN_SEARCH_REQUEST = Pattern.compile(
+            "\\b(?:sales?\\s+returns?|customer\\s+returns?|customer\\s+refunds?)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern PURCHASE_RETURN_DETAILS_REQUEST = Pattern.compile(
+            "\\b(?:purchase\\s+returns?\\s+details?|details?\\s+of\\s+purchase\\s+return|supplier\\s+returns?\\s+details?|supplier\\s+credit\\s+details?)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern PURCHASE_RETURN_SEARCH_REQUEST = Pattern.compile(
+            "\\b(?:purchase\\s+returns?|supplier\\s+returns?|supplier\\s+credits?|debit\\s+notes?)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    // Stage 2D Regex Patterns: Financials
+    private static final Pattern CASH_REGISTER_STATUS_REQUEST = Pattern.compile(
+            "\\b(?:cash\\s+registers?\\s+(?:status|drawer|sessions?)|open\\s+(?:cash\\s+)?registers?|cash\\s+in\\s+drawer|drawer\\s+balance|active\\s+registers?)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern CASH_DISCREPANCIES_REQUEST = Pattern.compile(
+            "\\b(?:cash\\s+(?:register\\s+)?discrepanc(?:y|ies)|register\\s+discrepanc(?:y|ies)|cash\\s+shortage|register\\s+surplus|cash\\s+differences?|session\\s+discrepanc(?:y|ies))\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern DAILY_CLOSING_REQUEST = Pattern.compile(
+            "\\b(?:daily\\s+closing|business\\s+closing|day\\s+closing|end\\s+of\\s+day|closing\\s+report)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern EXPENSE_SUMMARY_REQUEST = Pattern.compile(
+            "\\b(?:expenses?\\s+summary|expenses?\\s+totals?|total\\s+expenses?|operating\\s+expenses?)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern EXPENSE_SEARCH_REQUEST = Pattern.compile(
+            "\\b(?:expenses?|spending|expenditures?)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    // Stage 2D Regex Patterns: Reports
+    private static final Pattern COGS_PROFIT_REQUEST = Pattern.compile(
+            "\\b(?:cogs|cost\\s+of\\s+goods\\s+sold|gross\\s+profit|gross\\s+margin|net\\s+margin|product\\s+profitability|profit\\s+margin)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern KPI_SUMMARY_REQUEST = Pattern.compile(
+            "\\b(?:kpi\\s+summary|business\\s+kpis?|executive\\s+summary|executive\\s+kpis?|key\\s+performance\\s+indicators?)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern INVENTORY_ABC_XYZ_REQUEST = Pattern.compile(
+            "\\b(?:abc\\s+analysis|abc/xyz|inventory\\s+abc|category\\s+a\\s+products?|top\\s+revenue\\s+products?)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern CUSTOMER_RFM_REQUEST = Pattern.compile(
+            "\\b(?:rfm\\s+analysis|customer\\s+rfm|customer\\s+segmentation|vip\\s+customers?|customer\\s+cohorts?)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern RECONCILIATION_DISCREPANCIES_REQUEST = Pattern.compile(
+            "\\b(?:reconciliation\\s+discrepanc(?:y|ies)|ledger\\s+reconciliation|data\\s+quality\\s+(?:issues?|report)|cross-ledger)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    // Stage 2D Regex Patterns: Audit Logs
+    private static final Pattern AUDIT_LOG_REQUEST = Pattern.compile(
+            "\\b(?:audit\\s+logs?|system\\s+audit(?:\\s+trail)?|security\\s+logs?|recent\\s+audit\\s+events?)\\b",
+            Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern AI_TOOL_RUNS_REQUEST = Pattern.compile(
+            "\\b(?:ai\\s+tool\\s+(?:runs?|logs?)|ai\\s+diagnostic(?:\\s+logs?)?|tool\\s+execution\\s+logs?)\\b",
+            Pattern.CASE_INSENSITIVE);
+
     private static final List<Pattern> SEARCH_PREFIXES = List.of(
             Pattern.compile("^(?:(?:please|kindly)\\s+)+", Pattern.CASE_INSENSITIVE),
             Pattern.compile("^(?:(?:can|could|would)\\s+you\\s+)+", Pattern.CASE_INSENSITIVE),
@@ -184,7 +256,129 @@ public class ErpAiIntentClassifier {
         }
 
         // -------------------------------------------------------------
-        // 1. PURCHASE INTENTS
+        // STAGE 2D: AUDIT LOGS & AI DIAGNOSTICS
+        // -------------------------------------------------------------
+        if (AUDIT_LOG_REQUEST.matcher(message).find()) {
+            return new ErpAiIntentResult("AUDIT_LOG_SEARCH", "", "", "", extractLimit(message), "");
+        }
+
+        if (AI_TOOL_RUNS_REQUEST.matcher(message).find()) {
+            return new ErpAiIntentResult("AI_TOOL_RUNS_LOG", "", "", "", extractLimit(message), "");
+        }
+
+        // -------------------------------------------------------------
+        // STAGE 2D: REPORTS & BUSINESS ANALYTICS
+        // -------------------------------------------------------------
+        if (COGS_PROFIT_REQUEST.matcher(message).find()) {
+            return new ErpAiIntentResult("COGS_PROFIT_EXPLANATION", "");
+        }
+
+        if (KPI_SUMMARY_REQUEST.matcher(message).find()) {
+            Matcher dates = ISO_DATE.matcher(message);
+            String firstDate = dates.find() ? dates.group() : "";
+            String secondDate = dates.find() ? dates.group() : "";
+            return new ErpAiIntentResult("KPI_SUMMARY", "", firstDate, secondDate, 50, "");
+        }
+
+        if (INVENTORY_ABC_XYZ_REQUEST.matcher(message).find()) {
+            return new ErpAiIntentResult("INVENTORY_ABC_ANALYSIS", "");
+        }
+
+        if (CUSTOMER_RFM_REQUEST.matcher(message).find()) {
+            return new ErpAiIntentResult("CUSTOMER_RFM_ANALYSIS", "");
+        }
+
+        if (RECONCILIATION_DISCREPANCIES_REQUEST.matcher(message).find()) {
+            Matcher dates = ISO_DATE.matcher(message);
+            String firstDate = dates.find() ? dates.group() : "";
+            String secondDate = dates.find() ? dates.group() : "";
+            return new ErpAiIntentResult("RECONCILIATION_DISCREPANCIES", "", firstDate, secondDate, 20, "");
+        }
+
+        // -------------------------------------------------------------
+        // STAGE 2D: FINANCIALS & CASH MANAGEMENT
+        // -------------------------------------------------------------
+        if (CASH_REGISTER_STATUS_REQUEST.matcher(message).find()) {
+            return new ErpAiIntentResult("OPEN_CASH_REGISTERS", "");
+        }
+
+        if (CASH_DISCREPANCIES_REQUEST.matcher(message).find()) {
+            Matcher dates = ISO_DATE.matcher(message);
+            String firstDate = dates.find() ? dates.group() : "";
+            String secondDate = dates.find() ? dates.group() : "";
+            return new ErpAiIntentResult("CASH_DISCREPANCIES", "", firstDate, secondDate, 20, "");
+        }
+
+        if (DAILY_CLOSING_REQUEST.matcher(message).find()) {
+            Matcher dates = ISO_DATE.matcher(message);
+            String date = dates.find() ? dates.group() : "";
+            if (date.isEmpty()) {
+                return ErpAiIntentResult.clarification("Please provide the business closing date in YYYY-MM-DD format.");
+            }
+            return new ErpAiIntentResult("DAILY_CLOSING", date);
+        }
+
+        if (EXPENSE_SUMMARY_REQUEST.matcher(message).find()) {
+            Matcher dates = ISO_DATE.matcher(message);
+            String firstDate = dates.find() ? dates.group() : "";
+            String secondDate = dates.find() ? dates.group() : "";
+            return new ErpAiIntentResult("EXPENSE_SUMMARY", "", firstDate, secondDate, 50, "");
+        }
+
+        if (EXPENSE_SEARCH_REQUEST.matcher(message).find()) {
+            Matcher dates = ISO_DATE.matcher(message);
+            String firstDate = dates.find() ? dates.group() : "";
+            String secondDate = dates.find() ? dates.group() : "";
+            if (!firstDate.isEmpty() && !secondDate.isEmpty()) {
+                return validateDateRange("EXPENSE_SUMMARY", "", firstDate, secondDate);
+            }
+            String search = extractSearchText(message);
+            if (StringUtils.hasText(search) && !search.equalsIgnoreCase("expenses") && !search.equalsIgnoreCase("expense")) {
+                return new ErpAiIntentResult("EXPENSES_BY_CATEGORY", search, firstDate, secondDate, 20, "");
+            }
+            return new ErpAiIntentResult("EXPENSE_SUMMARY", "", firstDate, secondDate, 50, "");
+        }
+
+        // -------------------------------------------------------------
+        // STAGE 2D: RETURNS & CREDITS
+        // -------------------------------------------------------------
+        if (RETURN_SUMMARY_REQUEST.matcher(message).find()) {
+            Matcher dates = ISO_DATE.matcher(message);
+            String firstDate = dates.find() ? dates.group() : "";
+            String secondDate = dates.find() ? dates.group() : "";
+            return new ErpAiIntentResult("RETURN_SUMMARY", "", firstDate, secondDate, 50, "");
+        }
+
+        if (PURCHASE_RETURN_DETAILS_REQUEST.matcher(message).find()) {
+            String purchaseId = extractPurchaseNumber(message);
+            String identifier = purchaseId != null ? purchaseId : extractSearchText(message);
+            if (identifier.isEmpty() || identifier.equalsIgnoreCase("purchase return") || identifier.equalsIgnoreCase("purchase returns")) {
+                return ErpAiIntentResult.clarification("Please provide the purchase return number or purchase order number.");
+            }
+            return new ErpAiIntentResult("PURCHASE_RETURN_DETAILS", identifier);
+        }
+
+        if (PURCHASE_RETURN_SEARCH_REQUEST.matcher(message).find()) {
+            String search = extractSearchText(message);
+            return new ErpAiIntentResult("PURCHASE_RETURN_SEARCH", search);
+        }
+
+        if (SALES_RETURN_DETAILS_REQUEST.matcher(message).find()) {
+            String invoiceId = extractInvoiceNumber(message);
+            String identifier = invoiceId != null ? invoiceId : extractSearchText(message);
+            if (identifier.isEmpty() || identifier.equalsIgnoreCase("sales return") || identifier.equalsIgnoreCase("sales returns")) {
+                return ErpAiIntentResult.clarification("Please provide the invoice number to view sales return details.");
+            }
+            return new ErpAiIntentResult("SALES_RETURN_DETAILS", identifier);
+        }
+
+        if (SALES_RETURN_SEARCH_REQUEST.matcher(message).find()) {
+            String search = extractSearchText(message);
+            return new ErpAiIntentResult("SALES_RETURN_SEARCH", search);
+        }
+
+        // -------------------------------------------------------------
+        // 1. PURCHASE INTENTS (Stage 2C)
         // -------------------------------------------------------------
         String purchaseId = extractPurchaseNumber(message);
 
@@ -516,7 +710,10 @@ public class ErpAiIntentClassifier {
     }
 
     private boolean isUnsupportedRequest(String message) {
-        if (Pattern.compile("\\b(?:create|make|record|add|update|delete|generate|register)\\s+(?:a\\s+)?(?:new\\s+)?(?:purchase|sale|sales|invoice|customer|supplier|vendor)\\b", Pattern.CASE_INSENSITIVE).matcher(message).find()) {
+        if (CASH_REGISTER_STATUS_REQUEST.matcher(message).find()) {
+            return false;
+        }
+        if (Pattern.compile("\\b(?:create|make|record|add|update|delete|generate|register|process|open|close|post)\\s+(?:a\\s+)?(?:new\\s+)?(?:purchase|sale|sales|invoice|customer|supplier|vendor|return|refund|credit|expense|register|session|closing)\\b", Pattern.CASE_INSENSITIVE).matcher(message).find()) {
             return true;
         }
         return containsAny(message,
@@ -524,8 +721,8 @@ public class ErpAiIntentClassifier {
                 "make purchase", "make sale", "make sales", "record purchase", "record sale", "record sales",
                 "add customer", "delete customer", "add supplier", "delete supplier",
                 "create customer", "create supplier", "update customer", "update supplier",
-                "sales return", "purchase return", "refund", "credit note",
-                "expense", "cash register", "daily closing");
+                "process return", "process refund", "issue credit note", "create expense", "add expense",
+                "record expense", "perform daily closing", "post closing");
     }
 
     private String extractPurchaseNumber(String message) {

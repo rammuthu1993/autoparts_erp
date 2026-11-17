@@ -723,8 +723,8 @@ class ErpAiAgentServiceConcurrencyTest {
     private Harness harness(
             Duration timeout,
             ScheduledThreadPoolExecutor scheduler) {
-        CompiledGraph<ErpAiGraphState> graph =
-                mock(CompiledGraph.class);
+        ErpAiGraphWorkflow graph =
+                mock(ErpAiGraphWorkflow.class);
 
         ErpAiAgentService service =
                 new ErpAiAgentService(graph, timeout, scheduler);
@@ -858,7 +858,7 @@ class ErpAiAgentServiceConcurrencyTest {
     }
 
     private record Harness(
-            CompiledGraph<ErpAiGraphState> graph,
+            ErpAiGraphWorkflow graph,
             ErpAiAgentService service,
             ScheduledThreadPoolExecutor scheduler) {
     }

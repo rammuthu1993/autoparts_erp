@@ -23,11 +23,15 @@ import com.autoparts.erp.ai.exception.AiProviderResponseException;
 import com.autoparts.erp.ai.security.ErpAiExecutionContext;
 import com.autoparts.erp.ai.security.ToolAuthorizationException;
 import com.autoparts.erp.ai.tools.CustomerLookupTool;
+import com.autoparts.erp.ai.tools.FinancialLookupTool;
 import com.autoparts.erp.ai.tools.InventoryHistoryLookupTool;
 import com.autoparts.erp.ai.tools.ProductLookupTool;
 import com.autoparts.erp.ai.tools.PurchaseLookupTool;
+import com.autoparts.erp.ai.tools.ReportLookupTool;
+import com.autoparts.erp.ai.tools.ReturnLookupTool;
 import com.autoparts.erp.ai.tools.SalesLookupTool;
 import com.autoparts.erp.ai.tools.SupplierLookupTool;
+import com.autoparts.erp.ai.tools.AuditLogLookupTool;
 
 @Component
 public class ErpAiGraphNodes {
@@ -43,6 +47,10 @@ public class ErpAiGraphNodes {
     private final SalesLookupTool salesLookupTool;
     private final CustomerLookupTool customerLookupTool;
     private final SupplierLookupTool supplierLookupTool;
+    private final ReturnLookupTool returnLookupTool;
+    private final FinancialLookupTool financialLookupTool;
+    private final ReportLookupTool reportLookupTool;
+    private final AuditLogLookupTool auditLogLookupTool;
     private final String systemPrompt;
 
     @Autowired
@@ -54,7 +62,11 @@ public class ErpAiGraphNodes {
             PurchaseLookupTool purchaseLookupTool,
             SalesLookupTool salesLookupTool,
             CustomerLookupTool customerLookupTool,
-            SupplierLookupTool supplierLookupTool
+            SupplierLookupTool supplierLookupTool,
+            ReturnLookupTool returnLookupTool,
+            FinancialLookupTool financialLookupTool,
+            ReportLookupTool reportLookupTool,
+            AuditLogLookupTool auditLogLookupTool
     ) {
         this.chatModel = chatModel;
         this.productLookupTool = productLookupTool;
@@ -64,7 +76,26 @@ public class ErpAiGraphNodes {
         this.salesLookupTool = salesLookupTool;
         this.customerLookupTool = customerLookupTool;
         this.supplierLookupTool = supplierLookupTool;
+        this.returnLookupTool = returnLookupTool;
+        this.financialLookupTool = financialLookupTool;
+        this.reportLookupTool = reportLookupTool;
+        this.auditLogLookupTool = auditLogLookupTool;
         this.systemPrompt = loadSystemPrompt();
+    }
+
+    public ErpAiGraphNodes(
+            ChatModel chatModel,
+            ProductLookupTool productLookupTool,
+            ErpAiIntentClassifier intentClassifier,
+            InventoryHistoryLookupTool inventoryHistoryLookupTool,
+            PurchaseLookupTool purchaseLookupTool,
+            SalesLookupTool salesLookupTool,
+            CustomerLookupTool customerLookupTool,
+            SupplierLookupTool supplierLookupTool
+    ) {
+        this(chatModel, productLookupTool, intentClassifier, inventoryHistoryLookupTool,
+                purchaseLookupTool, salesLookupTool, customerLookupTool, supplierLookupTool,
+                null, null, null, null);
     }
 
     public ErpAiGraphNodes(
@@ -73,7 +104,8 @@ public class ErpAiGraphNodes {
             ErpAiIntentClassifier intentClassifier,
             InventoryHistoryLookupTool inventoryHistoryLookupTool
     ) {
-        this(chatModel, productLookupTool, intentClassifier, inventoryHistoryLookupTool, null, null, null, null);
+        this(chatModel, productLookupTool, intentClassifier, inventoryHistoryLookupTool,
+                null, null, null, null, null, null, null, null);
     }
 
     // --------------------------------------------------
@@ -157,18 +189,33 @@ public class ErpAiGraphNodes {
         } catch (ToolAuthorizationException exception) {
             log.warn("ERP AI tool authorization denied. Intent: {}, Reason: {}", intent, exception.getMessage());
 
+            boolean requiresAdminOnly = intent.equals("RECONCILIATION_DISCREPANCIES")
+                    || intent.equals("AUDIT_LOG_SEARCH")
+                    || intent.equals("AI_TOOL_RUNS_LOG");
+
             boolean requiresAdminOrManager = intent.startsWith("PURCHASE_")
                     || intent.equals("SUPPLIER_PURCHASE_HISTORY")
                     || intent.equals("SUPPLIER_SUMMARY")
                     || intent.startsWith("PRODUCT_MOVEMENT")
                     || intent.equals("RECENT_INVENTORY_MOVEMENTS")
-                    || intent.equals("INVENTORY_ADJUSTMENTS");
+                    || intent.equals("INVENTORY_ADJUSTMENTS")
+                    || intent.startsWith("PURCHASE_RETURN_")
+                    || intent.equals("RETURN_SUMMARY")
+                    || intent.equals("EXPENSE_SUMMARY")
+                    || intent.equals("EXPENSES_BY_CATEGORY")
+                    || intent.equals("DAILY_CLOSING")
+                    || intent.equals("CASH_DISCREPANCIES")
+                    || intent.equals("KPI_SUMMARY")
+                    || intent.equals("INVENTORY_ABC_ANALYSIS")
+                    || intent.equals("CUSTOMER_RFM_ANALYSIS");
+
+            String roleMsg = requiresAdminOnly ? "Admin only"
+                    : (requiresAdminOrManager ? "Admin or Manager" : "Cashier, Manager, or Admin");
 
             return Map.of(
                     "toolResult", "",
                     "toolError",
-                    "ACCESS_DENIED: You do not have permission to view this ERP data. Required role: " +
-                            (requiresAdminOrManager ? "Admin or Manager" : "Cashier, Manager, or Admin") + "."
+                    "ACCESS_DENIED: You do not have permission to view this ERP data. Required role: " + roleMsg + "."
             );
 
         } catch (RuntimeException exception) {
@@ -267,6 +314,48 @@ public class ErpAiGraphNodes {
             case "SUPPLIER_SUMMARY" ->
                     supplierLookupTool != null ? supplierLookupTool.getSupplierPurchaseSummary(searchText, context) : Map.of();
 
+            // Returns Tools (Stage 2D)
+            case "SALES_RETURN_SEARCH" ->
+                    returnLookupTool != null ? returnLookupTool.searchSalesReturns(searchText, context) : List.of();
+            case "SALES_RETURN_DETAILS" ->
+                    returnLookupTool != null ? returnLookupTool.getSalesReturnDetails(searchText, context) : Map.of();
+            case "PURCHASE_RETURN_SEARCH" ->
+                    returnLookupTool != null ? returnLookupTool.searchPurchaseReturns(searchText, context) : List.of();
+            case "PURCHASE_RETURN_DETAILS" ->
+                    returnLookupTool != null ? returnLookupTool.getPurchaseReturnDetails(searchText, context) : Map.of();
+            case "RETURN_SUMMARY" ->
+                    returnLookupTool != null ? returnLookupTool.getReturnSummary(state.text("startDate"), state.text("endDate"), context) : Map.of();
+
+            // Financial Tools (Stage 2D)
+            case "OPEN_CASH_REGISTERS", "CASH_REGISTER_STATUS" ->
+                    financialLookupTool != null ? financialLookupTool.getOpenCashRegisterStatus(context) : List.of();
+            case "EXPENSE_SUMMARY" ->
+                    financialLookupTool != null ? financialLookupTool.getExpenseSummary(state.text("startDate"), state.text("endDate"), context) : Map.of();
+            case "EXPENSES_BY_CATEGORY", "EXPENSE_BY_CATEGORY" ->
+                    financialLookupTool != null ? financialLookupTool.getExpensesByCategory(searchText, state.text("startDate"), state.text("endDate"), context) : List.of();
+            case "DAILY_CLOSING" ->
+                    financialLookupTool != null ? financialLookupTool.getDailyClosing(state.text("startDate"), context) : Map.of();
+            case "CASH_DISCREPANCIES" ->
+                    financialLookupTool != null ? financialLookupTool.getCashDiscrepancies(state.text("startDate"), state.text("endDate"), context) : List.of();
+
+            // Reports & Analytics Tools (Stage 2D)
+            case "KPI_SUMMARY" ->
+                    reportLookupTool != null ? reportLookupTool.getKpiSummary(state.text("startDate"), state.text("endDate"), context) : Map.of();
+            case "INVENTORY_ABC_ANALYSIS", "INVENTORY_ABC_XYZ" ->
+                    reportLookupTool != null ? reportLookupTool.getInventoryAbcXyzAnalysis(context) : List.of();
+            case "CUSTOMER_RFM_ANALYSIS", "CUSTOMER_RFM" ->
+                    reportLookupTool != null ? reportLookupTool.getCustomerRfmAnalysis(context) : List.of();
+            case "RECONCILIATION_DISCREPANCIES" ->
+                    reportLookupTool != null ? reportLookupTool.getReconciliationDiscrepancies(state.text("startDate"), state.text("endDate"), context) : Map.of();
+            case "COGS_PROFIT_EXPLANATION" ->
+                    reportLookupTool != null ? reportLookupTool.explainCogsLimitation(context) : Map.of();
+
+            // Audit & Diagnostic Tools (Stage 2D)
+            case "AUDIT_LOG_SEARCH" ->
+                    auditLogLookupTool != null ? auditLogLookupTool.getRecentAuditLogs(searchText, parseLimit(state.object("limit")), context) : List.of();
+            case "AI_TOOL_RUNS_LOG" ->
+                    auditLogLookupTool != null ? auditLogLookupTool.getRecentAiToolRuns(searchText, parseLimit(state.object("limit")), context) : List.of();
+
             default -> throw new IllegalArgumentException("Unsupported tool intent: " + intent);
         };
     }
@@ -306,6 +395,15 @@ public class ErpAiGraphNodes {
                 case "CUSTOMER_SALES_HISTORY" -> "No sales invoices found for this customer.";
                 case "SUPPLIER_SEARCH" -> "No matching supplier records were found.";
                 case "SUPPLIER_PURCHASE_HISTORY" -> "No purchase orders found for this supplier.";
+                case "SALES_RETURN_SEARCH" -> "No sales return records were found matching your request.";
+                case "PURCHASE_RETURN_SEARCH" -> "No purchase return records were found matching your request.";
+                case "OPEN_CASH_REGISTERS", "CASH_REGISTER_STATUS" -> "No open cash register sessions found.";
+                case "EXPENSES_BY_CATEGORY", "EXPENSE_BY_CATEGORY" -> "No operating expenses were found matching your request.";
+                case "CASH_DISCREPANCIES" -> "No cash register session discrepancies found for the specified period.";
+                case "INVENTORY_ABC_ANALYSIS", "INVENTORY_ABC_XYZ" -> "No product movement data available for ABC/XYZ inventory classification.";
+                case "CUSTOMER_RFM_ANALYSIS", "CUSTOMER_RFM" -> "No customer transaction history available for RFM segmentation.";
+                case "AUDIT_LOG_SEARCH" -> "No system audit logs found matching your request.";
+                case "AI_TOOL_RUNS_LOG" -> "No recent AI tool execution records found.";
                 default -> "I couldn't find any matching records in the ERP system.";
             };
             return Map.of("finalResponse", emptyMessage);
@@ -318,6 +416,13 @@ public class ErpAiGraphNodes {
                 case "SALE_DETAILS", "SALE_STATUS" -> "No sales invoice found for " + state.text("searchText") + ".";
                 case "CUSTOMER_DETAILS", "CUSTOMER_OUTSTANDING" -> "No customer records found for " + state.text("searchText") + ".";
                 case "SUPPLIER_DETAILS", "SUPPLIER_SUMMARY" -> "No supplier records found for " + state.text("searchText") + ".";
+                case "SALES_RETURN_DETAILS" -> "No sales return found for " + state.text("searchText") + ".";
+                case "PURCHASE_RETURN_DETAILS" -> "No purchase return found for " + state.text("searchText") + ".";
+                case "RETURN_SUMMARY" -> "No return or refund records found for the specified period.";
+                case "EXPENSE_SUMMARY" -> "No expense records found for the specified period.";
+                case "DAILY_CLOSING" -> "No daily closing record found for " + (StringUtils.hasText(state.text("startDate")) ? state.text("startDate") : "the specified date") + ".";
+                case "KPI_SUMMARY" -> "No business activity records found to compute KPI summary for the specified period.";
+                case "RECONCILIATION_DISCREPANCIES" -> "No cross-ledger reconciliation discrepancies detected. All ledgers are balanced.";
                 default -> "No matching records were found.";
             };
             return Map.of("finalResponse", emptyMessage);
@@ -344,6 +449,14 @@ public class ErpAiGraphNodes {
                 case "CUSTOMER_OUTSTANDING" -> formatCustomerOutstanding(map);
                 case "SUPPLIER_DETAILS" -> formatSupplierDetails(map);
                 case "SUPPLIER_SUMMARY" -> formatSupplierSummary(map);
+                case "SALES_RETURN_DETAILS" -> formatSalesReturnDetails(map);
+                case "PURCHASE_RETURN_DETAILS" -> formatPurchaseReturnDetails(map);
+                case "RETURN_SUMMARY" -> formatReturnSummary(map);
+                case "EXPENSE_SUMMARY" -> formatExpenseSummary(map);
+                case "DAILY_CLOSING" -> formatDailyClosing(map);
+                case "KPI_SUMMARY" -> formatKpiSummary(map);
+                case "RECONCILIATION_DISCREPANCIES" -> formatReconciliationDiscrepancies(map);
+                case "COGS_PROFIT_EXPLANATION" -> formatCogsProfitExplanation(map);
                 default -> null;
             };
             if (formatted != null) {
@@ -369,6 +482,15 @@ public class ErpAiGraphNodes {
                 case "CUSTOMER_SALES_HISTORY" -> formatCustomerSalesHistory(rows);
                 case "SUPPLIER_SEARCH" -> formatSuppliers(rows);
                 case "SUPPLIER_PURCHASE_HISTORY" -> formatSupplierPurchases(rows);
+                case "SALES_RETURN_SEARCH" -> formatSalesReturns(rows);
+                case "PURCHASE_RETURN_SEARCH" -> formatPurchaseReturns(rows);
+                case "OPEN_CASH_REGISTERS", "CASH_REGISTER_STATUS" -> formatOpenCashRegisters(rows);
+                case "EXPENSES_BY_CATEGORY", "EXPENSE_BY_CATEGORY" -> formatExpensesByCategory(rows);
+                case "CASH_DISCREPANCIES" -> formatCashDiscrepancies(rows);
+                case "INVENTORY_ABC_ANALYSIS", "INVENTORY_ABC_XYZ" -> formatInventoryAbcAnalysis(rows);
+                case "CUSTOMER_RFM_ANALYSIS", "CUSTOMER_RFM" -> formatCustomerRfmAnalysis(rows);
+                case "AUDIT_LOG_SEARCH" -> formatAuditLogs(rows);
+                case "AI_TOOL_RUNS_LOG" -> formatAiToolRuns(rows);
                 default -> null;
             };
             if (formatted != null) {
@@ -770,6 +892,416 @@ public class ErpAiGraphNodes {
     }
 
     // --------------------------------------------------
+    // FORMATTING HELPERS: RETURNS (Stage 2D)
+    // --------------------------------------------------
+
+    private String formatSalesReturns(List<?> rows) {
+        StringBuilder out = new StringBuilder("Matching sales returns:");
+        int index = 0;
+        for (Object row : rows) {
+            if (!(row instanceof Map<?, ?> ret)) continue;
+            index++;
+            out.append("\n\n").append(index).append(". Return ID: #").append(value(ret, "id"))
+                    .append("\nSale Invoice: ").append(value(ret, "invoice_number"))
+                    .append("\nCustomer: ").append(value(ret, "customer_name"))
+                    .append("\nDate: ").append(value(ret, "return_date"))
+                    .append("\nStatus: ").append(value(ret, "status"))
+                    .append("\nReason: ").append(value(ret, "reason"))
+                    .append("\nReturn total: ₹").append(value(ret, "total_return_amount"));
+        }
+        return index == 0 ? "No sales return records were found." : out.toString();
+    }
+
+    private String formatSalesReturnDetails(Map<?, ?> ret) {
+        StringBuilder out = new StringBuilder("Sales return details:\n")
+                .append("Return ID: #").append(value(ret, "id"))
+                .append("\nSale Invoice: ").append(value(ret, "invoice_number"))
+                .append("\nCustomer: ").append(value(ret, "customer_name"))
+                .append(" (Phone: ").append(value(ret, "customer_phone")).append(")")
+                .append("\nReturn date: ").append(value(ret, "return_date"))
+                .append("\nStatus: ").append(value(ret, "status"))
+                .append("\nReason: ").append(value(ret, "reason"))
+                .append("\nSubtotal: ₹").append(value(ret, "subtotal"))
+                .append("\nTax: ₹").append(value(ret, "total_tax_amount"))
+                .append("\nTotal return amount: ₹").append(value(ret, "total_return_amount"));
+
+        if (ret.get("items") instanceof List<?> items && !items.isEmpty()) {
+            out.append("\n\nReturned items:");
+            int idx = 0;
+            for (Object itemObj : items) {
+                if (!(itemObj instanceof Map<?, ?> item)) continue;
+                idx++;
+                out.append("\n  ").append(idx).append(". ").append(value(item, "product_name"))
+                        .append(" (").append(value(item, "product_code")).append(")")
+                        .append(" - Qty: ").append(value(item, "quantity")).append(" ").append(value(item, "unit"))
+                        .append(" @ ₹").append(value(item, "unit_price"))
+                        .append(" = ₹").append(value(item, "line_total"));
+            }
+        }
+
+        if (ret.get("refunds") instanceof List<?> refunds && !refunds.isEmpty()) {
+            out.append("\n\nRefund transactions:");
+            int idx = 0;
+            for (Object refObj : refunds) {
+                if (!(refObj instanceof Map<?, ?> ref)) continue;
+                idx++;
+                out.append("\n  ").append(idx).append(". ").append(value(ref, "payment_method"))
+                        .append(" - ₹").append(value(ref, "amount"))
+                        .append(" (Date: ").append(value(ref, "refund_date")).append(")");
+            }
+        }
+        return out.toString();
+    }
+
+    private String formatPurchaseReturns(List<?> rows) {
+        StringBuilder out = new StringBuilder("Matching purchase returns:");
+        int index = 0;
+        for (Object row : rows) {
+            if (!(row instanceof Map<?, ?> ret)) continue;
+            index++;
+            out.append("\n\n").append(index).append(". Return number: ").append(value(ret, "return_number"))
+                    .append("\nPurchase number: ").append(value(ret, "purchase_number"))
+                    .append("\nSupplier: ").append(value(ret, "supplier_name"))
+                    .append("\nSupplier invoice: ").append(value(ret, "supplier_invoice_no"))
+                    .append("\nDate: ").append(value(ret, "return_date"))
+                    .append("\nReason: ").append(value(ret, "reason"))
+                    .append("\nReturn total: ₹").append(value(ret, "total_return_amount"));
+        }
+        return index == 0 ? "No purchase return records were found." : out.toString();
+    }
+
+    private String formatPurchaseReturnDetails(Map<?, ?> ret) {
+        StringBuilder out = new StringBuilder("Purchase return details:\n")
+                .append("Return number: ").append(value(ret, "return_number"))
+                .append("\nPurchase number: ").append(value(ret, "purchase_number"))
+                .append("\nSupplier: ").append(value(ret, "supplier_name"))
+                .append("\nSupplier invoice: ").append(value(ret, "supplier_invoice_no"))
+                .append("\nReturn date: ").append(value(ret, "return_date"))
+                .append("\nReason: ").append(value(ret, "reason"))
+                .append("\nSubtotal: ₹").append(value(ret, "subtotal"))
+                .append("\nTax: ₹").append(value(ret, "tax_total"))
+                .append("\nTotal return amount: ₹").append(value(ret, "total_return_amount"));
+
+        if (ret.get("items") instanceof List<?> items && !items.isEmpty()) {
+            out.append("\n\nReturned items:");
+            int idx = 0;
+            for (Object itemObj : items) {
+                if (!(itemObj instanceof Map<?, ?> item)) continue;
+                idx++;
+                out.append("\n  ").append(idx).append(". ").append(value(item, "product_name"))
+                        .append(" (").append(value(item, "product_code")).append(")")
+                        .append(" - Qty: ").append(value(item, "quantity"))
+                        .append(" @ ₹").append(value(item, "purchase_price"))
+                        .append(" = ₹").append(value(item, "line_total"));
+            }
+        }
+
+        if (ret.get("credits") instanceof Map<?, ?> credits && !credits.isEmpty()) {
+            out.append("\n\nSupplier credit note:")
+                    .append("\n  Credit note: ").append(value(credits, "credit_note_number"))
+                    .append("\n  Credit amount: ₹").append(value(credits, "amount"))
+                    .append("\n  Applied amount: ₹").append(value(credits, "applied_amount"))
+                    .append("\n  Refunded amount: ₹").append(value(credits, "refunded_amount"));
+        }
+        return out.toString();
+    }
+
+    private String formatReturnSummary(Map<?, ?> data) {
+        return """
+                Consolidated return summary:
+                Sales returns count: %s
+                Customer returned amount: ₹%s
+                Purchase returns count: %s
+                Supplier return amount: ₹%s
+                """.formatted(
+                value(data, "sales_return_count"),
+                value(data, "sales_return_amount"),
+                value(data, "purchase_return_count"),
+                value(data, "purchase_return_amount")
+        ).trim();
+    }
+
+    // --------------------------------------------------
+    // FORMATTING HELPERS: FINANCIAL (Stage 2D)
+    // --------------------------------------------------
+
+    private String formatOpenCashRegisters(List<?> rows) {
+        StringBuilder out = new StringBuilder("Open cash register sessions:");
+        int index = 0;
+        for (Object row : rows) {
+            if (!(row instanceof Map<?, ?> reg)) continue;
+            index++;
+            out.append("\n\n").append(index).append(". Register: ").append(value(reg, "register_name"))
+                    .append(" (").append(value(reg, "register_code")).append(")")
+                    .append("\nSession ID: #").append(value(reg, "session_id"))
+                    .append("\nOpened by: ").append(value(reg, "opened_by"))
+                    .append("\nOpened at: ").append(value(reg, "opened_at"))
+                    .append("\nOpening balance: ₹").append(value(reg, "opening_balance"))
+                    .append("\nNet cash movements: ₹").append(value(reg, "net_cash_movement"))
+                    .append("\nCurrent drawer balance: ₹").append(value(reg, "current_drawer_balance"));
+        }
+        return index == 0 ? "No open cash register sessions found." : out.toString();
+    }
+
+    private String formatExpenseSummary(Map<?, ?> data) {
+        StringBuilder out = new StringBuilder("""
+                Operating expense summary:
+                Total expense records: %s
+                Total expense amount: ₹%s
+                Cash expenses: ₹%s
+                UPI expenses: ₹%s
+                Card expenses: ₹%s
+                Bank expenses: ₹%s
+                """.formatted(
+                value(data, "total_count"),
+                value(data, "total_expense_amount"),
+                value(data, "cash_expense"),
+                value(data, "upi_expense"),
+                value(data, "card_expense"),
+                value(data, "bank_expense")
+        ).trim());
+
+        if (data.get("categories") instanceof List<?> categories && !categories.isEmpty()) {
+            out.append("\n\nTop categories by spend:");
+            int idx = 0;
+            for (Object catObj : categories) {
+                if (!(catObj instanceof Map<?, ?> cat)) continue;
+                idx++;
+                out.append("\n  ").append(idx).append(". ").append(value(cat, "category_name"))
+                        .append(": ₹").append(value(cat, "category_total"))
+                        .append(" (").append(value(cat, "expense_count")).append(" entries)");
+            }
+        }
+        return out.toString();
+    }
+
+    private String formatExpensesByCategory(List<?> rows) {
+        StringBuilder out = new StringBuilder("Operating expenses:");
+        int index = 0;
+        for (Object row : rows) {
+            if (!(row instanceof Map<?, ?> exp)) continue;
+            index++;
+            out.append("\n\n").append(index).append(". ").append(value(exp, "title"))
+                    .append("\nCategory: ").append(value(exp, "category_name"))
+                    .append("\nAmount: ₹").append(value(exp, "amount"))
+                    .append("\nPayment method: ").append(value(exp, "payment_method"))
+                    .append("\nDate: ").append(value(exp, "expense_date"))
+                    .append("\nStatus: ").append(value(exp, "status"));
+        }
+        return index == 0 ? "No operating expenses were found." : out.toString();
+    }
+
+    private String formatDailyClosing(Map<?, ?> data) {
+        return """
+                Daily closing report:
+                Business date: %s
+                Closed by: %s (Closed at: %s)
+                Sales: %s orders | Invoiced: ₹%s | Collected: ₹%s | Balance: ₹%s
+                Payment modes: Cash ₹%s | UPI ₹%s | Card ₹%s | Bank ₹%s
+                Returns: %s sales returns | Refunded: ₹%s
+                Purchases: %s orders | Total: ₹%s
+                Expenses: %s records | Total: ₹%s
+                Registers: %s active | Opening: ₹%s | Expected: ₹%s | Actual: ₹%s | Cash difference: ₹%s
+                Notes: %s
+                """.formatted(
+                value(data, "business_date"),
+                value(data, "closed_by"), value(data, "closed_at"),
+                value(data, "sales_count"), value(data, "sales_total"), value(data, "sales_paid_total"), value(data, "sales_balance_total"),
+                value(data, "sales_cash_total"), value(data, "sales_upi_total"), value(data, "sales_card_total"), value(data, "sales_bank_total"),
+                value(data, "sales_return_count"), value(data, "sales_refund_total"),
+                value(data, "purchase_count"), value(data, "purchase_total"),
+                value(data, "expense_count"), value(data, "expense_total"),
+                value(data, "register_count"), value(data, "cash_opening_total"), value(data, "cash_expected_total"),
+                value(data, "cash_actual_total"), value(data, "cash_difference_total"),
+                value(data, "notes")
+        ).trim();
+    }
+
+    private String formatCashDiscrepancies(List<?> rows) {
+        StringBuilder out = new StringBuilder("Cash register session discrepancies:");
+        int index = 0;
+        for (Object row : rows) {
+            if (!(row instanceof Map<?, ?> crs)) continue;
+            index++;
+            out.append("\n\n").append(index).append(". Register: ").append(value(crs, "register_code"))
+                    .append("\nSession ID: #").append(value(crs, "session_id"))
+                    .append("\nClosed at: ").append(value(crs, "closed_at"))
+                    .append("\nExpected closing cash: ₹").append(value(crs, "expected_closing_balance"))
+                    .append("\nActual closing cash: ₹").append(value(crs, "actual_closing_balance"))
+                    .append("\nDifference amount: ₹").append(value(crs, "difference_amount"));
+        }
+        return index == 0 ? "No cash register session discrepancies found." : out.toString();
+    }
+
+    // --------------------------------------------------
+    // FORMATTING HELPERS: REPORTS & ANALYTICS (Stage 2D)
+    // --------------------------------------------------
+
+    private String formatKpiSummary(Map<?, ?> data) {
+        return """
+                Executive KPI summary:
+                Completed sales invoices: %s
+                Total invoiced revenue: ₹%s
+                Total collected revenue: ₹%s
+                Outstanding customer receivables: ₹%s
+                Received purchase orders: %s
+                Total procurement expenditure: ₹%s
+                Total operating expenses: ₹%s (Count: %s)
+                Customer sales returns: ₹%s (Count: %s)
+                Estimated net cash inflow (Collections - Expenses): ₹%s
+                """.formatted(
+                value(data, "completed_sales_count"),
+                value(data, "total_revenue"),
+                value(data, "collected_revenue"),
+                value(data, "outstanding_receivables"),
+                value(data, "received_purchases_count"),
+                value(data, "total_procurement_cost"),
+                value(data, "total_operating_expenses"), value(data, "total_expenses_count"),
+                value(data, "total_returned_amount"), value(data, "sales_returns_count"),
+                value(data, "estimated_net_cash_inflow")
+        ).trim();
+    }
+
+    private String formatInventoryAbcAnalysis(List<?> rows) {
+        StringBuilder out = new StringBuilder("Inventory Category A revenue contributors (Top sales value):");
+        int index = 0;
+        for (Object row : rows) {
+            if (!(row instanceof Map<?, ?> item)) continue;
+            index++;
+            out.append("\n\n").append(index).append(". ").append(value(item, "product_name"))
+                    .append(" (").append(value(item, "product_code")).append(")");
+            if (item.containsKey("abc_class") && item.get("abc_class") != null) {
+                out.append(" [Class ").append(value(item, "abc_class")).append("]");
+            }
+            out.append("\nTotal sales revenue: ₹").append(value(item, "total_sales_revenue"))
+                    .append("\nUnits sold: ").append(value(item, "total_units_sold"))
+                    .append("\nCurrent stock: ").append(value(item, "current_stock"))
+                    .append(" (Min stock: ").append(value(item, "minimum_stock")).append(")");
+        }
+        return index == 0 ? "No product sales data available for ABC inventory analysis." : out.toString();
+    }
+
+    private String formatCustomerRfmAnalysis(List<?> rows) {
+        StringBuilder out = new StringBuilder("Customer RFM segmentation (Top contributors):");
+        int index = 0;
+        for (Object row : rows) {
+            if (!(row instanceof Map<?, ?> item)) continue;
+            index++;
+            out.append("\n\n").append(index).append(". ").append(value(item, "customer_name"))
+                    .append(" (").append(value(item, "customer_code")).append(")")
+                    .append("\nSegment: ").append(value(item, "rfm_segment"))
+                    .append("\nTotal spend: ₹").append(value(item, "total_spend"))
+                    .append("\nInvoices count: ").append(value(item, "total_invoices"))
+                    .append("\nLast purchase: ").append(value(item, "last_purchase_date"))
+                    .append("\nPhone: ").append(value(item, "phone"));
+        }
+        return index == 0 ? "No customer transaction data available for RFM segmentation." : out.toString();
+    }
+
+    private String formatReconciliationDiscrepancies(Map<?, ?> data) {
+        StringBuilder out = new StringBuilder("Cross-ledger reconciliation audit report:\n");
+        int cashCount = 0;
+        int invCount = 0;
+
+        if (data.get("cash_variances") instanceof List<?> cashList) {
+            cashCount = cashList.size();
+        }
+        if (data.get("invoice_mismatches") instanceof List<?> invList) {
+            invCount = invList.size();
+        }
+
+        out.append("Cash drawer session discrepancies: ").append(cashCount)
+           .append("\nSales invoice balance mismatches: ").append(invCount);
+
+        if (cashCount == 0 && invCount == 0) {
+            out.append("\n\nAll verified ledgers are in balance. No discrepancies detected.");
+            return out.toString();
+        }
+
+        if (data.get("cash_variances") instanceof List<?> cashList && !cashList.isEmpty()) {
+            out.append("\n\nCash register discrepancies:");
+            int idx = 0;
+            for (Object itemObj : cashList) {
+                if (!(itemObj instanceof Map<?, ?> item)) continue;
+                idx++;
+                out.append("\n  ").append(idx).append(". Register: ").append(value(item, "register_code"))
+                        .append(" | Session #").append(value(item, "session_id"))
+                        .append(" | Difference: ₹").append(value(item, "difference_amount"))
+                        .append(" (Expected: ₹").append(value(item, "expected_closing_balance"))
+                        .append(", Actual: ₹").append(value(item, "actual_closing_balance")).append(")");
+            }
+        }
+
+        if (data.get("invoice_mismatches") instanceof List<?> invList && !invList.isEmpty()) {
+            out.append("\n\nSales invoice balance mismatches:");
+            int idx = 0;
+            for (Object itemObj : invList) {
+                if (!(itemObj instanceof Map<?, ?> item)) continue;
+                idx++;
+                out.append("\n  ").append(idx).append(". Invoice: ").append(value(item, "invoice_number"))
+                        .append(" | Total: ₹").append(value(item, "grand_total"))
+                        .append(" | Paid: ₹").append(value(item, "paid_amount"))
+                        .append(" | Balance: ₹").append(value(item, "balance_amount"))
+                        .append(" | Discrepancy: ₹").append(value(item, "discrepancy"));
+            }
+        }
+        return out.toString();
+    }
+
+    private String formatCogsProfitExplanation(Map<?, ?> data) {
+        return """
+                ERP Architectural Policy: %s
+                Status: %s
+
+                Explanation:
+                %s
+                """.formatted(
+                value(data, "metric"),
+                value(data, "status"),
+                value(data, "explanation")
+        ).trim();
+    }
+
+    // --------------------------------------------------
+    // FORMATTING HELPERS: AUDIT & DIAGNOSTIC (Stage 2D)
+    // --------------------------------------------------
+
+    private String formatAuditLogs(List<?> rows) {
+        StringBuilder out = new StringBuilder("System audit trail events:");
+        int index = 0;
+        for (Object row : rows) {
+            if (!(row instanceof Map<?, ?> logItem)) continue;
+            index++;
+            out.append("\n\n").append(index).append(". Action: ").append(value(logItem, "action"))
+                    .append("\nUser: ").append(value(logItem, "username"))
+                    .append("\nEntity: ").append(value(logItem, "entity_type")).append(" #").append(value(logItem, "entity_id"))
+                    .append("\nDescription: ").append(value(logItem, "description"))
+                    .append("\nTimestamp: ").append(value(logItem, "created_at"));
+        }
+        return index == 0 ? "No system audit logs found." : out.toString();
+    }
+
+    private String formatAiToolRuns(List<?> rows) {
+        StringBuilder out = new StringBuilder("AI tool diagnostic execution runs:");
+        int index = 0;
+        for (Object row : rows) {
+            if (!(row instanceof Map<?, ?> run)) continue;
+            index++;
+            out.append("\n\n").append(index).append(". Tool: ").append(value(run, "tool_name"))
+                    .append("\nUser: ").append(value(run, "user_subject"))
+                    .append("\nStatus: ").append(value(run, "status"))
+                    .append("\nConversation: ").append(value(run, "conversation_id"))
+                    .append("\nTimestamp: ").append(value(run, "created_at"));
+
+            String err = value(run, "error_message");
+            if (!"Not available".equals(err)) {
+                out.append("\nError message: ").append(err);
+            }
+        }
+        return index == 0 ? "No AI tool execution records found." : out.toString();
+    }
+
+    // --------------------------------------------------
     // FORMATTING HELPERS: PRODUCT & INVENTORY
     // --------------------------------------------------
 
@@ -994,6 +1526,10 @@ public class ErpAiGraphNodes {
                 - Sales invoices, invoice details, customer sales, and revenue summaries
                 - Customer lookup, customer sales history, and outstanding receivable balances
                 - Supplier directory, contact information, purchase history, and spend summaries
+                - Customer & purchase returns, refund records, and return statistics
+                - Cash registers, operating expenses, daily closings, and cash discrepancy reports
+                - Executive KPI summaries, inventory ABC analysis, and customer RFM cohorts
+                - Cross-ledger reconciliation discrepancies, audit logs, and AI diagnostic runs
                 """
         );
     }
@@ -1079,7 +1615,36 @@ public class ErpAiGraphNodes {
                  "SUPPLIER_SEARCH",
                  "SUPPLIER_DETAILS",
                  "SUPPLIER_PURCHASE_HISTORY",
-                 "SUPPLIER_SUMMARY" -> "TOOL";
+                 "SUPPLIER_SUMMARY",
+
+            // Returns (Stage 2D)
+                 "SALES_RETURN_SEARCH",
+                 "SALES_RETURN_DETAILS",
+                 "PURCHASE_RETURN_SEARCH",
+                 "PURCHASE_RETURN_DETAILS",
+                 "RETURN_SUMMARY",
+
+            // Financial (Stage 2D)
+                 "OPEN_CASH_REGISTERS",
+                 "CASH_REGISTER_STATUS",
+                 "EXPENSE_SUMMARY",
+                 "EXPENSES_BY_CATEGORY",
+                 "EXPENSE_BY_CATEGORY",
+                 "DAILY_CLOSING",
+                 "CASH_DISCREPANCIES",
+
+            // Reports & Analytics (Stage 2D)
+                 "KPI_SUMMARY",
+                 "INVENTORY_ABC_ANALYSIS",
+                 "INVENTORY_ABC_XYZ",
+                 "CUSTOMER_RFM_ANALYSIS",
+                 "CUSTOMER_RFM",
+                 "RECONCILIATION_DISCREPANCIES",
+                 "COGS_PROFIT_EXPLANATION",
+
+            // Audit & Diagnostic Logs (Stage 2D)
+                 "AUDIT_LOG_SEARCH",
+                 "AI_TOOL_RUNS_LOG" -> "TOOL";
 
             case "UNSUPPORTED" -> "UNSUPPORTED";
             case "CLARIFICATION" -> "CLARIFICATION";

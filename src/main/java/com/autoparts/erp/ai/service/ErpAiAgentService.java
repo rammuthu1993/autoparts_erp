@@ -66,7 +66,7 @@ public class ErpAiAgentService {
     private static final Logger log =
             LoggerFactory.getLogger(ErpAiAgentService.class);
 
-    private final CompiledGraph<ErpAiGraphState> workflow;
+    private final ErpAiGraphWorkflow workflow;
 
     private final Duration executionTimeout;
 
@@ -91,7 +91,7 @@ public class ErpAiAgentService {
             Duration executionTimeout
     ) {
         try {
-            this.workflow = buildWorkflow(graphNodes);
+            this.workflow = ErpAiGraphWorkflow.from(buildWorkflow(graphNodes));
             this.executionTimeout = executionTimeout;
             this.timeoutScheduler = newTimeoutScheduler();
 
@@ -105,17 +105,25 @@ public class ErpAiAgentService {
     }
 
     // --------------------------------------------------
-    // TEST CONSTRUCTOR
+    // TEST CONSTRUCTORS
     // --------------------------------------------------
 
     ErpAiAgentService(
-            CompiledGraph<ErpAiGraphState> workflow,
+            ErpAiGraphWorkflow workflow,
             Duration executionTimeout,
             ScheduledExecutorService timeoutScheduler
     ) {
         this.workflow = workflow;
         this.executionTimeout = executionTimeout;
         this.timeoutScheduler = timeoutScheduler;
+    }
+
+    ErpAiAgentService(
+            CompiledGraph<ErpAiGraphState> compiledGraph,
+            Duration executionTimeout,
+            ScheduledExecutorService timeoutScheduler
+    ) {
+        this(ErpAiGraphWorkflow.from(compiledGraph), executionTimeout, timeoutScheduler);
     }
 
     // --------------------------------------------------
