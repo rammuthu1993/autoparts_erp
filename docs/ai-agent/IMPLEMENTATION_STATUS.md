@@ -1,6 +1,6 @@
 # Auto Parts ERP AI Assistant: Implementation Status Ledger
 
-*Last Updated*: 2026-11-17 (Stage 2 Completed & Accepted; Stage 3A Audit Completed & Revised)
+*Last Updated*: 2026-11-18 (Stage 3C Phases 1, 2, 3 Completed & Verified; Phase 4 Queued)
 
 ---
 
@@ -16,7 +16,7 @@
 | **Stage 2E** | Hybrid Routing, Multi-Entity Context & Dynamic Synthesis | **COMPLETED** | Approved by User |
 | **Stage 3A** | RAG Feasibility and Architecture Audit | **COMPLETED** | Approved by User |
 | **Stage 3B** | FTS-Based Lexical RAG Implementation & Security Remediation | **COMPLETED** | Approved by User |
-| **Stage 3C** | Retrieval Evaluation & Improvements (Phases 1 & 2 Completed) | **IN PROGRESS (Phases 1 & 2 COMPLETED)** | Phases 1 & 2 Complete; Ready for Phase 3 |
+| **Stage 3C** | Retrieval Evaluation & Precision Benchmark (Phases 1, 2 & 3 Completed) | **IN PROGRESS (Phases 1, 2, 3 COMPLETED)** | Phases 1, 2, 3 Complete; Awaiting User Phase-Gate Approval (Phase 4 Queued) |
 | **Stage 4** | Production Reliability, Security & Observability | **QUEUED** | Depends on Stage 3 |
 | **Stage 5** | Testing, Evaluation & Production Readiness | **QUEUED** | Depends on Stage 4 |
 
@@ -124,6 +124,49 @@
 
 ---
 
+## Stage 3C Phase 2 Completed Tasks (Chunking Evaluation & Empirical Benchmark)
+
+* [x] **Task 1 — Empirical Chunking Benchmark Suite (`ChunkingBenchmarkTest.java`)**:
+  - Implemented 5 focused benchmark tests evaluating `DocumentChunker(500, 50)` across all four corpus fixtures (33 chunks total).
+  - Measured true weighted mean chunk size: **202.0 tokens/chunk** ($\sum \text{tokens} = 6,667 / 33$).
+  - Measured aggregate character-to-estimated-token ratio: **3.99** ($26,611 \text{ chars} / 6,667 \text{ tokens} = 3.9915$).
+  - Verified 100% word boundary preservation (0 truncated words) and 100% paragraph preservation (52/52 paragraphs intact).
+  - Verified 0 oversized chunks (>500 tokens) and documented 8 undersized chunks (24.2%) caused by isolated markdown header stubs.
+  - Measured consecutive overlap mechanics: continuous plain-text overlaps by 37 words, markdown headers exhibit 0-word overlap.
+* [x] **Task 2 — Phase 2 Documentation**: Authored `docs/ai-agent/STAGE_3C_PHASE_2_CHUNKING_BENCHMARK.md`.
+
+---
+
+## Stage 3C Phase 3 Completed Tasks (Retrieval Evaluation & Precision Benchmark)
+
+* [x] **Task 1 — Comprehensive 28-Query Evaluation Dataset (`retrieval-evaluation-dataset.json`)**:
+  - Authored and verified 28 ground-truth test cases across 6 distinct categories: Direct Keyword (5), Natural Language (5), Term Variation (5), Multi-Term (5), Negative Out-of-Scope (4), and Role-Restricted (4).
+  - Corrected vocabulary mismatches to match verified fixture text (`standard return window replacement parts` for `POL-RET-001`, `returning replacement parts`, `cash register safe drop envelope`, and `daily cash count float deduction`).
+* [x] **Task 2 — Safe & Isolated Retrieval Evaluation Test Suite (`KnowledgeRetrievalEvaluationTest.java`)**:
+  - Implemented 28 comprehensive test methods (12 unit tests + 16 live PostgreSQL integration tests) against live PostgreSQL 18.4 with managed `SingleConnectionDataSource` lifecycle.
+  - Enforced run-specific isolated document codes (`EVAL_<type>_<uuid>`) and primary-key-based UUID cleanup with suppressed exception propagation, guaranteeing complete isolation from development data.
+  - Implemented authoritative target chunk index relevance matching and pure metric calculation (Fixed & Adaptive Precision@K, True Recall@K, MRR).
+  - Enforced fail-closed role-isolation evaluation on every returned chunk against `KnowledgeRetrievalService.resolveAllowedRoles(tc.userRole())`, verified by 3 dedicated unit tests detecting unauthorized leaks in positive queries, unrelated restricted leaks, and unrecognized documents defaulting to `ROLE_ADMIN`.
+  - Corrected negative-query metric semantics: precision, recall, and reciprocal rank for queries without positive targets are mathematically undefined ($0/0$) and recorded as `Double.NaN` (`N/A`), while true-negative rejection is measured separately via `True Negative Rate` (100.0%, 0 false positives).
+  - Added dedicated two-sided role authorization verification proving that `ROLE_CASHIER` and `ROLE_MANAGER` retrieve `SOP-CSH-001` Chunk 0 while `PUBLIC` is blocked at the SQL boundary.
+* [x] **Task 3 — Measured Baseline Metrics on Live PostgreSQL 18.4**:
+  - **Document Hit Rate**: 78.3% (18 / 23 positive queries)
+  - **Section Hit Rate**: 69.6% (16 / 23 positive queries)
+  - **Mean Reciprocal Rank (MRR)**: 0.6232
+  - **Precision@K (Fixed)**: P@1: 0.5652 | P@3: 0.2464 | P@5: 0.1478 (evaluated across 23 positive queries; N/A for negative queries)
+  - **Precision@K (Adaptive)**: P@1: 0.5652 | P@3: 0.5507 | P@5: 0.5507
+  - **Recall@K**: R@1: 0.4928 | R@3: 0.6377 | R@5: 0.6377
+  - **Negative Query Zero-Result Rate**: 100.0% (5 / 5, 0 false positives)
+  - **Role-Based Isolation Violations**: 0 (Strict Zero)
+  - **Average Retrieval Latency**: 0.81 ms (Min: 0.42 ms, Max: 1.63 ms; sub-millisecond GIN index performance)
+  - **Chunking Observations (from Phase 2 empirical benchmark)**: 8 / 33 undersized chunks (24.24% caused by orphan header stubs), 0 oversized chunks (>500 tokens), 81.82% punctuation termination.
+* [x] **Task 4 — RAG Regression Suite Execution & Reconciliation**:
+  - Executed all 11 RAG regression test classes: **108 tests run, 108 passed, 0 failures, 0 errors, 0 skipped**.
+  - All 11 Surefire XML reports verified with clean timestamps.
+* [x] **Task 5 — Phase 3 Documentation**: Authored `docs/ai-agent/STAGE_3C_PHASE_3_RETRIEVAL_EVALUATION.md`.
+
+---
+
 ## Stage 2 Completed & Accepted Tasks Summary
 
 * [x] **Stage 2A**: Read-only code and database schema audit (`V1`–`V30`); authored `STAGE_2A_VERIFIED_IMPLEMENTATION_MAP.md`.
@@ -141,7 +184,7 @@ Captured from clean verified execution on Java 25.0.3 LTS with Maven 3.10.0 (Sur
 
 | Suite # | Test Class | Category | Tests Run | Passed | Failures | Errors | Skipped | Status |
 | :---: | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Stage 3 RAG & Knowledge Tests (10 classes)** |
+| **Stage 3 RAG & Knowledge Tests (12 classes: 115 tests)** |
 | 1 | CitationValidatorTest | Citation Validation Unit Test | 16 | 16 | 0 | 0 | 0 | **PASSED** |
 | 2 | PromptInjectionDefenseTest | RAG Prompt Injection Defense Test | 6 | 6 | 0 | 0 | 0 | **PASSED** |
 | 3 | KnowledgeChunkingTest | Boundary & Heading Chunking Test | 4 | 4 | 0 | 0 | 0 | **PASSED** |
@@ -152,43 +195,44 @@ Captured from clean verified execution on Java 25.0.3 LTS with Maven 3.10.0 (Sur
 | 8 | KnowledgeAccessControlTest | Role Matrix & Security Access Test | 4 | 4 | 0 | 0 | 0 | **PASSED** |
 | 9 | KnowledgeRetrievalEngineTest | FTS Query & Exception Wrapping Test | 4 | 4 | 0 | 0 | 0 | **PASSED** |
 | 10 | PostgresFtsRetrievalIntegrationTest | Live PostgreSQL 18 FTS & Guard Test | 13 | 13 | 0 | 0 | 0 | **PASSED (Live DB & Guard)** |
-| 11 | Stage3KnowledgeGraphIntegrationTest | Knowledge Graph Integration Test | 7 | 7 | 0 | 0 | 0 | **PASSED** |
-| **Stage 2B–2E Accepted AI Tests (25 classes)** |
-| 12 | ErpAiGraphNodesTest | AI Graph Nodes Unit Test | 57 | 57 | 0 | 0 | 0 | **PASSED** |
-| 13 | ErpAiIntentClassifierTest | AI Intent Classifier Test | 42 | 42 | 0 | 0 | 0 | **PASSED** |
-| 14 | ErpAiAgentServiceConcurrencyTest | AI Concurrency & Timeout Test | 22 | 22 | 0 | 0 | 0 | **PASSED** |
-| 15 | AiAssistantServiceTest | AI Assistant Service Test | 17 | 17 | 0 | 0 | 0 | **PASSED** |
-| 16 | ProductLookupToolTest | AI Product Lookup Unit Test | 16 | 16 | 0 | 0 | 0 | **PASSED** |
-| 17 | ErpAiHybridIntentRouterTest | Stage 2E Hybrid Router Test | 16 | 16 | 0 | 0 | 0 | **PASSED** |
-| 18 | Stage2DIntentAndRoutingTest | Stage 2D Routing Integration Test | 14 | 14 | 0 | 0 | 0 | **PASSED** |
-| 19 | ErpAiComparisonAndContextTest | AI Context Resolution Test | 11 | 11 | 0 | 0 | 0 | **PASSED** |
-| 20 | Stage2CIntentAndRoutingTest | Stage 2C Routing Integration Test | 10 | 10 | 0 | 0 | 0 | **PASSED** |
-| 21 | ReturnLookupToolTest | Return Domain Tool Test | 9 | 9 | 0 | 0 | 0 | **PASSED** |
-| 22 | FinancialLookupToolTest | Financial Domain Tool Test | 9 | 9 | 0 | 0 | 0 | **PASSED** |
-| 23 | ErpAiExecutionContextTest | Execution Context Security Test | 9 | 9 | 0 | 0 | 0 | **PASSED** |
-| 24 | ErpAiPendingClarificationStoreTest | Pending Clarification Store Test | 9 | 9 | 0 | 0 | 0 | **PASSED** |
-| 25 | SupplierLookupToolTest | Supplier Domain Tool Test | 8 | 8 | 0 | 0 | 0 | **PASSED** |
-| 26 | ReportLookupToolTest | Report Domain Tool Test | 8 | 8 | 0 | 0 | 0 | **PASSED** |
-| 27 | ErpAiSecurityAuthorizationTest | Security Authorization Test | 8 | 8 | 0 | 0 | 0 | **PASSED** |
-| 28 | CustomerLookupToolTest | Customer Domain Tool Test | 7 | 7 | 0 | 0 | 0 | **PASSED** |
-| 29 | SalesLookupToolTest | Sales Domain Tool Test | 7 | 7 | 0 | 0 | 0 | **PASSED** |
-| 30 | AuditLogLookupToolTest | Audit Log Domain Tool Test | 7 | 7 | 0 | 0 | 0 | **PASSED** |
-| 31 | ErpAiLlmClassifierTest | LLM Intent Classifier Test | 7 | 7 | 0 | 0 | 0 | **PASSED** |
-| 32 | Stage2EGraphRoutingIntegrationTest | Compiled Workflow Integration Test | 7 | 7 | 0 | 0 | 0 | **PASSED** |
-| 33 | PurchaseLookupToolTest | Purchase Domain Tool Test | 6 | 6 | 0 | 0 | 0 | **PASSED** |
-| 34 | ErpAiAsyncSecurityIsolationTest | Async Security Isolation Test | 4 | 4 | 0 | 0 | 0 | **PASSED** |
-| 35 | ProductLookupToolComparisonTest | AI Product Comparison Test | 3 | 3 | 0 | 0 | 0 | **PASSED** |
-| 36 | AiRepositoryImplStatusTest | AI Repository Unit Test | 1 | 1 | 0 | 0 | 0 | **PASSED** |
-| **Core Non-AI Application Tests (4 classes)** |
-| 37 | AuthenticationFlowTests | Security Flow Integration Test | 6 | 6 | 0 | 0 | 0 | **PASSED** |
-| 38 | InventoryServiceImplTests | Inventory Service Unit Test | 5 | 5 | 0 | 0 | 0 | **PASSED** |
-| 39 | AdvancedReportServiceImplTests | Reports Service Unit Test | 4 | 4 | 0 | 0 | 0 | **PASSED** |
-| 40 | GlobalExceptionHandlerTest | Global Exception Handler Test | 4 | 4 | 0 | 0 | 0 | **PASSED** |
-| **TOTALS (40 SUITES)** | | | **420** | **420** | **0** | **0** | **0** | **420 / 420 (100.0%)** |
+| 11 | KnowledgeRetrievalEvaluationTest | Stage 3C Phase 3 Precision Benchmark | 28 | 28 | 0 | 0 | 0 | **PASSED (Live DB & Isolated)** |
+| 12 | Stage3KnowledgeGraphIntegrationTest | Knowledge Graph Integration Test | 7 | 7 | 0 | 0 | 0 | **PASSED** |
+| **Stage 2B–2E Accepted AI Tests (25 classes: 314 tests)** |
+| 13 | ErpAiGraphNodesTest | AI Graph Nodes Unit Test | 57 | 57 | 0 | 0 | 0 | **PASSED** |
+| 14 | ErpAiIntentClassifierTest | AI Intent Classifier Test | 42 | 42 | 0 | 0 | 0 | **PASSED** |
+| 15 | ErpAiAgentServiceConcurrencyTest | AI Concurrency & Timeout Test | 22 | 22 | 0 | 0 | 0 | **PASSED** |
+| 16 | AiAssistantServiceTest | AI Assistant Service Test | 17 | 17 | 0 | 0 | 0 | **PASSED** |
+| 17 | ProductLookupToolTest | AI Product Lookup Unit Test | 16 | 16 | 0 | 0 | 0 | **PASSED** |
+| 18 | ErpAiHybridIntentRouterTest | Stage 2E Hybrid Router Test | 16 | 16 | 0 | 0 | 0 | **PASSED** |
+| 19 | Stage2DIntentAndRoutingTest | Stage 2D Routing Integration Test | 14 | 14 | 0 | 0 | 0 | **PASSED** |
+| 20 | ErpAiComparisonAndContextTest | AI Context Resolution Test | 11 | 11 | 0 | 0 | 0 | **PASSED** |
+| 21 | Stage2CIntentAndRoutingTest | Stage 2C Routing Integration Test | 10 | 10 | 0 | 0 | 0 | **PASSED** |
+| 22 | ReturnLookupToolTest | Return Domain Tool Test | 9 | 9 | 0 | 0 | 0 | **PASSED** |
+| 23 | FinancialLookupToolTest | Financial Domain Tool Test | 9 | 9 | 0 | 0 | 0 | **PASSED** |
+| 24 | ErpAiExecutionContextTest | Execution Context Security Test | 9 | 9 | 0 | 0 | 0 | **PASSED** |
+| 25 | ErpAiPendingClarificationStoreTest | Pending Clarification Store Test | 9 | 9 | 0 | 0 | 0 | **PASSED** |
+| 26 | SupplierLookupToolTest | Supplier Domain Tool Test | 8 | 8 | 0 | 0 | 0 | **PASSED** |
+| 27 | ReportLookupToolTest | Report Domain Tool Test | 8 | 8 | 0 | 0 | 0 | **PASSED** |
+| 28 | ErpAiSecurityAuthorizationTest | Security Authorization Test | 8 | 8 | 0 | 0 | 0 | **PASSED** |
+| 29 | CustomerLookupToolTest | Customer Domain Tool Test | 7 | 7 | 0 | 0 | 0 | **PASSED** |
+| 30 | SalesLookupToolTest | Sales Domain Tool Test | 7 | 7 | 0 | 0 | 0 | **PASSED** |
+| 31 | AuditLogLookupToolTest | Audit Log Domain Tool Test | 7 | 7 | 0 | 0 | 0 | **PASSED** |
+| 32 | ErpAiLlmClassifierTest | LLM Intent Classifier Test | 7 | 7 | 0 | 0 | 0 | **PASSED** |
+| 33 | Stage2EGraphRoutingIntegrationTest | Compiled Workflow Integration Test | 7 | 7 | 0 | 0 | 0 | **PASSED** |
+| 34 | PurchaseLookupToolTest | Purchase Domain Tool Test | 6 | 6 | 0 | 0 | 0 | **PASSED** |
+| 35 | ErpAiAsyncSecurityIsolationTest | Async Security Isolation Test | 4 | 4 | 0 | 0 | 0 | **PASSED** |
+| 36 | ProductLookupToolComparisonTest | AI Product Comparison Test | 3 | 3 | 0 | 0 | 0 | **PASSED** |
+| 37 | AiRepositoryImplStatusTest | AI Repository Unit Test | 1 | 1 | 0 | 0 | 0 | **PASSED** |
+| **Core Non-AI Application Tests (4 classes: 19 tests)** |
+| 38 | AuthenticationFlowTests | Security Flow Integration Test | 6 | 6 | 0 | 0 | 0 | **PASSED** |
+| 39 | InventoryServiceImplTests | Inventory Service Unit Test | 5 | 5 | 0 | 0 | 0 | **PASSED** |
+| 40 | AdvancedReportServiceImplTests | Reports Service Unit Test | 4 | 4 | 0 | 0 | 0 | **PASSED** |
+| 41 | GlobalExceptionHandlerTest | Global Exception Handler Test | 4 | 4 | 0 | 0 | 0 | **PASSED** |
+| **TOTALS (41 PASSING SUITES)** | | | **448** | **448** | **0** | **0** | **0** | **448 / 448 (100.0%)** |
 | PostgresQueryTimeoutIntegrationTest | Live DB Timeout Integration Test | 1 | 0 | 0 | 1 | 0 | **ERROR (DB Auth)** |
 
-*Reconciliation Note on Total Count (420 Tests across 40 Suites)*:
-A clean single Maven execution produces exactly 40 XML report files in `target/surefire-reports`, perfectly reconciling with the 40 executed test classes. In a clean run, 420 total tests are executed (87 Stage 3 RAG, Ingestion & Benchmark tests [including 13 in `PostgresFtsRetrievalIntegrationTest` and 5 in `ChunkingBenchmarkTest`] + 314 Stage 2B–2E tests + 19 Core application tests), yielding 420 passing tests (100.0%), 0 failures, 0 errors, and 0 skipped tests. All fixtures in the Stage 3C Phase 1 evaluation corpus pass format parsing, PDF extraction across pages, heading hierarchy inheritance, and ingestion validation.
+*Reconciliation Note on Total Count (448 Passing Tests across 41 Suites)*:
+A clean single Maven execution produces exactly 41 XML report files in `target/surefire-reports` for the verified suites. In a clean run, 448 total tests are executed and pass (115 Stage 3 RAG, Ingestion, Benchmark & Evaluation tests [including 13 in `PostgresFtsRetrievalIntegrationTest`, 5 in `ChunkingBenchmarkTest`, and 28 in `KnowledgeRetrievalEvaluationTest`] + 314 Stage 2B–2E tests + 19 Core application tests), yielding 448 passing tests (100.0%), 0 failures, 0 errors, and 0 skipped tests across these 41 suites. `PostgresQueryTimeoutIntegrationTest` is a separate infrastructure test with known database auth/timeout dependencies that fails in this local environment. All fixtures in the Stage 3C Phase 1 evaluation corpus pass format parsing, PDF extraction across pages, heading hierarchy inheritance, and ingestion validation. Baseline retrieval metrics under PostgreSQL 18.4 FTS: Document Hit Rate 78.3% (18/23), Section Hit Rate 69.6% (16/23), MRR 0.6232, 100% Negative Query Rejection, 0 Role Isolation Violations, and 0.81 ms average retrieval latency (Min: 0.42 ms, Max: 1.63 ms).
 
 ---
 

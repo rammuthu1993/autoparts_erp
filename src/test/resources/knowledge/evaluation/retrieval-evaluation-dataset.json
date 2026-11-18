@@ -1,0 +1,414 @@
+[
+  {
+    "testCaseId": "EVAL-DIR-001",
+    "category": "DIRECT_KEYWORD",
+    "question": "What is the battery warranty period?",
+    "queryText": "battery warranty period",
+    "expectedDocumentCodes": ["POL-WAR-001"],
+    "targetChunkIndices": {
+      "POL-WAR-001": [3]
+    },
+    "expectedSectionKeywords": ["2.1 Automotive Batteries", "Automotive Batteries"],
+    "userRole": "PUBLIC",
+    "expectedOutcome": "MATCH_FOUND",
+    "groundTruthRelevantCount": 1,
+    "explanation": "Direct keyword query on battery warranty terms, covered in POL-WAR-001 section 2.1 (chunk 3)."
+  },
+  {
+    "testCaseId": "EVAL-DIR-002",
+    "category": "DIRECT_KEYWORD",
+    "question": "How long is the standard return window for replacement parts?",
+    "queryText": "standard return window replacement parts",
+    "expectedDocumentCodes": ["POL-RET-001"],
+    "targetChunkIndices": {
+      "POL-RET-001": [0]
+    },
+    "expectedSectionKeywords": ["Section 1: Standard Return Window and Eligibility", "Standard Return Window"],
+    "userRole": "PUBLIC",
+    "expectedOutcome": "MATCH_FOUND",
+    "groundTruthRelevantCount": 1,
+    "explanation": "Return policy specifies 30-day standard return window for eligible automotive replacement parts in section 1 (chunk 0)."
+  },
+  {
+    "testCaseId": "EVAL-DIR-003",
+    "category": "DIRECT_KEYWORD",
+    "question": "What is the opening cash float?",
+    "queryText": "opening cash float amount",
+    "expectedDocumentCodes": ["SOP-CSH-001"],
+    "targetChunkIndices": {
+      "SOP-CSH-001": [0]
+    },
+    "expectedSectionKeywords": ["Daily Cash Register Closing & Reconciliation SOP"],
+    "userRole": "ROLE_CASHIER",
+    "expectedOutcome": "MATCH_FOUND",
+    "groundTruthRelevantCount": 1,
+    "explanation": "SOP-CSH-001 section 1 specifies a mandatory 5,000 currency units opening cash float in register drawer (chunk 0)."
+  },
+  {
+    "testCaseId": "EVAL-DIR-004",
+    "category": "DIRECT_KEYWORD",
+    "question": "Which HSN code is used for automotive batteries?",
+    "queryText": "HSN code automotive batteries",
+    "expectedDocumentCodes": ["FAQ-GST-001"],
+    "targetChunkIndices": {
+      "FAQ-GST-001": [6]
+    },
+    "expectedSectionKeywords": ["2.2 What are the primary HSN codes", "Primary HSN codes"],
+    "userRole": "PUBLIC",
+    "expectedOutcome": "MATCH_FOUND",
+    "groundTruthRelevantCount": 1,
+    "explanation": "Section 2.2 explicitly lists HSN 8507 for electric accumulators and automotive batteries (chunk 6)."
+  },
+  {
+    "testCaseId": "EVAL-DIR-005",
+    "category": "DIRECT_KEYWORD",
+    "question": "What is the restocking fee for returned parts?",
+    "queryText": "restocking fee returned parts",
+    "expectedDocumentCodes": ["POL-RET-001"],
+    "targetChunkIndices": {
+      "POL-RET-001": [1]
+    },
+    "expectedSectionKeywords": ["Return and Core Exchange Policy"],
+    "userRole": "PUBLIC",
+    "expectedOutcome": "MATCH_FOUND",
+    "groundTruthRelevantCount": 1,
+    "explanation": "POL-RET-001 section 3 covers restocking fees: 0% on standard unopened, 15% on special order (chunk 1)."
+  },
+  {
+    "testCaseId": "EVAL-NL-001",
+    "category": "NATURAL_LANGUAGE",
+    "question": "A customer says their alternator is not charging. How can they submit a warranty claim?",
+    "queryText": "alternator not charging submit warranty claim",
+    "expectedDocumentCodes": ["POL-WAR-001"],
+    "targetChunkIndices": {
+      "POL-WAR-001": [5, 8]
+    },
+    "expectedSectionKeywords": ["2.3 Alternators and Starters", "4. Warranty Claim Submission Procedure"],
+    "userRole": "PUBLIC",
+    "expectedOutcome": "MATCH_FOUND",
+    "groundTruthRelevantCount": 2,
+    "explanation": "Alternator criteria in section 2.3 (chunk 5) and warranty claim submission process in section 4 (chunk 8)."
+  },
+  {
+    "testCaseId": "EVAL-NL-002",
+    "category": "NATURAL_LANGUAGE",
+    "question": "What should a cashier do when the closing cash does not match the register balance?",
+    "queryText": "closing cash does not match register balance discrepancy",
+    "expectedDocumentCodes": ["SOP-CSH-001"],
+    "targetChunkIndices": {
+      "SOP-CSH-001": [4]
+    },
+    "expectedSectionKeywords": ["Daily Cash Register Closing & Reconciliation SOP"],
+    "userRole": "ROLE_CASHIER",
+    "expectedOutcome": "MATCH_FOUND",
+    "groundTruthRelevantCount": 1,
+    "explanation": "Section 5 of SOP-CSH-001 details discrepancy escalation: <=50 minor, 51-500 moderate, >500 material (chunk 4)."
+  },
+  {
+    "testCaseId": "EVAL-NL-003",
+    "category": "NATURAL_LANGUAGE",
+    "question": "Can a customer return an alternator without its core?",
+    "queryText": "return alternator without core deposit exchange",
+    "expectedDocumentCodes": ["POL-RET-001"],
+    "targetChunkIndices": {
+      "POL-RET-001": [2]
+    },
+    "expectedSectionKeywords": ["Return and Core Exchange Policy"],
+    "userRole": "PUBLIC",
+    "expectedOutcome": "MATCH_FOUND",
+    "groundTruthRelevantCount": 1,
+    "explanation": "Section 5 of POL-RET-001 specifies a 1,200 currency units core charge if the replaced alternator core is missing (chunk 2)."
+  },
+  {
+    "testCaseId": "EVAL-NL-004",
+    "category": "NATURAL_LANGUAGE",
+    "question": "How is GST split for an interstate sale?",
+    "queryText": "GST split interstate sale IGST CGST SGST",
+    "expectedDocumentCodes": ["FAQ-GST-001"],
+    "targetChunkIndices": {
+      "FAQ-GST-001": [9]
+    },
+    "expectedSectionKeywords": ["3.1 How does the ERP determine whether to apply CGST/SGST or IGST", "CGST/SGST vs IGST"],
+    "userRole": "PUBLIC",
+    "expectedOutcome": "MATCH_FOUND",
+    "groundTruthRelevantCount": 1,
+    "explanation": "Section 3.1 explains that interstate transactions are levied as integrated GST (IGST) without CGST/SGST split (chunk 9)."
+  },
+  {
+    "testCaseId": "EVAL-NL-005",
+    "category": "NATURAL_LANGUAGE",
+    "question": "When should an invoice credit note be issued instead of cancelling the bill?",
+    "queryText": "credit note issued instead of cancelling invoice",
+    "expectedDocumentCodes": ["FAQ-GST-001"],
+    "targetChunkIndices": {
+      "FAQ-GST-001": [12]
+    },
+    "expectedSectionKeywords": ["4.1 When must a Credit Note be issued", "When must a Credit Note"],
+    "userRole": "PUBLIC",
+    "expectedOutcome": "MATCH_FOUND",
+    "groundTruthRelevantCount": 1,
+    "explanation": "Section 4.1 clarifies that validated invoices cannot be voided; credit notes must be issued for sales returns and discounts (chunk 12)."
+  },
+  {
+    "testCaseId": "EVAL-VAR-001",
+    "category": "TERM_VARIATION",
+    "question": "alternator warranties",
+    "queryText": "alternator warranties",
+    "expectedDocumentCodes": ["POL-WAR-001"],
+    "targetChunkIndices": {
+      "POL-WAR-001": [5]
+    },
+    "expectedSectionKeywords": ["2.3 Alternators and Starters", "Alternators and Starters"],
+    "userRole": "PUBLIC",
+    "expectedOutcome": "MATCH_FOUND",
+    "groundTruthRelevantCount": 1,
+    "explanation": "Stemming evaluation: 'alternator' -> altern, 'warranties' -> warranti matches section 2.3 (chunk 5)."
+  },
+  {
+    "testCaseId": "EVAL-VAR-002",
+    "category": "TERM_VARIATION",
+    "question": "returning replacement parts",
+    "queryText": "returning replacement parts",
+    "expectedDocumentCodes": ["POL-RET-001"],
+    "targetChunkIndices": {
+      "POL-RET-001": [0]
+    },
+    "expectedSectionKeywords": ["Section 1: Standard Return Window and Eligibility", "Standard Return Window"],
+    "userRole": "PUBLIC",
+    "expectedOutcome": "MATCH_FOUND",
+    "groundTruthRelevantCount": 1,
+    "explanation": "Stemming evaluation: 'returning' -> return matches return policy section 1 covering eligible automotive replacement parts (chunk 0)."
+  },
+  {
+    "testCaseId": "EVAL-VAR-003",
+    "category": "TERM_VARIATION",
+    "question": "reconciling cash drawers",
+    "queryText": "reconciling cash drawers",
+    "expectedDocumentCodes": ["SOP-CSH-001"],
+    "targetChunkIndices": {
+      "SOP-CSH-001": [0, 2, 3]
+    },
+    "expectedSectionKeywords": ["Daily Cash Register Closing & Reconciliation SOP"],
+    "userRole": "ROLE_CASHIER",
+    "expectedOutcome": "MATCH_FOUND",
+    "groundTruthRelevantCount": 3,
+    "explanation": "Stemming evaluation: 'reconciling' -> reconcil matches SOP register opening, cash counting, and payment reconciliation (chunks 0, 2, 3)."
+  },
+  {
+    "testCaseId": "EVAL-VAR-004",
+    "category": "TERM_VARIATION",
+    "question": "battery deposits",
+    "queryText": "battery deposits",
+    "expectedDocumentCodes": ["POL-RET-001"],
+    "targetChunkIndices": {
+      "POL-RET-001": [1]
+    },
+    "expectedSectionKeywords": ["Return and Core Exchange Policy"],
+    "userRole": "PUBLIC",
+    "expectedOutcome": "MATCH_FOUND",
+    "groundTruthRelevantCount": 1,
+    "explanation": "Stemming evaluation: 'deposits' -> deposit matches battery core deposit in section 4 (chunk 1)."
+  },
+  {
+    "testCaseId": "EVAL-VAR-005",
+    "category": "TERM_VARIATION",
+    "question": "crediting notes for returns",
+    "queryText": "crediting notes for returns",
+    "expectedDocumentCodes": ["FAQ-GST-001"],
+    "targetChunkIndices": {
+      "FAQ-GST-001": [12]
+    },
+    "expectedSectionKeywords": ["4.1 When must a Credit Note be issued", "When must a Credit Note"],
+    "userRole": "PUBLIC",
+    "expectedOutcome": "MATCH_FOUND",
+    "groundTruthRelevantCount": 1,
+    "explanation": "Stemming evaluation: 'crediting' -> credit matches Credit Note for sales returns in section 4.1 (chunk 12)."
+  },
+  {
+    "testCaseId": "EVAL-MUL-001",
+    "category": "MULTI_TERM",
+    "question": "battery warranty tester receipt exclusions",
+    "queryText": "battery warranty tester receipt exclusions",
+    "expectedDocumentCodes": ["POL-WAR-001"],
+    "targetChunkIndices": {
+      "POL-WAR-001": [3, 7]
+    },
+    "expectedSectionKeywords": ["2.1 Automotive Batteries", "3. General Warranty Exclusions"],
+    "userRole": "PUBLIC",
+    "expectedOutcome": "MATCH_FOUND",
+    "groundTruthRelevantCount": 2,
+    "explanation": "Multi-term query combining battery, warranty, tester report, invoice receipt, and exclusions (chunks 3, 7)."
+  },
+  {
+    "testCaseId": "EVAL-MUL-002",
+    "category": "MULTI_TERM",
+    "question": "cash closing discrepancy manager approval",
+    "queryText": "cash closing discrepancy manager approval",
+    "expectedDocumentCodes": ["SOP-CSH-001"],
+    "targetChunkIndices": {
+      "SOP-CSH-001": [4, 5]
+    },
+    "expectedSectionKeywords": ["Daily Cash Register Closing & Reconciliation SOP"],
+    "userRole": "ROLE_CASHIER",
+    "expectedOutcome": "MATCH_FOUND",
+    "groundTruthRelevantCount": 2,
+    "explanation": "Multi-term query on cash drawer reconciliation thresholds requiring manager approval (chunks 4, 5)."
+  },
+  {
+    "testCaseId": "EVAL-MUL-003",
+    "category": "MULTI_TERM",
+    "question": "alternator core deposit return window",
+    "queryText": "alternator core deposit return window",
+    "expectedDocumentCodes": ["POL-RET-001"],
+    "targetChunkIndices": {
+      "POL-RET-001": [2]
+    },
+    "expectedSectionKeywords": ["Return and Core Exchange Policy"],
+    "userRole": "PUBLIC",
+    "expectedOutcome": "MATCH_FOUND",
+    "groundTruthRelevantCount": 1,
+    "explanation": "Multi-term query on alternator core deposits and 30-day return window in section 5 (chunk 2)."
+  },
+  {
+    "testCaseId": "EVAL-MUL-004",
+    "category": "MULTI_TERM",
+    "question": "taxable gross subtotal trade discount calculation",
+    "queryText": "taxable gross subtotal trade discount calculation",
+    "expectedDocumentCodes": ["FAQ-GST-001"],
+    "targetChunkIndices": {
+      "FAQ-GST-001": [2]
+    },
+    "expectedSectionKeywords": ["1.1 What is the exact difference between Gross Subtotal and Taxable Value", "Gross Subtotal and Taxable Value"],
+    "userRole": "PUBLIC",
+    "expectedOutcome": "MATCH_FOUND",
+    "groundTruthRelevantCount": 1,
+    "explanation": "Multi-term query on how trade discounts reduce gross subtotal to taxable base in section 1.1 (chunk 2)."
+  },
+  {
+    "testCaseId": "EVAL-MUL-005",
+    "category": "MULTI_TERM",
+    "question": "warranty claim approval counter inspection manager",
+    "queryText": "warranty claim approval counter inspection manager",
+    "expectedDocumentCodes": ["POL-WAR-001"],
+    "targetChunkIndices": {
+      "POL-WAR-001": [9]
+    },
+    "expectedSectionKeywords": ["5. Review and Approval Workflow", "Review and Approval Workflow"],
+    "userRole": "PUBLIC",
+    "expectedOutcome": "MATCH_FOUND",
+    "groundTruthRelevantCount": 1,
+    "explanation": "Multi-term query on review and approval workflow including counter inspection and manager sign-off (chunk 9)."
+  },
+  {
+    "testCaseId": "EVAL-NEG-001",
+    "category": "NEGATIVE_OUT_OF_SCOPE",
+    "question": "What is the employee annual leave request policy?",
+    "queryText": "employee annual leave request policy HR vacation",
+    "expectedDocumentCodes": [],
+    "targetChunkIndices": {},
+    "expectedSectionKeywords": [],
+    "userRole": "PUBLIC",
+    "expectedOutcome": "NO_MATCH",
+    "groundTruthRelevantCount": 0,
+    "explanation": "HR employee leave policy is not present in the auto parts ERP technical knowledge base."
+  },
+  {
+    "testCaseId": "EVAL-NEG-002",
+    "category": "NEGATIVE_OUT_OF_SCOPE",
+    "question": "What is the company vehicle fuel reimbursement policy?",
+    "queryText": "company vehicle fuel reimbursement mileage allowance expense",
+    "expectedDocumentCodes": [],
+    "targetChunkIndices": {},
+    "expectedSectionKeywords": [],
+    "userRole": "PUBLIC",
+    "expectedOutcome": "NO_MATCH",
+    "groundTruthRelevantCount": 0,
+    "explanation": "Fleet vehicle fuel reimbursement guidelines are absent from the technical policy corpus."
+  },
+  {
+    "testCaseId": "EVAL-NEG-003",
+    "category": "NEGATIVE_OUT_OF_SCOPE",
+    "question": "How to configure Docker containers for Kubernetes cluster deployment?",
+    "queryText": "configure Docker containers Kubernetes cluster deployment pod",
+    "expectedDocumentCodes": [],
+    "targetChunkIndices": {},
+    "expectedSectionKeywords": [],
+    "userRole": "PUBLIC",
+    "expectedOutcome": "NO_MATCH",
+    "groundTruthRelevantCount": 0,
+    "explanation": "DevOps container orchestration topics are completely out of scope for auto parts ERP."
+  },
+  {
+    "testCaseId": "EVAL-NEG-004",
+    "category": "NEGATIVE_OUT_OF_SCOPE",
+    "question": "Comprehensive auto insurance premium calculation",
+    "queryText": "comprehensive auto vehicle insurance premium policy underwriting",
+    "expectedDocumentCodes": [],
+    "targetChunkIndices": {},
+    "expectedSectionKeywords": [],
+    "userRole": "PUBLIC",
+    "expectedOutcome": "NO_MATCH",
+    "groundTruthRelevantCount": 0,
+    "explanation": "Motor insurance policies are distinct from product warranty and return policies."
+  },
+  {
+    "testCaseId": "EVAL-ROL-001",
+    "category": "ROLE_RESTRICTED",
+    "question": "What is the cash register safe drop procedure?",
+    "queryText": "cash register safe drop envelope",
+    "expectedDocumentCodes": ["SOP-CSH-001"],
+    "targetChunkIndices": {
+      "SOP-CSH-001": [1]
+    },
+    "expectedSectionKeywords": ["SECTION 2: MID-DAY CASH DROP PROCEDURE", "Mid-day cash drop"],
+    "userRole": "ROLE_CASHIER",
+    "expectedOutcome": "MATCH_FOUND",
+    "groundTruthRelevantCount": 1,
+    "explanation": "Cashier role is permitted to retrieve SOP-CSH-001 covering mid-day safe drop in section 2 (chunk 1)."
+  },
+  {
+    "testCaseId": "EVAL-ROL-002",
+    "category": "ROLE_RESTRICTED",
+    "question": "What is the cash register safe drop procedure?",
+    "queryText": "cash register safe drop envelope",
+    "expectedDocumentCodes": ["SOP-CSH-001"],
+    "targetChunkIndices": {
+      "SOP-CSH-001": [1]
+    },
+    "expectedSectionKeywords": [],
+    "userRole": "PUBLIC",
+    "expectedOutcome": "NO_MATCH",
+    "groundTruthRelevantCount": 0,
+    "explanation": "Public role must be strictly blocked from retrieving cashier SOPs at the SQL filter level (0 authorized relevant chunks)."
+  },
+  {
+    "testCaseId": "EVAL-ROL-003",
+    "category": "ROLE_RESTRICTED",
+    "question": "How are warranty claims submitted for battery replacement?",
+    "queryText": "battery warranty claim submission",
+    "expectedDocumentCodes": ["POL-WAR-001"],
+    "targetChunkIndices": {
+      "POL-WAR-001": [3, 8]
+    },
+    "expectedSectionKeywords": ["2.1 Automotive Batteries", "4. Warranty Claim Submission Procedure"],
+    "userRole": "ROLE_ADMIN",
+    "expectedOutcome": "MATCH_FOUND",
+    "groundTruthRelevantCount": 2,
+    "explanation": "Administrator role inherits access to all documents across the hierarchy; matches chunks 3 and 8."
+  },
+  {
+    "testCaseId": "EVAL-ROL-004",
+    "category": "ROLE_RESTRICTED",
+    "question": "How to handle daily cash count opening float deduction?",
+    "queryText": "daily cash count float deduction",
+    "expectedDocumentCodes": ["SOP-CSH-001"],
+    "targetChunkIndices": {
+      "SOP-CSH-001": [2]
+    },
+    "expectedSectionKeywords": ["SECTION 3: END-OF-DAY CASH COUNTING", "End-of-day cash counting"],
+    "userRole": "ROLE_MANAGER",
+    "expectedOutcome": "MATCH_FOUND",
+    "groundTruthRelevantCount": 1,
+    "explanation": "Manager role inherits access to cashier operational documents; targets end-of-day float deduction in chunk 2."
+  }
+]

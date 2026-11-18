@@ -141,7 +141,7 @@ This document outlines the detailed roadmap for evolving the Auto Parts ERP AI a
   7. Develop and execute comprehensive test suite (70 Stage 3B tests across 9 test classes, full suite 403 tests passing across 38 classes, 0 failures, 0 skipped; live PostgreSQL 18.4 verification & test-harness safety complete).
 * **Deliverable**: `docs/ai-agent/STAGE_3B_RAG_IMPLEMENTATION.md`.
 
-#### STAGE 3C: Retrieval Evaluation and Improvements [IN PROGRESS]
+#### STAGE 3C: Retrieval Evaluation and Improvements [IN PROGRESS — Phases 1, 2 & 3 Completed; Phase 4 Queued]
 * **Scope**: Establish representative evaluation corpus, evaluate chunking parameters against realistic documents, benchmark FTS lexical retrieval quality, optimize query formulation, and verify grounded answers.
 * **Phase 1 Tasks (Completed)**:
   1. Author four deterministic synthetic fixtures under `src/test/resources/knowledge/`: `POL-WAR-001.md`, `SOP-CSH-001.txt`, `POL-RET-001.pdf`, and `FAQ-GST-001.md` with explicit synthetic test fixture disclaimers.
@@ -151,10 +151,22 @@ This document outlines the detailed roadmap for evolving the Auto Parts ERP AI a
 * **Deliverable**: `docs/ai-agent/STAGE_3C_PHASE_1_CORPUS.md`.
 * **Phase 2 Tasks (Completed)**:
   1. Implement automated empirical benchmark suite `ChunkingBenchmarkTest.java` evaluating `DocumentChunker(500, 50)` against all four corpus fixtures.
-  2. Measure chunk distribution, token estimation ratios (mean 3.97 chars/token), sentence boundary preservation (81.8%), paragraph preservation (100%), and word boundary integrity (100%).
+  2. Measure chunk distribution, token estimation ratios (aggregate ratio 3.99 chars/estimated-token; 26,611 chars / 6,667 tokens = 3.9915), sentence boundary preservation (81.8%), paragraph preservation (100%), and word boundary integrity (100%).
   3. Analyze sizing anomalies (0 oversized, 8 undersized [24.2%] caused by parent header stubs) and overlap mechanics across formats.
   4. Formulate recommendations for anti-stub header aggregation and plain-text/PDF heading detection for Phase 3+.
 * **Deliverable**: `docs/ai-agent/STAGE_3C_PHASE_2_CHUNKING_BENCHMARK.md`.
+* **Phase 3 Tasks (Completed)**:
+  1. Author 28-case evaluation dataset `retrieval-evaluation-dataset.json` across 6 categories (Direct Keyword, Natural Language, Term Variation, Multi-Term, Negative Out-of-Scope, Role-Restricted).
+  2. Implement `KnowledgeRetrievalEvaluationTest.java` (28 tests: 12 unit tests + 16 live integration tests) evaluating precision, recall, hit rate, and MRR against live PostgreSQL 18.4 with run-specific document isolation (`EVAL_<type>_<uuid>`), UUID-based cleanup, fail-closed role-isolation verification, and undefined ($0/0$) negative-query metrics recorded as `Double.NaN` (`N/A`).
+  3. Measure baseline metrics on unmodified `PostgresFtsRetrievalEngine`: Document Hit Rate 78.3% (18/23), Section Hit Rate 69.6% (16/23), MRR 0.6232, 100% Negative Query Rejection (5/5), 0 Role Isolation Violations, and 0.81 ms average retrieval latency (Min: 0.42 ms, Max: 1.63 ms).
+  4. Document genuine lexical FTS limitations: Boolean `AND` conjunction in `websearch_to_tsquery`, conversational filler dropoff, synonym mismatch, cross-chunk term scatter, and absence of secondary deterministic tie-breaker.
+  5. Execute and reconcile full 11-class RAG regression suite: 108 tests run, 108 passed, 0 failures, 0 errors, 0 skipped.
+* **Deliverable**: `docs/ai-agent/STAGE_3C_PHASE_3_RETRIEVAL_EVALUATION.md`.
+* **Phase 4 Tasks (Queued — Awaiting Approval)**:
+  1. Query preprocessing, stopword expansion, and conversational filler stripping.
+  2. Multi-tier retrieval fallback (exact phrase -> Boolean `AND` -> weighted `OR` disjunction).
+  3. Deterministic secondary sorting (`ORDER BY relevance_score DESC, c.chunk_index ASC, c.id ASC`).
+  4. Re-benchmarking against the Phase 3 baseline dataset.
 
 ---
 
@@ -220,6 +232,6 @@ This document outlines the detailed roadmap for evolving the Auto Parts ERP AI a
 | **Stage 2E** | Approved Stage 2D | Multi-domain classifier, context resolver, graph routing | End-to-end regression tests pass; Stage 2 complete |
 | **Stage 3A** | Approved Stage 2E | RAG feasibility and architecture audit | Comprehensive audit document delivered; zero code/schema modifications |
 | **Stage 3B** | Approved Stage 3A<br>*(Dependency Note: Flyway reconciliation for V29/V30 must occur before fresh production DB deploy)* | FTS-based lexical RAG pipeline, V32 schema, access-controlled retrieval, strict citations, injection defense, test safety | COMPLETED & VERIFIED: 403 tests run, 403 passed, 0 skipped, 0 failures across 38 suites (PostgreSQL 18.4 live integration & safety guards verified) |
-| **Stage 3C** | Approved Stage 3B | Retrieval evaluation, synthetic corpus, chunking & ranking benchmarks | IN PROGRESS: Phase 1 complete (410 tests passing across 39 classes; synthetic corpus & fixtures verified) |
+| **Stage 3C** | Approved Stage 3B | Retrieval evaluation, synthetic corpus, chunking & ranking benchmarks | IN PROGRESS: Phases 1, 2 and 3 completed (108 RAG regression tests passing across 11 classes, 448 passing tests across 41 suites; baseline metrics: 78.3% DocHit, 69.6% SecHit, 0.6232 MRR, 100% Negative Rejection, 0 Role Violations, 0.81 ms latency); Phase 4 queued and awaiting user approval |
 | **Stage 4** | Approved Stage 3 | Transient retry, rate limiter, `ai_tool_runs` audit, metrics | Fault injection tests pass; audit rows verified; metrics exposed |
 | **Stage 5** | Approved Stages 1-4 | 150+ evaluation tests, load tests, sign-off report | Test suites pass; provisional SLAs verified under representative load; production ready |

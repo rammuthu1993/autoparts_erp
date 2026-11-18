@@ -737,4 +737,177 @@ class PostgresFtsRetrievalIntegrationTest {
             }
         }
     }
+
+    @Test
+    @DisplayName("Verify PostgreSQL natural-language NOT differs from explicit FTS exclusion")
+    void shouldVerifyNaturalLanguageNegationSemanticsAgainstPostgres() {
+        Assumptions.assumeTrue(postgresAvailable, "Live PostgreSQL is not accessible. Skipping.");
+
+        SingleConnectionDataSource ds = createDataSource();
+        NamedParameterJdbcTemplate jdbc = new NamedParameterJdbcTemplate(ds);
+        try {
+            String naturalLanguageQuery = "alternator not charging";
+            Boolean notChargingDocumentMatches = jdbc.getJdbcTemplate().queryForObject(
+                    "SELECT to_tsvector('english', ?) @@ websearch_to_tsquery('english', ?)",
+                    Boolean.class, "alternator is not charging", naturalLanguageQuery);
+            Boolean chargingDocumentMatches = jdbc.getJdbcTemplate().queryForObject(
+                    "SELECT to_tsvector('english', ?) @@ websearch_to_tsquery('english', ?)",
+                    Boolean.class, "alternator is charging", naturalLanguageQuery);
+
+            // In the English configuration, the natural-language token NOT is not
+            // a websearch negation operator. It is removed as a stop word, so both
+            // documents match the same positive lexical query.
+            assertTrue(Boolean.TRUE.equals(notChargingDocumentMatches));
+            assertTrue(Boolean.TRUE.equals(chargingDocumentMatches));
+
+            Boolean explicitExclusionMatchesNotChargingDoc = jdbc.getJdbcTemplate().queryForObject(
+                    "SELECT to_tsvector('english', ?) @@ websearch_to_tsquery('english', ?)",
+                    Boolean.class, "alternator is not charging", "alternator -charging");
+            Boolean explicitExclusionMatchesChargingDoc = jdbc.getJdbcTemplate().queryForObject(
+                    "SELECT to_tsvector('english', ?) @@ websearch_to_tsquery('english', ?)",
+                    Boolean.class, "alternator is charging", "alternator -charging");
+            Boolean explicitExclusionMatchesNoChargingTermDoc = jdbc.getJdbcTemplate().queryForObject(
+                    "SELECT to_tsvector('english', ?) @@ websearch_to_tsquery('english', ?)",
+                    Boolean.class, "alternator starts normally", "alternator -charging");
+
+            // The first two documents both contain "charging", so explicit FTS
+            // exclusion rejects both. The third document has the positive anchor
+            // but lacks the excluded term and therefore matches.
+            assertFalse(Boolean.TRUE.equals(explicitExclusionMatchesNotChargingDoc));
+            assertFalse(Boolean.TRUE.equals(explicitExclusionMatchesChargingDoc));
+            assertTrue(Boolean.TRUE.equals(explicitExclusionMatchesNoChargingTermDoc));
+
+            String phraseQuery = jdbc.getJdbcTemplate().queryForObject(
+                    "SELECT phraseto_tsquery('english', ?)::text", String.class,
+                    "products without warranty");
+            Boolean phraseMatches = jdbc.getJdbcTemplate().queryForObject(
+                    "SELECT to_tsvector('english', ?) @@ phraseto_tsquery('english', ?)",
+                    Boolean.class, "products without warranty", "products without warranty");
+            assertNotNull(phraseQuery);
+            assertTrue(Boolean.TRUE.equals(phraseMatches));
+
+            // Capture configured stop-word behavior for each natural-language
+            // operator rather than assuming every English negation word is a stop word.
+            List<String> operatorQueryTrees = jdbc.getJdbcTemplate().query(
+                    "SELECT token || '=' || websearch_to_tsquery('english', token)::text "
+                            + "FROM unnest(ARRAY['not','no','without','neither','nor']) AS token ORDER BY token",
+                    (rs, rowNum) -> rs.getString(1));
+            assertEquals(5, operatorQueryTrees.size());
+            assertTrue(operatorQueryTrees.stream().anyMatch(value -> value.startsWith("without=")));
+            assertTrue(operatorQueryTrees.stream().anyMatch(value -> value.startsWith("neither=")));
+
+            // For single-word inputs, compare websearch parsing with plainto parsing
+            // under the same configured English dictionary. This records the real
+            // stop-word/dictionary behavior without assuming that every natural-
+            // language negation token is or is not an English stop word.
+            List<String> stopWordDiagnostics = jdbc.getJdbcTemplate().query(
+                    "SELECT token || '|' || to_tsvector('english', token)::text || '|' "
+                            + "|| plainto_tsquery('english', token)::text || '|' "
+                            + "|| websearch_to_tsquery('english', token)::text "
+                            + "FROM unnest(ARRAY['not','no','without','neither','nor']) AS token ORDER BY token",
+                    (rs, rowNum) -> rs.getString(1));
+            assertEquals(5, stopWordDiagnostics.size());
+            for (String diagnostic : stopWordDiagnostics) {
+                String[] parts = diagnostic.split("\\|", -1);
+                assertEquals(4, parts.length, diagnostic);
+                assertEquals(parts[2], parts[3], "Single-token websearch/plain parsing differs: " + diagnostic);
+            }
+
+            // A negative-only query is intentionally not produced by the application
+            // preprocessor; inspect PostgreSQL's parser result for diagnostics only.
+            String negativeOnlyQuery = jdbc.getJdbcTemplate().queryForObject(
+                    "SELECT websearch_to_tsquery('english', ?)::text", String.class, "-warranty");
+            assertNotNull(negativeOnlyQuery);
+        } finally {
+            ds.destroy();
+        }
+    }
+
+
+    @Test
+    @DisplayName("Multi-tier retrieval merges phrase, AND, and weighted-OR candidates while preserving SQL role isolation")
+    void shouldExecuteAllRetrievalTiersAndDeduplicateAcrossTiers() {
+        Assumptions.assumeTrue(postgresAvailable, "Live PostgreSQL is not accessible. Skipping.");
+
+        SingleConnectionDataSource ds = createDataSource();
+        NamedParameterJdbcTemplate jdbcTemplate = new NamedParameterJdbcTemplate(ds);
+        PostgresFtsRetrievalEngine engine = new PostgresFtsRetrievalEngine(jdbcTemplate);
+
+        UUID exactId = UUID.randomUUID();
+        UUID andId = UUID.randomUUID();
+        UUID orId = UUID.randomUUID();
+        UUID restrictedId = UUID.randomUUID();
+        List<UUID> documentIds = List.of(exactId, andId, orId, restrictedId);
+        String suffix = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        String exactCode = "TEST-TIER-EXACT-" + suffix;
+        String andCode = "TEST-TIER-AND-" + suffix;
+        String orCode = "TEST-TIER-OR-" + suffix;
+        String restrictedCode = "TEST-TIER-RESTRICTED-" + suffix;
+
+        try {
+            insertTierFixture(jdbcTemplate, exactId, exactCode, "PUBLIC", "Exact Phrase Document",
+                    "Spark plug ignition coil replacement steps are described here.", 0);
+            insertTierFixture(jdbcTemplate, andId, andCode, "PUBLIC", "Boolean AND Document",
+                    "Ignition coil spark plug diagnostic replacement steps.", 0);
+            insertTierFixture(jdbcTemplate, orId, orCode, "PUBLIC", "Weighted OR Document",
+                    "Ignition spark component inspection steps are documented.", 0);
+            insertTierFixture(jdbcTemplate, restrictedId, restrictedCode, "ROLE_CASHIER", "Restricted Document",
+                    "Ignition coil spark plug cashier-only inspection steps.", 0);
+
+            List<RetrievedChunk> results = engine.retrieve("spark plug ignition coil", Set.of("PUBLIC"), 3);
+
+            assertEquals(3, results.size(), "Expected one result from each effective retrieval tier after deduplication");
+            assertEquals(exactCode, results.get(0).documentCode(), "Exact phrase candidate must rank first");
+            assertEquals(andCode, results.get(1).documentCode(), "AND-only candidate must rank after phrase tier");
+            assertEquals(orCode, results.get(2).documentCode(), "OR-only candidate must rank after AND tier");
+            assertFalse(results.stream().anyMatch(result -> restrictedCode.equals(result.documentCode())),
+                    "Restricted document must remain invisible in every retrieval tier");
+            assertEquals(3, results.stream().map(RetrievedChunk::chunkId).distinct().count(),
+                    "A chunk returned by multiple tiers must appear only once");
+
+            List<Long> firstRunIds = results.stream().map(RetrievedChunk::chunkId).toList();
+            List<Long> secondRunIds = engine.retrieve("spark plug ignition coil", Set.of("PUBLIC"), 3)
+                    .stream().map(RetrievedChunk::chunkId).toList();
+            assertEquals(firstRunIds, secondRunIds, "Merged tier ordering must be deterministic across executions");
+        } finally {
+            try {
+                jdbcTemplate.getJdbcTemplate().update(
+                        "DELETE FROM knowledge_chunks WHERE document_id IN (?, ?, ?, ?)",
+                        exactId, andId, orId, restrictedId);
+                jdbcTemplate.getJdbcTemplate().update(
+                        "DELETE FROM knowledge_documents WHERE id IN (?, ?, ?, ?)",
+                        exactId, andId, orId, restrictedId);
+            } finally {
+                ds.destroy();
+            }
+        }
+    }
+
+    private static void insertTierFixture(
+            NamedParameterJdbcTemplate jdbcTemplate,
+            UUID documentId,
+            String documentCode,
+            String requiredRole,
+            String title,
+            String chunkText,
+            int chunkIndex
+    ) {
+        String uniqueHash = UUID.randomUUID().toString().replace("-", "") + UUID.randomUUID().toString().replace("-", "");
+        jdbcTemplate.getJdbcTemplate().update(
+                """
+                INSERT INTO knowledge_documents
+                    (id, document_code, title, document_type, content_format, required_role, version, active,
+                     file_name, file_hash_sha256, file_size_bytes, metadata, created_by)
+                VALUES (?, ?, ?, 'POLICY', 'TEXT', ?, 1, TRUE, 'tier-test.txt', ?, ?, '{}'::jsonb, 'TEST')
+                """,
+                documentId, documentCode, title, requiredRole, uniqueHash, chunkText.length());
+        jdbcTemplate.getJdbcTemplate().update(
+                """
+                INSERT INTO knowledge_chunks
+                    (document_id, chunk_index, section_title, chunk_text, token_count, chunk_hash_sha256, active)
+                VALUES (?, ?, 'Tier Test Section', ?, 20, ?, TRUE)
+                """,
+                documentId, chunkIndex, chunkText, UUID.randomUUID().toString().replace("-", "") + UUID.randomUUID().toString().replace("-", ""));
+    }
+
 }

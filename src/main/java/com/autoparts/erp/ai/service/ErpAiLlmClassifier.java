@@ -23,8 +23,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import com.autoparts.erp.ai.enums.ClassificationSource;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Structured LLM-assisted intent classifier for Auto Parts ERP AI assistant.
@@ -134,10 +134,16 @@ public class ErpAiLlmClassifier {
                 return Optional.empty();
             }
 
-            // Reject non-finite confidence values (NaN, Infinity)
+            // Confidence must be a JSON number. Do not coerce strings such as
+            // "NaN" or "Infinity" to the default value (0.0).
             JsonNode confidenceNode = root.path("confidence");
-            double rawConfidence = confidenceNode.asDouble(0.0);
-            if (Double.isNaN(rawConfidence) || Double.isInfinite(rawConfidence)) {
+            if (!confidenceNode.isNumber()) {
+                log.warn("Missing or non-numeric confidence value received from LLM. Rejecting.");
+                return Optional.empty();
+            }
+
+            double rawConfidence = confidenceNode.doubleValue();
+            if (!Double.isFinite(rawConfidence)) {
                 log.warn("Non-finite confidence value received from LLM: {}. Rejecting.", rawConfidence);
                 return Optional.empty();
             }
