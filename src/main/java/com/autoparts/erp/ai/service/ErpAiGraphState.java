@@ -35,7 +35,8 @@ public class ErpAiGraphState extends AgentState {
             Map.entry("source", Channels.<String>base((o, n) -> n)),
             Map.entry("isMultiIntent", Channels.<Boolean>base((o, n) -> n)),
             Map.entry("secondaryIntent", Channels.<String>base((o, n) -> n)),
-            Map.entry("pendingSlotName", Channels.<String>base((o, n) -> n))
+            Map.entry("pendingSlotName", Channels.<String>base((o, n) -> n)),
+            Map.entry("retrievedChunks", Channels.<List<com.autoparts.erp.ai.rag.model.RetrievedChunk>>base((o, n) -> n))
     );
 
     public ErpAiGraphState(Map<String, Object> initData) {
@@ -117,5 +118,14 @@ public class ErpAiGraphState extends AgentState {
 
     public String pendingSlotName() {
         return text("pendingSlotName");
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<com.autoparts.erp.ai.rag.model.RetrievedChunk> retrievedChunks() {
+        Object chunks = object("retrievedChunks");
+        if (chunks instanceof List<?> list) {
+            return (List<com.autoparts.erp.ai.rag.model.RetrievedChunk>) list;
+        }
+        return List.of();
     }
 }

@@ -1,0 +1,75 @@
+================================================================================
+STANDARD OPERATING PROCEDURE: DAILY CASH REGISTER CLOSING & RECONCILIATION
+DOCUMENT CODE: SOP-CSH-001
+VERSION: 1
+CLASSIFICATION: INTERNAL STAFF OPERATIONAL PROCEDURE
+================================================================================
+
+[SYNTHETIC TEST FIXTURE: This Standard Operating Procedure is a synthetic test fixture created exclusively for automated RAG testing and ERP workflow verification. It does not represent approved operating procedures, accounting rules, or actual corporate financial guidelines.]
+
+--------------------------------------------------------------------------------
+SECTION 1: REGISTER OPENING AND FLOAT VERIFICATION
+--------------------------------------------------------------------------------
+At the start of each daily shift (08:30 AM), the designated counter cashier must unlock the assigned cash drawer under the supervision of the shift lead. The opening cash float must be counted immediately before logging into the ERP point-of-sale terminal.
+
+The standard opening cash float is fixed at exactly 5,000 currency units, distributed as follows:
+- 10 notes of 200 currency units (2,000 units)
+- 20 notes of 100 currency units (2,000 units)
+- 15 notes of 50 currency units (750 units)
+- 10 notes of 20 currency units (200 units)
+- 5 coins of 10 currency units (50 units)
+
+The cashier must log into the ERP terminal, navigate to Point of Sale -> Cash Register -> Open Session, enter the verified float breakdown, and click 'Confirm Opening Float'. If the physical drawer contents differ by any amount from 5,000 units, the cashier must not open the terminal session until the duty manager recounts and adjusts the float record.
+
+--------------------------------------------------------------------------------
+SECTION 2: MID-DAY CASH DROP PROCEDURE
+--------------------------------------------------------------------------------
+To minimize security exposure and drawer robbery risk, the register drawer balance must not exceed 25,000 currency units in physical cash at any point during active business hours.
+
+When the drawer cash accumulates past 20,000 units, the cashier must perform a mid-day safe drop:
+1. Count out bundles of 500-unit and 200-unit notes totaling between 10,000 and 15,000 currency units.
+2. Place the currency inside a standard numbered cash drop envelope along with a printed ERP Cash Drop Slip.
+3. Both the cashier and the assistant store manager must dual-sign the drop envelope across the sealed flap.
+4. Insert the envelope into the branch drop safe through the anti-fish depository slot.
+5. Record the drop transaction immediately in the ERP terminal under 'Register -> Mid-Day Drop' noting the envelope serial number.
+
+--------------------------------------------------------------------------------
+SECTION 3: END-OF-DAY CASH COUNTING
+--------------------------------------------------------------------------------
+At shift conclusion (06:00 PM or upon customer counter closure), the cashier must lock the customer counter, freeze the active point-of-sale terminal, and commence physical drawer counting.
+
+The physical cash counting must follow these steps:
+1. Segregate coins, low-denomination currency notes (10, 20, 50), and high-denomination currency notes (100, 200, 500).
+2. Count every denomination bundle twice to eliminate arithmetic errors.
+3. Run paper currency through the branch optical counterfeit detection and counting machine.
+4. Deduct the standard 5,000-unit opening float from the gross drawer tally to isolate the net daily cash sales receipts.
+5. Enter the exact physical count of each denomination into the ERP Daily Cash Closing screen.
+
+--------------------------------------------------------------------------------
+SECTION 4: PAYMENT-METHOD RECONCILIATION
+--------------------------------------------------------------------------------
+In addition to physical currency, the cashier must reconcile all non-cash payment modalities processed through the terminal during the shift:
+
+1. Credit and Debit Card Settlements: Perform an end-of-day batch settlement on every physical card terminal (EDC machine). Compare the settlement batch total against the ERP 'Card Payments Total' column. Staple the card settlement summary report to the daily closing sheet.
+2. UPI and Digital Wallet Transactions: Verify that the digital payment gateway report matches the ERP 'Digital Settlement' total. Any pending or timed-out QR transactions must be reconciled against customer invoice receipts.
+3. Customer Credit Account Charges: Verify that all credit sale invoices issued to registered fleet or trade accounts bear the physical signature and printed name of the authorized vehicle driver or purchasing agent.
+4. Cheque Receipts: List all customer cheques received, verifying that the drawer contains original cheques matching the ERP Cheque Log with valid payee names, current dates, and signed amounts.
+
+--------------------------------------------------------------------------------
+SECTION 5: DISCREPANCY REPORTING AND THRESHOLDS
+--------------------------------------------------------------------------------
+A cash discrepancy is defined as any numerical variance between the ERP calculated closing balance and the physical cash drawer tally.
+
+The following escalation thresholds apply strictly to all cash variances:
+- Minor Variance (less than or equal to 50 currency units): The cashier must recount the drawer once. If the variance remains, the cashier must log an explanatory remark in the ERP system under 'Cash Variance Note' and proceed with session submission.
+- Moderate Variance (between 51 and 500 currency units): The duty manager must immediately conduct an independent recount of the drawer, review voided invoice logs, and inspect cancelled sale transaction slips. If unresolved, an internal variance report must be submitted to the finance department.
+- Material Variance (greater than 500 currency units): The terminal session must not be finalized. The store manager, cashier, and internal loss prevention officer must conduct a full transaction audit, verify physical mid-day drop receipts, inspect surveillance footage of the cash register area, and file an official security discrepancy incident report within two hours.
+
+--------------------------------------------------------------------------------
+SECTION 6: MANAGER SIGN-OFF AND SAFE DEPOSIT
+--------------------------------------------------------------------------------
+1. Final Drawer Balancing: Once the count and reconciliation entries are completed, the cashier clicks 'Submit Register Session'.
+2. Dual Verification: The branch manager reviews the closing summary report on screen, verifying cash totals, card settlements, voucher lines, and any variance notes.
+3. Manager Approval: The manager enters their personal ERP authorization PIN to approve and lock the cash register session. Once approved, the register session cannot be reopened or edited.
+4. Physical Safe Transfer: The cashier and manager together place the net cash proceeds into the designated tamper-evident bank deposit pouch. The pouch is sealed with a recorded tamper-evident barcode sticker and locked into the primary branch drop safe awaiting armored carrier collection.
+5. Audit Filing: The cashier staples together the ERP Session Summary, card settlement receipts, mid-day drop slips, and discrepancy explanations, placing the packet into the daily branch finance audit binder.

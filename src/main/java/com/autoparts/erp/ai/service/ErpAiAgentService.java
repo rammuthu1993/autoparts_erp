@@ -188,6 +188,38 @@ public class ErpAiAgentService {
             )
     );
 
+    // 7. Knowledge retrieval node (Stage 3B)
+    graph.addNode(
+            "retrieve_knowledge",
+            (state, config) -> CompletableFuture.completedFuture(
+                    nodes.retrieveKnowledge(state, config)
+            )
+    );
+
+    // 8. Validate retrieved context node (Stage 3B)
+    graph.addNode(
+            "validate_retrieved_context",
+            (state, config) -> CompletableFuture.completedFuture(
+                    nodes.validateRetrievedContext(state, config)
+            )
+    );
+
+    // 9. Grounded knowledge response generation node (Stage 3B)
+    graph.addNode(
+            "generate_grounded_response",
+            (state, config) -> CompletableFuture.completedFuture(
+                    nodes.generateGroundedResponse(state, config)
+            )
+    );
+
+    // 10. Citation validation node (Stage 3B)
+    graph.addNode(
+            "validate_citations",
+            (state, config) -> CompletableFuture.completedFuture(
+                    nodes.validateCitations(state, config)
+            )
+    );
+
     // Entry point
     graph.addEdge(START, "classify");
 
@@ -199,6 +231,7 @@ public class ErpAiAgentService {
             ),
             Map.of(
                     "TOOL", "execute_tool",
+                    "KNOWLEDGE", "retrieve_knowledge",
                     "GENERAL", "generate_response",
                     "UNSUPPORTED", "unsupported_response",
                     "CLARIFICATION", "clarification_response"
@@ -212,6 +245,12 @@ public class ErpAiAgentService {
     graph.addEdge("generate_response", "validate_response");
     graph.addEdge("unsupported_response", "validate_response");
     graph.addEdge("clarification_response", "validate_response");
+
+    // Knowledge path: retrieve -> validate context -> generate grounded -> validate citations -> validate response
+    graph.addEdge("retrieve_knowledge", "validate_retrieved_context");
+    graph.addEdge("validate_retrieved_context", "generate_grounded_response");
+    graph.addEdge("generate_grounded_response", "validate_citations");
+    graph.addEdge("validate_citations", "validate_response");
 
     // Finish
     graph.addEdge("validate_response", END);

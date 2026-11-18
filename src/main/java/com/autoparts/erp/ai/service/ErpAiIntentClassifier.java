@@ -231,6 +231,14 @@ public class ErpAiIntentClassifier {
             "\\b(?:ai\\s+tool\\s+(?:runs?|logs?)|ai\\s+diagnostic(?:\\s+logs?)?|tool\\s+execution\\s+logs?)\\b",
             Pattern.CASE_INSENSITIVE);
 
+    private static final Pattern KNOWLEDGE_REQUEST = Pattern.compile(
+            "\\b(?:warranty(?:\\s+policy)?|return\\s+policy|how\\s+to\\s+return|refund\\s+policy|"
+                    + "sop|standard\\s+operating\\s+procedure|operating\\s+hours|shipping\\s+policy|"
+                    + "core\\s+(?:exchange|deposit|return)\\s+policy|exchange\\s+policy|"
+                    + "company\\s+policy|employee\\s+handbook|guidelines?|manuals?|"
+                    + "policy\\s+(?:on|for|regarding)|terms\\s+(?:and|&)\\s+conditions)\\b",
+            Pattern.CASE_INSENSITIVE);
+
     private static final List<Pattern> SEARCH_PREFIXES = List.of(
             Pattern.compile("^(?:(?:please|kindly)\\s+)+", Pattern.CASE_INSENSITIVE),
             Pattern.compile("^(?:(?:can|could|would)\\s+you\\s+)+", Pattern.CASE_INSENSITIVE),
@@ -515,7 +523,7 @@ public class ErpAiIntentClassifier {
             return new ErpAiIntentResult("SALE_DETAILS", invoiceId);
         }
 
-        if (SALES_SEARCH_REQUEST.matcher(message).find() && !normalized.contains("movement")) {
+        if (SALES_SEARCH_REQUEST.matcher(message).find() && !normalized.contains("movement") && !KNOWLEDGE_REQUEST.matcher(normalized).find()) {
             Matcher dates = ISO_DATE.matcher(message);
             String firstDate = dates.find() ? dates.group() : "";
             String secondDate = dates.find() ? dates.group() : "";
@@ -658,6 +666,10 @@ public class ErpAiIntentClassifier {
         if (isProductCountRequest(normalized)) {
             return new ErpAiIntentResult("COUNT_PRODUCTS", "");
         }
+        if (KNOWLEDGE_REQUEST.matcher(normalized).find() && !isLiveStockQuery(normalized)) {
+            String query = hasSearchText ? searchText : message.trim();
+            return new ErpAiIntentResult("KNOWLEDGE", query);
+        }
         if (PRODUCT_STOCK_REQUEST.matcher(normalized).find()) {
             return hasSearchText && !GENERIC_STOCK_REQUEST.matcher(searchText).matches()
                     ? new ErpAiIntentResult("PRODUCT_STOCK", searchText)
@@ -707,6 +719,11 @@ public class ErpAiIntentClassifier {
     private boolean isProductCountRequest(String message) {
         return PRODUCT_COUNT_REQUEST.matcher(message).find()
                 || ACTIVE_PRODUCTS_AVAILABLE.matcher(message).find();
+    }
+
+    private boolean isLiveStockQuery(String message) {
+        return (message.contains("how many") || message.contains("count") || message.contains("available"))
+                && (message.contains("in stock") || message.contains("inventory"));
     }
 
     private boolean isUnsupportedRequest(String message) {

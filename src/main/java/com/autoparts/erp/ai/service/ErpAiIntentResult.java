@@ -57,6 +57,9 @@ public record ErpAiIntentResult(
             // Audit Logs (Stage 2D)
             "AUDIT_LOG_SEARCH", "AI_TOOL_RUNS_LOG",
 
+            // Knowledge RAG (Stage 3B)
+            "KNOWLEDGE",
+
             // Core
             "GENERAL", "UNSUPPORTED", "CLARIFICATION"
     );

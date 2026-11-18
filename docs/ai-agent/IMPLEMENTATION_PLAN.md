@@ -114,23 +114,47 @@ This document outlines the detailed roadmap for evolving the Auto Parts ERP AI a
 ---
 
 ### STAGE 3: Advanced AI Capabilities and Grounded Knowledge RAG
-* **Objective**: Implement an enterprise RAG pipeline for unstructured business documentation (SOPs, warranty policies, return guidelines) using PostgreSQL vector capabilities with a robust Full-Text Search fallback, document access controls, and source citations.
-* **Flyway Reconciliation Dependency**: Production migration reconciliation for `ai_agent_runs` (resolving the V29/V30 duplicate conflict) must be completed before deploying the complete application and the V32 RAG migration to a fresh production database. Migrations V29 and V30 are preserved without modification during development.
-* **Vector Schema & Embedding Strategy**:
-  1. Probe the configured provider (Sarvam AI / OpenAI) for embedding model availability and dimensions (`dim=1024` or `dim=1536`).
-  2. Evaluate host PostgreSQL 18 environment for native `pgvector` extension.
-  3. *Primary Engine*: PostgreSQL `pgvector` (`vector` column + HNSW index) via Spring AI pgvector integration.
-  4. *Reliable Fallback Engine*: PostgreSQL Full-Text Search (`tsvector`/`tsquery` with GIN indexing) if `pgvector` is not compiled on the target PostgreSQL instance. (Note: Full-text search is explicitly treated as a keyword-based fallback, not an equivalent replacement for semantic embeddings).
+* **Objective**: Implement an enterprise RAG pipeline for unstructured business documentation (SOPs, warranty policies, return guidelines) using an abstracted retrieval engine architecture (PostgreSQL Full-Text Search primary, pgvector optional extension), server-side role-based pre-filtering, and source citations.
+* **Sub-Staged Approval Gates**: Partitioned into Stage 3A (Feasibility & Architecture Audit) and Stage 3B (Schema, Ingestion & Retrieval Implementation).
+
+#### STAGE 3A: RAG Feasibility and Architecture Audit [COMPLETED]
+* **Scope**: Technical audit and architectural design across embedding providers, PostgreSQL 18 environment, FTS fallback, schema DDL, access control, ingestion, LangGraph4j routing, and migration safety. **Zero code, schema, or migration changes.**
+* **Key Audit Findings**:
+  1. *Host PostgreSQL 18*: `vector` (pgvector) C extension is not present in the inspected host installation (`C:\Program Files\PostgreSQL\18\share\extension`).
+  2. *Embedding Provider*: Sarvam AI offers `embeddinggemma-2` (768 dimensions) via `POST https://api.sarvam.ai/v2/embeddings`. However, Spring AI 2.0.2 with `base-url=https://api.sarvam.ai/v1` appends `/embeddings`, creating a path mismatch, and Sarvam requires Provisioned Throughput tier access.
+  3. *Primary Production Engine (Lexical RAG)*: PostgreSQL native Full-Text Search (`tsvector` + GIN + `ts_rank_cd(..., 5)` combining flag 1 length normalization with flag 4 extent distance) is designated as the primary production engine for lexical retrieval. Latency is an unmeasured target (target < 50ms) requiring Stage 5 representative load benchmarks. Semantic/hybrid retrieval is preserved as a future enhancement.
+  4. *Security & Pre-Filtering*: Strict server-side pre-filtering in SQL `WHERE d.required_role IN (...)` using immutable `ErpAiExecutionContext.authorities()`.
+  5. *Double Active & Version Safety*: Both `knowledge_chunks.active = TRUE AND knowledge_documents.active = TRUE` enforced in retrieval query. Partial unique index `uq_knowledge_documents_single_active_version` guarantees at most one active version per document code at the database level.
+  6. *Spring AI 2.0.2 pgvector Behavior*: `initialize-schema` is disabled by default; if enabled, it executes `CREATE EXTENSION` and fails startup if the extension files are missing.
+  7. *Flyway Safety*: V29/V30 collision remains deferred under DEC-001/DEF-001. V32 is reserved for Stage 3B.
+* **Deliverable**: `docs/ai-agent/STAGE_3A_RAG_FEASIBILITY_AUDIT.md`.
+
+#### STAGE 3B: FTS-Based Lexical RAG Implementation [COMPLETED]
+* **Scope**: Implementation of knowledge schema, ingestion service, lexical retrieval engine, LangGraph4j node integration, and comprehensive test suite.
 * **Implementation Tasks**:
-  1. Verify embedding model and pgvector availability.
-  2. Create migration `V32__create_knowledge_tables.sql` (`knowledge_documents` and `knowledge_chunks` with metadata JSONB, required_role, version).
-  3. Implement `KnowledgeIngestionService` (PDF/TXT/MD validation, 500-token chunking, 50-token overlap, metadata tagging).
-  4. Implement `KnowledgeRetrievalService` (role-filtered retrieval, evaluation-driven similarity threshold, top-4 chunks).
-  5. Integrate RAG step into LangGraph4j graph for procedural queries.
-  6. Format grounded answers with visible Markdown citations (`[Source: Warranty Policy v1.2, §3]`).
-  7. Strict routing assertion: Transactional queries NEVER invoke RAG.
-* **Deliverables**: Migration `V32`, RAG services, knowledge controller, and integration tests.
-* **Complexity**: High.
+  1. Create migration `V32__create_knowledge_tables.sql` (`knowledge_documents` and `knowledge_chunks` with `chunk_vector TSVECTOR GENERATED ALWAYS AS ... STORED`, partial unique index `uq_knowledge_documents_single_active_version`, JSONB metadata, `required_role`, version).
+  2. Implement `KnowledgeIngestionService` using Apache PDFBox 3.x for PDF, standard Java for TXT/Markdown (500-token chunks with 50-token overlap as initial experimental parameters, word-based token estimator labeled as approximate, SHA-256 deduplication, magic byte checks, transactional boundaries with advisory locking).
+  3. Implement `KnowledgeRetrievalEngine` abstraction with `PostgresFtsRetrievalEngine` (primary lexical engine using `ts_rank_cd(..., 5)` combining flag 1 length normalization with flag 4 extent distance).
+  4. Implement `KnowledgeRetrievalService` with SQL inner-join pre-filtering against `knowledge_documents.active = TRUE`, `knowledge_chunks.active = TRUE`, and `ErpAiExecutionContext.authorities()`.
+  5. Integrate `retrieve_knowledge -> validate_retrieved_context -> generate_grounded_response -> validate_citations` nodes into LangGraph4j workflow for `KNOWLEDGE` intent.
+  6. Format grounded answers with mandatory Markdown citations (`[Source: <Title> v<Version>, §<Section>]`), prompt injection delimiter sanitization, and deterministic zero-document fail-safe.
+  7. Develop and execute comprehensive test suite (70 Stage 3B tests across 9 test classes, full suite 403 tests passing across 38 classes, 0 failures, 0 skipped; live PostgreSQL 18.4 verification & test-harness safety complete).
+* **Deliverable**: `docs/ai-agent/STAGE_3B_RAG_IMPLEMENTATION.md`.
+
+#### STAGE 3C: Retrieval Evaluation and Improvements [IN PROGRESS]
+* **Scope**: Establish representative evaluation corpus, evaluate chunking parameters against realistic documents, benchmark FTS lexical retrieval quality, optimize query formulation, and verify grounded answers.
+* **Phase 1 Tasks (Completed)**:
+  1. Author four deterministic synthetic fixtures under `src/test/resources/knowledge/`: `POL-WAR-001.md`, `SOP-CSH-001.txt`, `POL-RET-001.pdf`, and `FAQ-GST-001.md` with explicit synthetic test fixture disclaimers.
+  2. Implement `GeneratePdfCorpusFixture` for multi-page PDF generation via Apache PDFBox 3.x.
+  3. Implement `KnowledgeEvaluationCorpusTest` with 7 focused tests validating parser compatibility, PDF reading order across pages, Markdown heading hierarchy, plain-text boundaries, and ingestion contracts.
+  4. Perform test-harness safety review and reachability probe corrections in `PostgresFtsRetrievalIntegrationTest`.
+* **Deliverable**: `docs/ai-agent/STAGE_3C_PHASE_1_CORPUS.md`.
+* **Phase 2 Tasks (Completed)**:
+  1. Implement automated empirical benchmark suite `ChunkingBenchmarkTest.java` evaluating `DocumentChunker(500, 50)` against all four corpus fixtures.
+  2. Measure chunk distribution, token estimation ratios (mean 3.97 chars/token), sentence boundary preservation (81.8%), paragraph preservation (100%), and word boundary integrity (100%).
+  3. Analyze sizing anomalies (0 oversized, 8 undersized [24.2%] caused by parent header stubs) and overlap mechanics across formats.
+  4. Formulate recommendations for anti-stub header aggregation and plain-text/PDF heading detection for Phase 3+.
+* **Deliverable**: `docs/ai-agent/STAGE_3C_PHASE_2_CHUNKING_BENCHMARK.md`.
 
 ---
 
@@ -194,6 +218,8 @@ This document outlines the detailed roadmap for evolving the Auto Parts ERP AI a
 | **Stage 2C** | Approved Stage 2B | Purchase, Sales, Customer, and Supplier tools | Commercial ERP query & role tests pass |
 | **Stage 2D** | Approved Stage 2C | Returns, Financial, and Reports tools + audit logging | Operational & financial query tests pass |
 | **Stage 2E** | Approved Stage 2D | Multi-domain classifier, context resolver, graph routing | End-to-end regression tests pass; Stage 2 complete |
-| **Stage 3** | Approved Stage 2E<br>*(Dependency Note: Flyway reconciliation for V29/V30 must occur before fresh production DB deploy)* | RAG pipeline, pgvector / FTS fallback, citations | Grounded policy queries succeed with citations; transactional isolation verified |
+| **Stage 3A** | Approved Stage 2E | RAG feasibility and architecture audit | Comprehensive audit document delivered; zero code/schema modifications |
+| **Stage 3B** | Approved Stage 3A<br>*(Dependency Note: Flyway reconciliation for V29/V30 must occur before fresh production DB deploy)* | FTS-based lexical RAG pipeline, V32 schema, access-controlled retrieval, strict citations, injection defense, test safety | COMPLETED & VERIFIED: 403 tests run, 403 passed, 0 skipped, 0 failures across 38 suites (PostgreSQL 18.4 live integration & safety guards verified) |
+| **Stage 3C** | Approved Stage 3B | Retrieval evaluation, synthetic corpus, chunking & ranking benchmarks | IN PROGRESS: Phase 1 complete (410 tests passing across 39 classes; synthetic corpus & fixtures verified) |
 | **Stage 4** | Approved Stage 3 | Transient retry, rate limiter, `ai_tool_runs` audit, metrics | Fault injection tests pass; audit rows verified; metrics exposed |
 | **Stage 5** | Approved Stages 1-4 | 150+ evaluation tests, load tests, sign-off report | Test suites pass; provisional SLAs verified under representative load; production ready |
