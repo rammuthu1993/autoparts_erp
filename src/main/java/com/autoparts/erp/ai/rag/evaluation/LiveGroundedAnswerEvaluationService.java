@@ -135,20 +135,42 @@ public class LiveGroundedAnswerEvaluationService {
         ErpAiGraphState state = new ErpAiGraphState(initial);
 
         long providerLatencyMs = 0;
+
+        boolean providerAttempted = false;
+        boolean providerSucceeded = false;
+
         ErpAiGraphNodes.GroundedGenerationResult generation = null;
+
         String providerError = null;
         String rawResponse = "";
         try {
             state = merge(state, graphNodes.retrieveKnowledge(state, config));
             state = merge(state, graphNodes.validateRetrievedContext(state, config));
 
-            if (!StringUtils.hasText(state.finalResponse()) && !state.retrievedChunks().isEmpty()) {
+            if (!StringUtils.hasText(state.finalResponse())
+                    && !state.retrievedChunks().isEmpty()) {
+
                 long providerStarted = System.nanoTime();
-                generation = graphNodes.generateGroundedResponseWithUsage(state);
-                providerLatencyMs = Duration.ofNanos(System.nanoTime() - providerStarted).toMillis();
-                if (generation.providerCalled()) {
-                    rawResponse = generation.response() == null ? "" : generation.response();
-                    state = merge(state, Map.of("finalResponse", rawResponse));
+                providerAttempted = true;
+
+                try {
+                    generation = graphNodes.generateGroundedResponseWithUsage(state);
+
+                    providerSucceeded = generation != null
+                            && generation.providerCalled()
+                            && StringUtils.hasText(generation.response());
+
+                    if (providerSucceeded) {
+                        rawResponse = generation.response() == null
+                                ? ""
+                                : generation.response();
+
+                        state = merge(state, Map.of("finalResponse", rawResponse));
+                    }
+                } finally {
+                    providerLatencyMs = Duration.ofNanos(
+                            System.nanoTime() - providerStarted
+                    ).toMillis();
                 }
             }
 
@@ -158,7 +180,14 @@ public class LiveGroundedAnswerEvaluationService {
             state = merge(state, graphNodes.validateCitations(state, config));
         } catch (RuntimeException exception) {
             providerError = rootCauseType(exception);
-            log.warn("Live grounded evaluation case {} failed with {}", evaluationCase.caseId(), providerError);
+
+            log.warn(
+                    "Live grounded evaluation case {} failed. providerAttempted={}, rootCause={}",
+                    evaluationCase.caseId(),
+                    providerAttempted,
+                    providerError,
+                    exception
+            );
         }
 
         String finalResponse = state.finalResponse();
@@ -223,16 +252,16 @@ public class LiveGroundedAnswerEvaluationService {
                         .stream().anyMatch(code -> code.equalsIgnoreCase(c.documentCode())));
         boolean expectedFactsPassed = supportedFacts == evaluationCase.expectedFacts().size();
         boolean abstentionPassed = evaluationCase.abstentionRequired() == abstained;
-        boolean providerSucceeded = providerError == null;
-        boolean casePassed = providerSucceeded && roleIsolationPassed && expectedFactsPassed
+        boolean noProviderError = providerError == null;
+        boolean casePassed = noProviderError && roleIsolationPassed && expectedFactsPassed
                 && abstentionPassed && unauthorizedLeaks == 0;
 
         // A role-blocked case is successful only when the restricted source was not retrieved.
         if (evaluationCase.mustNotRetrieveRestrictedDocuments()) {
-            casePassed = providerSucceeded && roleIsolationPassed && abstained && unauthorizedLeaks == 0;
+            casePassed = noProviderError && roleIsolationPassed && abstained && unauthorizedLeaks == 0;
         }
         if (evaluationCase.abstentionRequired()) {
-            casePassed = providerSucceeded && abstentionPassed && unauthorizedLeaks == 0
+            casePassed = noProviderError && abstentionPassed && unauthorizedLeaks == 0
                     && (evaluationCase.expectedFacts().isEmpty() || expectedFactsPassed);
         }
 
@@ -246,7 +275,7 @@ public class LiveGroundedAnswerEvaluationService {
         return new CaseResult(
                 evaluationCase.caseId(), evaluationCase.category(), outcome,
                 chunks.size(), chunks.stream().map(RetrievedChunk::documentCode).distinct().toList(),
-                generation != null && generation.providerCalled(), providerLatencyMs,
+                providerAttempted, providerSucceeded, providerLatencyMs,
                 claimCount, supportedClaims, rawCitations.size(), validRawCitationCount,
                 finalCitations.size(), validFinalCitations,
                 expectedSources, citedExpectedSources,
@@ -275,7 +304,13 @@ public class LiveGroundedAnswerEvaluationService {
         int fabricated = sum(results, CaseResult::fabricatedCitationAttempts);
         int passed = (int) results.stream().filter(r -> "PASS".equals(r.outcome())).count();
         int errors = (int) results.stream().filter(r -> "ERROR".equals(r.outcome())).count();
-        long providerCalls = results.stream().filter(CaseResult::providerCalled).count();
+        long providerCalls = results.stream()
+                .filter(CaseResult::providerAttempted)
+                .count();
+
+        long successfulProviderCalls = results.stream()
+                .filter(CaseResult::providerSucceeded)
+                .count();
         long totalLatency = results.stream().mapToLong(CaseResult::caseLatencyMs).sum();
         long providerLatency = results.stream().mapToLong(CaseResult::providerLatencyMs).sum();
 
@@ -301,9 +336,11 @@ public class LiveGroundedAnswerEvaluationService {
         Long promptTokens = nullableSum(results.stream().map(CaseResult::promptTokens).toList());
         Long completionTokens = nullableSum(results.stream().map(CaseResult::completionTokens).toList());
         Long totalTokens = nullableSum(results.stream().map(CaseResult::totalTokens).toList());
-        boolean usageAvailable = providerCalls > 0 && results.stream()
-                .filter(CaseResult::providerCalled)
-                .allMatch(r -> r.promptTokens() != null && r.completionTokens() != null);
+        boolean usageAvailable = successfulProviderCalls > 0
+                && results.stream()
+                        .filter(CaseResult::providerSucceeded)
+                        .allMatch(r -> r.promptTokens() != null
+                                && r.completionTokens() != null);
         BigDecimal estimatedCost = usageAvailable ? estimateCost(promptTokens, completionTokens) : null;
 
         Metrics metrics = new Metrics(
@@ -563,7 +600,8 @@ public class LiveGroundedAnswerEvaluationService {
             String outcome,
             int retrievedChunkCount,
             List<String> retrievedDocumentCodes,
-            boolean providerCalled,
+            boolean providerAttempted,
+            boolean providerSucceeded,
             long providerLatencyMs,
             int factualClaimCount,
             int citationValidatedClaimCount,

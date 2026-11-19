@@ -1924,28 +1924,72 @@ public class ErpAiGraphNodes {
 
         try {
             var response = chatModel.call(new Prompt(promptMessages));
-            if (response == null || response.getResult() == null || response.getResult().getOutput() == null) {
-                throw new AiProviderResponseException("AI provider returned an empty knowledge response. Please try again.");
+            if (response == null) {
+                throw new AiProviderResponseException("SARVAM returned a null ChatResponse.");
             }
-            String text = response.getResult().getOutput().getText();
-            if (!StringUtils.hasText(text)) {
-                throw new AiProviderResponseException("AI provider returned an empty knowledge response. Please try again.");
+
+            var generation = response.getResult();
+            if (generation == null) {
+                log.error("SARVAM returned ChatResponse without a generation. Metadata={}", response.getMetadata());
+                throw new AiProviderResponseException("SARVAM response contains no generation.");
+            }
+
+            var output = generation.getOutput();
+            if (output == null) {
+                log.error("SARVAM generation contains no output. Metadata={}", generation.getMetadata());
+                throw new AiProviderResponseException("SARVAM generation contains no output.");
+            }
+
+            String finishReason = "UNKNOWN";
+            if (generation.getMetadata() != null && generation.getMetadata().getFinishReason() != null) {
+                finishReason = generation.getMetadata().getFinishReason();
+            } else if (output.getMetadata() != null && output.getMetadata().get("finishReason") != null) {
+                finishReason = String.valueOf(output.getMetadata().get("finishReason"));
             }
 
             Object metadata = response.getMetadata();
             Object usage = invokeMetadataGetter(metadata, "getUsage");
+
+            String content = output.getText();
+            if (!StringUtils.hasText(content)) {
+                log.warn(
+                    "SARVAM returned empty text. outputClass={}, finishReason={}, isContentNull={}, contentLength={}, usage={}",
+                    output.getClass().getSimpleName(),
+                    finishReason,
+                    content == null,
+                    content == null ? 0 : content.length(),
+                    usage
+                );
+                throw new AiProviderResponseException("SARVAM returned empty message content.");
+            }
+
+            log.info("SARVAM response received successfully. Characters={}", content.length());
+
             Long promptTokens = readLongMetadata(usage, "getPromptTokens");
             Long completionTokens = readLongMetadata(usage, "getCompletionTokens");
             Long totalTokens = readLongMetadata(usage, "getTotalTokens");
             String model = readStringMetadata(metadata, "getModel");
 
-            return new GroundedGenerationResult(text.trim(), true,
+            return new GroundedGenerationResult(content.trim(), true,
                     promptTokens, completionTokens, totalTokens, model);
         } catch (AiProviderResponseException e) {
+            log.error(
+                "Grounded AI response failed. Exception type: {}, message: {}",
+                e.getClass().getName(),
+                e.getMessage(),
+                e
+            );
             throw e;
         } catch (Exception e) {
-            log.error("Failed to generate grounded knowledge response via ChatModel: {}", e.getMessage(), e);
-            throw new AiProviderResponseException("Failed to generate knowledge response from provider", e);
+            log.error(
+                "Unexpected error during grounded AI response generation. Type: {}, message: {}",
+                e.getClass().getName(),
+                e.getMessage(),
+                e
+            );
+
+            throw new AiProviderResponseException(
+                "Failed to generate knowledge response from provider", e);
         }
     }
 

@@ -68,10 +68,56 @@ class LiveGroundedAnswerEvaluationServiceTest {
         assertEquals(0, roleBlockedCase.finalCitationCount());
         assertEquals(0, roleBlockedCase.unauthorizedCitationLeaks());
         assertTrue(report.cases().stream().anyMatch(c -> "LIVE-006".equals(c.caseId())
-                && !c.providerCalled()));
+                && !c.providerAttempted()));
         assertTrue(report.cases().stream().anyMatch(c -> "LIVE-008".equals(c.caseId())
-                && c.providerCalled()));
+                && c.providerAttempted()));
         verify(nodes, times(8)).retrieveKnowledge(any(ErpAiGraphState.class), any(RunnableConfig.class));
+    }
+
+    @Test
+    void shouldRecordProviderAttemptWhenGenerationThrows() {
+        ErpAiGraphNodes nodes = mock(ErpAiGraphNodes.class);
+        stubRetrieval(nodes);
+
+        when(nodes.generateGroundedResponseWithUsage(any(ErpAiGraphState.class)))
+                .thenThrow(new IllegalStateException("Synthetic provider failure"));
+
+        LiveGroundedAnswerEvaluationService service = service(nodes, true);
+
+        LiveGroundedAnswerEvaluationService.Report report = service.run(true);
+
+        LiveGroundedAnswerEvaluationService.CaseResult failedCase = report.cases().stream()
+                .filter(c -> "LIVE-001".equals(c.caseId()))
+                .findFirst()
+                .orElseThrow();
+
+        assertEquals("ERROR", failedCase.outcome());
+        assertTrue(failedCase.providerAttempted());
+        assertFalse(failedCase.providerSucceeded());
+        assertTrue(report.providerCalls() > 0);
+        assertTrue(report.errorCases() > 0);
+    }
+
+    @Test
+    void shouldRecordProviderFailureWhenResponseIsEmpty() {
+        ErpAiGraphNodes nodes = mock(ErpAiGraphNodes.class);
+        stubRetrieval(nodes);
+
+        when(nodes.generateGroundedResponseWithUsage(any(ErpAiGraphState.class)))
+                .thenReturn(new ErpAiGraphNodes.GroundedGenerationResult(
+                        "", true, 100L, 0L, 100L, "test-model"));
+
+        LiveGroundedAnswerEvaluationService service = service(nodes, true);
+
+        LiveGroundedAnswerEvaluationService.Report report = service.run(true);
+
+        LiveGroundedAnswerEvaluationService.CaseResult emptyCase = report.cases().stream()
+                .filter(c -> "LIVE-001".equals(c.caseId()))
+                .findFirst()
+                .orElseThrow();
+
+        assertTrue(emptyCase.providerAttempted());
+        assertFalse(emptyCase.providerSucceeded(), "Empty provider response must not be counted as successful");
     }
 
     private static LiveGroundedAnswerEvaluationService service(ErpAiGraphNodes nodes, boolean enabled) {

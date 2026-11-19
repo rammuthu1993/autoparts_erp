@@ -40,6 +40,26 @@ public class PostgresFtsRetrievalEngine implements KnowledgeRetrievalEngine {
     private static final double OR_ANCHOR_WEIGHT = 0.25d;
     private static final int DEFAULT_ANCHOR_TERM_COUNT = 2;
 
+    private static final Set<String> ANCHOR_STOPWORDS = Set.of(
+            "a", "an", "the", "and", "or", "but",
+            "is", "are", "was", "were", "be", "been",
+            "what", "which", "who", "whom", "whose",
+            "how", "when", "where", "why",
+            "do", "does", "did", "can", "could", "would",
+            "should", "will", "shall",
+            "you", "your", "me", "my", "we", "they", "i",
+            "to", "of", "for", "from", "in", "on", "at", "by",
+            "with", "about", "as", "into", "according",
+            "please", "tell", "explain", "show", "provide",
+            "stated", "mentioned", "specified", "listed",
+            "instructions", "instruction", "ignore", "previous",
+            "following", "instead", "all", "just",
+            "procedure",
+            "authorized", "authorization", "hidden", "prompts",
+            "prompt", "reveal", "claim", "prior",
+            "using", "only"
+    );
+
     private static final String SELECT_FROM = """
             SELECT c.id AS chunk_id,
                    c.document_id,
@@ -232,7 +252,7 @@ public class PostgresFtsRetrievalEngine implements KnowledgeRetrievalEngine {
         boolean anchoredTier = tier == Tier.WEIGHTED_OR || tier == Tier.CONSTRAINED_ANCHOR;
         // anchorQuery is space-delimited (websearch AND semantics), not OR.
         String anchorExpression = anchoredTier
-                ? "websearch_to_tsquery('english', :anchorQuery)"
+                ? "plainto_tsquery('english', :anchorQuery)"
                 : "NULL::tsquery";
         String scoreExpression = anchoredTier
                 ? "ts_rank_cd(c.chunk_vector, q.tsq, 5) + " + OR_ANCHOR_WEIGHT
@@ -247,8 +267,8 @@ public class PostgresFtsRetrievalEngine implements KnowledgeRetrievalEngine {
                 + SELECT_FROM.formatted(scoreExpression, additionalPredicate);
 
         MapSqlParameterSource params = new MapSqlParameterSource()
-                .addValue("queryText", queryText.trim())
-                .addValue("anchorQuery", anchorQuery == null ? "" : anchorQuery.trim())
+                .addValue("queryText", normalizeFtsQueryText(queryText))
+                .addValue("anchorQuery", normalizeFtsQueryText(anchorQuery))
                 .addValue("allowedRoles", allowedRoles)
                 .addValue("limit", limit);
 
@@ -278,16 +298,41 @@ public class PostgresFtsRetrievalEngine implements KnowledgeRetrievalEngine {
         }
     }
 
-    static String buildAnchorAndQuery(List<String> positiveTerms) {
-        if (positiveTerms == null) {
+    static String normalizeFtsQueryText(String value) {
+        if (!StringUtils.hasText(value)) {
             return "";
         }
-        return positiveTerms.stream()
+
+        return value.trim()
+                .replaceAll("(?<=[A-Za-z0-9])-(?=[A-Za-z0-9])", " ")
+                .replaceAll("\\s+", " ");
+    }
+
+    static String buildAnchorAndQuery(List<String> positiveTerms) {
+        if (positiveTerms == null || positiveTerms.isEmpty()) {
+            return "";
+        }
+
+        List<String> candidates = positiveTerms.stream()
                 .filter(StringUtils::hasText)
                 .map(term -> term.trim().toLowerCase(java.util.Locale.ROOT))
+                .map(term -> term.replaceAll(
+                        "(?<=[a-z0-9])-(?=[a-z0-9])", " "))
+                .flatMap(term -> java.util.Arrays.stream(term.split("\\s+")))
+                .filter(StringUtils::hasText)
+                .filter(term -> !ANCHOR_STOPWORDS.contains(term))
                 .distinct()
-                .sorted(Comparator.comparingInt(String::length).reversed()
-                        .thenComparing(String.CASE_INSENSITIVE_ORDER))
+                .sorted(
+                        Comparator.comparingInt(String::length).reversed()
+                                .thenComparing(String.CASE_INSENSITIVE_ORDER)
+                )
+                .toList();
+
+        if (candidates.isEmpty()) {
+            return "";
+        }
+
+        return candidates.stream()
                 .limit(DEFAULT_ANCHOR_TERM_COUNT)
                 .reduce((left, right) -> left + " " + right)
                 .orElse("");
