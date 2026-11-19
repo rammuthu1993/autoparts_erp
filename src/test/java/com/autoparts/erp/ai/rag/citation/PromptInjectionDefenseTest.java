@@ -213,8 +213,11 @@ class PromptInjectionDefenseTest {
         Prompt capturedPrompt = promptCaptor.getValue();
 
         List<Message> messages = capturedPrompt.getInstructions();
-        // Must contain strictly 3 messages: Grounded System Prompt, Reference Data System Prompt, Current User Message
-        assertEquals(3, messages.size(), "Prompt must contain only trusted system prompt, reference context, and current message");
+        // One trusted system message; retrieved content and question stay in a user message.
+        assertEquals(2, messages.size(), "Prompt must contain one system instruction and one user data message");
+        assertInstanceOf(org.springframework.ai.chat.messages.SystemMessage.class, messages.get(0));
+        assertInstanceOf(org.springframework.ai.chat.messages.UserMessage.class, messages.get(1));
+        assertTrue(messages.get(1).getText().contains("BEGIN_UNTRUSTED_KNOWLEDGE_CONTEXT"));
 
         // Verify none of the hostile history content leaked into prompt messages
         for (Message msg : messages) {

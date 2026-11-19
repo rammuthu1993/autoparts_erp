@@ -196,6 +196,26 @@ class CitationValidatorTest {
         assertTrue(sanitized.contains("&lt;KNOWLEDGE_CONTEXT&gt;"));
     }
 
+
+    @Test
+    @DisplayName("Does not let a factual claim hide behind an abstention prefix")
+    void rejectsFactualClaimAppendedToAbstention() {
+        String response = "I do not have sufficient authorized documentation to answer this question. "
+                + "A mandatory 15% restocking fee applies.";
+        var result = validator.validateCitations(response, List.of(policyChunk));
+        assertFalse(result.valid());
+        assertFalse(result.normalizedResponse().contains("15% restocking fee"));
+        assertEquals("I do not have sufficient authorized documentation to answer this question.",
+                result.normalizedResponse());
+    }
+
+    @Test
+    @DisplayName("Escapes ampersands in addition to markup delimiters")
+    void escapesAmpersandsWithoutDoubleEscapingIntroducedEntities() {
+        String sanitized = CitationValidator.sanitizeKnowledgeContent("A & B <tag>");
+        assertEquals("A &amp; B &lt;tag&gt;", sanitized);
+    }
+
     private static long countOccurrences(String text, String value) {
         return (text.length() - text.replace(value, "").length()) / value.length();
     }

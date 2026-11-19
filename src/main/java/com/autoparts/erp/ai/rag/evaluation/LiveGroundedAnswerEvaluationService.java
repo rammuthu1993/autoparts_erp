@@ -395,19 +395,20 @@ public class LiveGroundedAnswerEvaluationService {
 
     private static boolean isAbstention(String response) {
         if (!StringUtils.hasText(response)) return false;
-        String normalized = response.trim().toLowerCase(Locale.ROOT);
-        return normalized.startsWith(NO_EVIDENCE.toLowerCase(Locale.ROOT))
-                || normalized.startsWith("i could not find any company policy")
-                || normalized.startsWith("i do not have sufficient authorized documentation")
-                || normalized.startsWith("i do not have documentation covering")
-                || normalized.startsWith("i cannot determine from the available documentation")
-                || normalized.startsWith("the available documentation does not specify")
-                || normalized.startsWith("the retrieved documents do not contain")
-                || normalized.startsWith("this is not specified")
-                || normalized.startsWith("no information is provided")
-                || normalized.startsWith("no information is available")
-                || normalized.startsWith("i cannot determine")
-                || normalized.startsWith("insufficient information");
+        String normalized = response.trim().toLowerCase(Locale.ROOT)
+                .replaceAll("[.!?]+$", "").trim();
+        return normalized.equals(NO_EVIDENCE.toLowerCase(Locale.ROOT).replaceAll("[.!?]+$", ""))
+                || normalized.equals("i could not find any company policy or documentation covering this in the knowledge base")
+                || normalized.equals("i do not have sufficient authorized documentation to answer this question")
+                || normalized.equals("i do not have documentation covering this")
+                || normalized.equals("i cannot determine from the available documentation")
+                || normalized.equals("the available documentation does not specify the requested detail")
+                || normalized.equals("the retrieved documents do not contain sufficient information to answer this question")
+                || normalized.equals("this is not specified in the available documentation")
+                || normalized.equals("no information is provided in the available documentation")
+                || normalized.equals("no information is available in the retrieved documentation")
+                || normalized.equals("i cannot determine the answer from the available documentation")
+                || normalized.equals("insufficient information is available in the retrieved documentation");
     }
 
     private static List<String> sourceTags(String text) {

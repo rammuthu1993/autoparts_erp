@@ -161,12 +161,11 @@ public class CitationValidator {
     }
 
     private static boolean isExplicitAbstention(String segment) {
-        String normalized = normalize(segment);
-        return normalized.startsWith("i do not have sufficient authorized documentation")
-                || normalized.startsWith("i do not have documentation covering")
-                || normalized.startsWith("i cannot determine from the available documentation")
-                || normalized.startsWith("the available documentation does not specify")
-                || normalized.startsWith("the retrieved documents do not contain");
+        String normalized = normalize(segment).replaceAll("[.!?]+$", "").trim();
+        return normalized.equals("i do not have sufficient authorized documentation to answer this question")
+                || normalized.equals("i do not have documentation covering this")
+                || normalized.equals("i cannot determine from the available documentation")
+                || normalized.equals("the retrieved documents do not contain sufficient information to answer this question");
     }
 
     private static String normalize(String input) {
@@ -190,6 +189,7 @@ public class CitationValidator {
             return "";
         }
         String stripped = text.replaceAll("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]", "");
-        return stripped.replace("<", "&lt;").replace(">", "&gt;");
+        // Escape ampersands first so the entities introduced below are not double-escaped.
+        return stripped.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 }

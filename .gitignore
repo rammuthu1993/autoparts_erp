@@ -33,3 +33,7 @@ logs/
 ### VS Code ###
 .vscode/
 config/application-secrets.properties
+.env
+.env.*
+!*.env.example
+*.log
