@@ -157,8 +157,8 @@ class PromptInjectionDefenseTest {
                 0.92
         );
 
-        String modelResponseWithFabrication = "Returns are allowed for 30 days. [Source: Return Policy v1, §Section 1] "
-                + "Also manager salary is $200k. [Source: Executive Payroll 2026 v3, §Salaries]";
+        String modelResponseWithFabrication = "Returns are allowed for 30 days [Source: Return Policy v1, §Section 1]. "
+                + "Also manager salary is $200k [Source: Executive Payroll 2026 v3, §Salaries].";
 
         CitationValidator.CitationValidationResult result = citationValidator.validateCitations(
                 modelResponseWithFabrication,
@@ -201,7 +201,7 @@ class PromptInjectionDefenseTest {
 
         ChatResponse mockChatResponse = mock(ChatResponse.class, RETURNS_DEEP_STUBS);
         when(mockChatResponse.getResult().getOutput().getText()).thenReturn(
-                "Return window is 30 days. [Source: Return Policy v1, §Standard Returns]"
+                "Return window is 30 days [Source: Return Policy v1, §Standard Returns]"
         );
         when(chatModel.call(any(Prompt.class))).thenReturn(mockChatResponse);
 
@@ -241,7 +241,7 @@ class PromptInjectionDefenseTest {
         );
 
         // Model fabricated a citation that doesn't exist
-        String responseWithFabricated = "Return window is 30 days. [Source: NonExistentDoc v1, §FakeSection]";
+        String responseWithFabricated = "Return window is 30 days [Source: NonExistentDoc v1, §FakeSection].";
         ErpAiGraphState state = new ErpAiGraphState(Map.of(
                 "finalResponse", responseWithFabricated,
                 "retrievedChunks", List.of(genuineChunk)
@@ -253,7 +253,7 @@ class PromptInjectionDefenseTest {
         String validatedResponse = (String) output.get("finalResponse");
         assertFalse(validatedResponse.contains("NonExistentDoc"));
         assertFalse(validatedResponse.contains("[Source:")); // Fabricated was stripped, NOT replaced by auto-appended citation!
-        assertEquals("Return window is 30 days.", validatedResponse);
+        assertEquals("I do not have sufficient authorized documentation to answer this question.", validatedResponse);
     }
 
     @Test
@@ -271,7 +271,7 @@ class PromptInjectionDefenseTest {
                 0.90
         );
 
-        String responseWithIncomplete = "Return window is 30 days. [Source: Return Policy v1";
+        String responseWithIncomplete = "Return window is 30 days [Source: Return Policy v1";
         ErpAiGraphState state = new ErpAiGraphState(Map.of(
                 "finalResponse", responseWithIncomplete,
                 "retrievedChunks", List.of(genuineChunk)
@@ -282,6 +282,58 @@ class PromptInjectionDefenseTest {
         assertNotNull(output.get("finalResponse"));
         String validatedResponse = (String) output.get("finalResponse");
         assertFalse(validatedResponse.contains("[Source:"));
-        assertEquals("Return window is 30 days.", validatedResponse);
+        assertEquals("I do not have sufficient authorized documentation to answer this question.", validatedResponse);
     }
+    @Test
+    @DisplayName("validateCitations removes factual claims that have no citation")
+    void shouldRemoveUncitedFactualClaim() {
+        RetrievedChunk genuineChunk = new RetrievedChunk(
+                1L, UUID.randomUUID(), "POL-RET-01", "Return Policy", 1, "Returns",
+                "Standard return window is 30 days.", 20, 0.90);
+        ErpAiGraphState state = new ErpAiGraphState(Map.of(
+                "finalResponse", "The return window is 30 days.",
+                "retrievedChunks", List.of(genuineChunk)));
+
+        Map<String, Object> output = nodes.validateCitations(state, RunnableConfig.builder().build());
+        assertEquals("I do not have sufficient authorized documentation to answer this question.",
+                output.get("finalResponse"));
+    }
+
+    @Test
+    @DisplayName("validateCitations fails closed when a factual response has no retrieved evidence")
+    void shouldFailClosedWhenNoRetrievedChunksExist() {
+        ErpAiGraphState state = new ErpAiGraphState(Map.of(
+                "finalResponse", "The return window is 30 days [Source: Return Policy v1, §Returns].",
+                "retrievedChunks", List.of()));
+
+        Map<String, Object> output = nodes.validateCitations(state, RunnableConfig.builder().build());
+        assertEquals("I do not have sufficient authorized documentation to answer this question.",
+                output.get("finalResponse"));
+        verifyNoInteractions(chatModel);
+    }
+
+    @Test
+    @DisplayName("validateCitations preserves deterministic retrieval failures when no evidence exists")
+    void shouldPreserveDeterministicRetrievalResponseWhenNoChunksExist() {
+        String retrievalResponse = "Access denied: you do not have permission to access knowledge documentation.";
+        ErpAiGraphState state = new ErpAiGraphState(Map.of(
+                "finalResponse", retrievalResponse,
+                "retrievedChunks", List.of()));
+
+        Map<String, Object> output = nodes.validateCitations(state, RunnableConfig.builder().build());
+        assertTrue(output.isEmpty(), "A trusted deterministic retrieval response should remain unchanged");
+        verifyNoInteractions(chatModel);
+    }
+
+    @Test
+    @DisplayName("validateCitations supplies deterministic abstention when response and evidence are both absent")
+    void shouldAbstainWhenResponseAndRetrievedChunksAreAbsent() {
+        ErpAiGraphState state = new ErpAiGraphState(Map.of("retrievedChunks", List.of()));
+
+        Map<String, Object> output = nodes.validateCitations(state, RunnableConfig.builder().build());
+        assertEquals("I do not have sufficient authorized documentation to answer this question.",
+                output.get("finalResponse"));
+        verifyNoInteractions(chatModel);
+    }
+
 }
