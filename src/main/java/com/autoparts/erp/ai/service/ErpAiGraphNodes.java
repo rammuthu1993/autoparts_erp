@@ -1845,21 +1845,52 @@ public class ErpAiGraphNodes {
         return Map.of();
     }
 
+    /**
+     * Result of a grounded provider call. Usage fields are nullable because some
+     * OpenAI-compatible providers do not return token usage metadata.
+     */
+    public record GroundedGenerationResult(
+            String response,
+            boolean providerCalled,
+            Long promptTokens,
+            Long completionTokens,
+            Long totalTokens,
+            String model
+    ) {}
+
     public Map<String, Object> generateGroundedResponse(
             ErpAiGraphState state,
             RunnableConfig config
     ) {
-        if (state == null) {
+        if (state == null || StringUtils.hasText(state.finalResponse())) {
             return Map.of();
+        }
+        GroundedGenerationResult result = generateGroundedResponseWithUsage(state);
+        if (!StringUtils.hasText(result.response())) {
+            return Map.of();
+        }
+        return Map.of("finalResponse", result.response());
+    }
+
+    /**
+     * Executes the same grounded prompt used by the production graph while also
+     * returning provider usage metadata for the opt-in live evaluation workflow.
+     * This method does not bypass retrieval, authorization, or citation validation.
+     */
+    public GroundedGenerationResult generateGroundedResponseWithUsage(ErpAiGraphState state) {
+        if (state == null) {
+            return new GroundedGenerationResult(null, false, null, null, null, null);
         }
 
         if (StringUtils.hasText(state.finalResponse())) {
-            return Map.of();
+            return new GroundedGenerationResult(state.finalResponse(), false, null, null, null, null);
         }
 
         List<RetrievedChunk> chunks = state.retrievedChunks();
         if (chunks == null || chunks.isEmpty()) {
-            return Map.of("finalResponse", "I could not find any company policy or documentation covering this in the knowledge base.");
+            return new GroundedGenerationResult(
+                    "I could not find any company policy or documentation covering this in the knowledge base.",
+                    false, null, null, null, null);
         }
 
         StringBuilder contextBuilder = new StringBuilder();
@@ -1892,8 +1923,7 @@ public class ErpAiGraphNodes {
         promptMessages.add(new UserMessage(state.currentMessage()));
 
         try {
-            Prompt prompt = new Prompt(promptMessages);
-            var response = chatModel.call(prompt);
+            var response = chatModel.call(new Prompt(promptMessages));
             if (response == null || response.getResult() == null || response.getResult().getOutput() == null) {
                 throw new AiProviderResponseException("AI provider returned an empty knowledge response. Please try again.");
             }
@@ -1901,13 +1931,41 @@ public class ErpAiGraphNodes {
             if (!StringUtils.hasText(text)) {
                 throw new AiProviderResponseException("AI provider returned an empty knowledge response. Please try again.");
             }
-            return Map.of("finalResponse", text.trim());
+
+            Object metadata = response.getMetadata();
+            Object usage = invokeMetadataGetter(metadata, "getUsage");
+            Long promptTokens = readLongMetadata(usage, "getPromptTokens");
+            Long completionTokens = readLongMetadata(usage, "getCompletionTokens");
+            Long totalTokens = readLongMetadata(usage, "getTotalTokens");
+            String model = readStringMetadata(metadata, "getModel");
+
+            return new GroundedGenerationResult(text.trim(), true,
+                    promptTokens, completionTokens, totalTokens, model);
         } catch (AiProviderResponseException e) {
             throw e;
         } catch (Exception e) {
             log.error("Failed to generate grounded knowledge response via ChatModel: {}", e.getMessage(), e);
             throw new AiProviderResponseException("Failed to generate knowledge response from provider", e);
         }
+    }
+
+    private static Object invokeMetadataGetter(Object target, String getter) {
+        if (target == null) return null;
+        try {
+            return target.getClass().getMethod(getter).invoke(target);
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private static Long readLongMetadata(Object target, String getter) {
+        Object value = invokeMetadataGetter(target, getter);
+        return value instanceof Number number ? number.longValue() : null;
+    }
+
+    private static String readStringMetadata(Object target, String getter) {
+        Object value = invokeMetadataGetter(target, getter);
+        return value == null || value.toString().isBlank() ? null : value.toString();
     }
 
     public Map<String, Object> validateCitations(
