@@ -1355,6 +1355,795 @@ class CitationValidatorTest {
                 "Unsupported policy date must fail");
     }
 
+    // -------------------------------------------------------------------------
+    // Final Critical Hardening: Strict Date, Amount, and Negative Status Evidence
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("Fix A-1: 'PUR-0001 was dated ...' fails against ERP when date is from cited policy")
+    void testDateAttribution_datedWordingFailsAgainstErpMismatchEvenIfInPolicy() {
+        RetrievedChunk policyChunk = new RetrievedChunk(101L, UUID.randomUUID(), "POL-RET-01",
+                "Return Policy", 1, "General",
+                "Under policy effective 2025-06-01, returns require prior manager approval.", 30, 0.95);
+
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date", "2026-11-12",
+                "grand_total", 450.00
+        ));
+
+        String response = "PUR-0001 was dated 2025-06-01 under policy effective 2025-06-01 [Source: Return Policy v1].";
+        var result = validator.validateCitations(response, List.of(policyChunk), true, toolResult);
+        assertFalse(result.valid(), "PUR-0001 was dated 2025-06-01 must fail when ERP purchase date is 2026-11-12");
+    }
+
+    @Test
+    @DisplayName("Fix A-2: 'PUR-0001 was bought on ...' fails against ERP when date is from cited policy")
+    void testDateAttribution_boughtOnWordingFailsAgainstErpMismatchEvenIfInPolicy() {
+        RetrievedChunk policyChunk = new RetrievedChunk(101L, UUID.randomUUID(), "POL-RET-01",
+                "Return Policy", 1, "General",
+                "Under policy effective 2025-06-01, returns require prior manager approval.", 30, 0.95);
+
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date", "2026-11-12",
+                "grand_total", 450.00
+        ));
+
+        String response = "PUR-0001 was bought on 2025-06-01 under policy effective 2025-06-01 [Source: Return Policy v1].";
+        var result = validator.validateCitations(response, List.of(policyChunk), true, toolResult);
+        assertFalse(result.valid(), "PUR-0001 was bought on 2025-06-01 must fail when ERP purchase date is 2026-11-12");
+    }
+
+    @Test
+    @DisplayName("Fix B-1: Claiming transaction total as policy fee amount fails against ERP record")
+    void testAmountAttribution_totalWasPolicyFeeAmountFailsAgainstErp() {
+        RetrievedChunk policyChunk = new RetrievedChunk(101L, UUID.randomUUID(), "POL-RET-01",
+                "Return Policy", 1, "General",
+                "A ₹100 restocking fee applies to returned items.", 30, 0.95);
+
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "grand_total", 450.00
+        ));
+
+        String response = "PUR-0001 total was ₹100 including the restocking fee [Source: Return Policy v1].";
+        var result = validator.validateCitations(response, List.of(policyChunk), true, toolResult);
+        assertFalse(result.valid(), "Transaction total of ₹100 must fail against ERP record of ₹450 even if fee is ₹100");
+    }
+
+    @Test
+    @DisplayName("Fix B-2: Correctly stated purchase total and restocking fee passes")
+    void testAmountAttribution_correctPurchaseTotalAndFeePasses() {
+        RetrievedChunk policyChunk = new RetrievedChunk(101L, UUID.randomUUID(), "POL-RET-01",
+                "Return Policy", 1, "General",
+                "A ₹100 restocking fee applies to returned items.", 30, 0.95);
+
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "grand_total", 450.00
+        ));
+
+        String response = "PUR-0001 total was ₹450 and restocking fee was ₹100 [Source: Return Policy v1].";
+        var result = validator.validateCitations(response, List.of(policyChunk), true, toolResult);
+        assertTrue(result.valid(), "True purchase total and true policy fee must both pass");
+    }
+
+    @Test
+    @DisplayName("Fix B-3: Identical numerical values between ERP and policy chunk must not authorize fabricated total")
+    void testAmountAttribution_identicalNumericValuesDoNotAuthorizeFabricatedTotal() {
+        RetrievedChunk policyChunk = new RetrievedChunk(101L, UUID.randomUUID(), "POL-RET-01",
+                "Return Policy", 1, "General",
+                "A ₹450 restocking fee applies to major assemblies.", 30, 0.95);
+
+        // ERP record total is ₹300, NOT ₹450
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "grand_total", 300.00
+        ));
+
+        // Claiming PUR-0001 total was ₹450 because the policy chunk has ₹450
+        String response = "PUR-0001 total was ₹450 and restocking fee was ₹450 [Source: Return Policy v1].";
+        var result = validator.validateCitations(response, List.of(policyChunk), true, toolResult);
+        assertFalse(result.valid(), "Fabricated ERP total of ₹450 must fail against ERP total of ₹300 even if policy has ₹450");
+    }
+
+    @Test
+    @DisplayName("Fix C-1: PROCESSING payment status (UNKNOWN) must fail negative payment claim")
+    void testPaymentNegation_processingStatusFailsNegativeClaim() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "payment_status", "PROCESSING"
+        ));
+        String response = "PUR-0001 payment is not settled.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "PROCESSING payment status resolves to UNKNOWN and must fail negative payment claim");
+    }
+
+    @Test
+    @DisplayName("Fix C-2: Missing payment status must fail negative payment claim")
+    void testPaymentNegation_missingStatusFailsNegativeClaim() {
+        // Record without any payment_status field
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "grand_total", 450.00
+        ));
+        String response = "PUR-0001 payment is not settled.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Missing payment status must fail closed on negative payment claim");
+    }
+
+    @Test
+    @DisplayName("Fix C-3: UNKNOWN payment status must fail 'payment is not overdue'")
+    void testPaymentNegation_unknownStatusFailsNotOverdueClaim() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "payment_status", "UNKNOWN_STATUS"
+        ));
+        String response = "PUR-0001 payment is not overdue.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "UNKNOWN payment status cannot authorize 'is not overdue'");
+    }
+
+    @Test
+    @DisplayName("Fix C-4: PAID status proves 'is not overdue' but fails 'is not settled'")
+    void testPaymentNegation_paidStatusProvesNotOverdueButFailsNotSettled() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "payment_status", "PAID"
+        ));
+
+        // PAID contradicts 'is not settled' -> FAIL
+        String responseNotSettled = "PUR-0001 payment is not settled.";
+        assertFalse(validator.validateCitations(responseNotSettled, List.of(), true, toolResult).valid(),
+                "PAID status contradicts 'is not settled'");
+
+        // PAID proves 'is not overdue' -> PASS
+        String responseNotOverdue = "PUR-0001 payment is not overdue.";
+        assertTrue(validator.validateCitations(responseNotOverdue, List.of(), true, toolResult).valid(),
+                "PAID status explicitly establishes 'is not overdue'");
+    }
+
+    @Test
+    @DisplayName("Fix C-5: UNPAID status proves 'is not settled'")
+    void testPaymentNegation_unpaidStatusProvesNotSettled() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "payment_status", "UNPAID"
+        ));
+        String response = "PUR-0001 payment is not settled.";
+        assertTrue(validator.validateCitations(response, List.of(), true, toolResult).valid(),
+                "UNPAID status explicitly proves 'is not settled'");
+    }
+
+    // =========================================================================
+    // Regression Tests: Payment-Status Field Attribution
+    // =========================================================================
+
+    @Test
+    @DisplayName("Payment Attribution 1: invoice_status=PAID must not authorize a PAID claim")
+    void testPaymentStatus_invoiceStatusPaidDoesNotAuthorizePaymentClaim() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "invoice_status", "PAID"
+        ));
+        String response = "PUR-0001 has been fully paid.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "invoice_status represents invoice lifecycle and must NOT authorize a payment claim");
+    }
+
+    @Test
+    @DisplayName("Payment Attribution 2: order_status=PAID must not authorize a PAID claim")
+    void testPaymentStatus_orderStatusPaidDoesNotAuthorizePaymentClaim() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "order_status", "PAID"
+        ));
+        String response = "PUR-0001 has been paid.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "order_status represents order lifecycle and must NOT authorize a payment claim");
+    }
+
+    @Test
+    @DisplayName("Payment Attribution 3: status=RECEIVED must not authorize a PAID claim")
+    void testPaymentStatus_statusReceivedDoesNotAuthorizePaymentClaim() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "status", "RECEIVED"
+        ));
+        String response = "PUR-0001 payment is completed.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "status=RECEIVED does not imply payment and must fail closed on payment claims");
+    }
+
+    @Test
+    @DisplayName("Payment Attribution 4: Explicit payment_status=PAID authorizes a valid PAID claim")
+    void testPaymentStatus_explicitPaymentStatusPaidAuthorizesPaidClaim() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "payment_status", "PAID"
+        ));
+        String response = "PUR-0001 has been fully paid.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertTrue(result.valid(), "Explicit payment_status=PAID must authorize a valid PAID claim");
+    }
+
+    @Test
+    @DisplayName("Payment Attribution 5: Conflicting candidate payment fields fail closed")
+    void testPaymentStatus_conflictingPaymentFieldsFailClosed() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "payment_status", "PAID",
+                "payment_state", "UNPAID"
+        ));
+        String response = "PUR-0001 has been fully paid.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Conflicting payment fields (PAID vs UNPAID) must fail closed");
+    }
+
+    @Test
+    @DisplayName("Payment Attribution 6: Reversing map insertion order yields identical validation outcome")
+    void testPaymentStatus_reversingMapInsertionOrderYieldsSameResult() {
+        // Conflicting fields in order A
+        var mapA = new java.util.LinkedHashMap<String, Object>();
+        mapA.put("payment_status", "PAID");
+        mapA.put("payment_state", "UNPAID");
+        mapA.put("purchase_number", "PUR-0001");
+
+        // Conflicting fields in order B
+        var mapB = new java.util.LinkedHashMap<String, Object>();
+        mapB.put("payment_state", "UNPAID");
+        mapB.put("payment_status", "PAID");
+        mapB.put("purchase_number", "PUR-0001");
+
+        String response = "PUR-0001 has been fully paid.";
+        assertFalse(validator.validateCitations(response, List.of(), true, List.of(mapA)).valid(),
+                "Map A must fail due to conflicting payment statuses");
+        assertFalse(validator.validateCitations(response, List.of(), true, List.of(mapB)).valid(),
+                "Map B must fail identically regardless of map insertion order");
+
+        // Consistent fields in order C and D
+        var mapC = new java.util.LinkedHashMap<String, Object>();
+        mapC.put("payment_status", "PAID");
+        mapC.put("payment_state", "PAID");
+        mapC.put("purchase_number", "PUR-0001");
+
+        var mapD = new java.util.LinkedHashMap<String, Object>();
+        mapD.put("payment_state", "PAID");
+        mapD.put("payment_status", "PAID");
+        mapD.put("purchase_number", "PUR-0001");
+
+        assertTrue(validator.validateCitations(response, List.of(), true, List.of(mapC)).valid(),
+                "Map C must pass with consistent payment statuses");
+        assertTrue(validator.validateCitations(response, List.of(), true, List.of(mapD)).valid(),
+                "Map D must pass identically regardless of map insertion order");
+    }
+
+    // =========================================================================
+    // Regression Tests: Monetary Evidence Attribution by Field Meaning
+    // =========================================================================
+
+    @Test
+    @DisplayName("Monetary Attribution 1: Purchase total ₹450 passes when grand_total is 450")
+    void testMonetaryAttribution_purchaseTotal450Passes() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "grand_total", 450.00,
+                "paid_amount", 100.00,
+                "balance", 350.00,
+                "refund_amount", 50.00
+        ));
+        String response = "PUR-0001 purchase total was ₹450.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertTrue(result.valid(), "Claim of purchase total ₹450 must match grand_total evidence");
+    }
+
+    @Test
+    @DisplayName("Monetary Attribution 2: Purchase total ₹100 fails even though paid_amount is 100")
+    void testMonetaryAttribution_purchaseTotal100Fails() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "grand_total", 450.00,
+                "paid_amount", 100.00,
+                "balance", 350.00,
+                "refund_amount", 50.00
+        ));
+        String response = "PUR-0001 purchase total was ₹100.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Claim of purchase total ₹100 must fail when grand_total is 450 (100 is paid amount)");
+    }
+
+    @Test
+    @DisplayName("Monetary Attribution 3: Paid amount ₹100 passes against paid_amount evidence")
+    void testMonetaryAttribution_paidAmount100Passes() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "grand_total", 450.00,
+                "paid_amount", 100.00,
+                "balance", 350.00,
+                "refund_amount", 50.00
+        ));
+        String response = "For PUR-0001, amount paid was ₹100.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertTrue(result.valid(), "Claim of amount paid ₹100 must match paid_amount evidence");
+    }
+
+    @Test
+    @DisplayName("Monetary Attribution 4: Outstanding balance ₹350 passes against balance evidence")
+    void testMonetaryAttribution_outstandingBalance350Passes() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "grand_total", 450.00,
+                "paid_amount", 100.00,
+                "balance", 350.00,
+                "refund_amount", 50.00
+        ));
+        String response = "For PUR-0001, the outstanding balance is ₹350.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertTrue(result.valid(), "Claim of outstanding balance ₹350 must match balance evidence");
+    }
+
+    @Test
+    @DisplayName("Monetary Attribution 5: Refund amount ₹50 passes against refund_amount evidence")
+    void testMonetaryAttribution_refundAmount50Passes() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "grand_total", 450.00,
+                "paid_amount", 100.00,
+                "balance", 350.00,
+                "refund_amount", 50.00
+        ));
+        String response = "For PUR-0001, the refund amount was ₹50.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertTrue(result.valid(), "Claim of refund amount ₹50 must match refund_amount evidence");
+    }
+
+    @Test
+    @DisplayName("Monetary Attribution 6: Conflicting grand totals across records fail closed")
+    void testMonetaryAttribution_conflictingGrandTotalsFailClosed() {
+        var toolResult = List.of(
+                java.util.Map.of("purchase_number", "PUR-0001", "grand_total", 450.00),
+                java.util.Map.of("purchase_number", "PUR-0001", "grand_total", 600.00)
+        );
+        String response = "PUR-0001 purchase total was ₹450.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Conflicting grand totals (450 vs 600) for the same purchase must fail closed");
+    }
+
+    // =========================================================================
+    // Regression Tests: Date Evidence Attribution by Field Meaning
+    // =========================================================================
+
+    @Test
+    @DisplayName("Date Attribution 1: Purchase date matching only invoice_date fails")
+    void testDateAttribution_purchaseDateMatchingInvoiceDateFails() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date", "2026-11-10",
+                "invoice_date", "2026-11-12",
+                "received_date", "2026-11-15"
+        ));
+        String response = "PUR-0001 was purchased on 2026-11-12.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Claim of purchase date 2026-11-12 must fail when that date belongs only to invoice_date");
+    }
+
+    @Test
+    @DisplayName("Date Attribution 2: Purchase date matching only received_date fails")
+    void testDateAttribution_purchaseDateMatchingReceivedDateFails() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date", "2026-11-10",
+                "invoice_date", "2026-11-12",
+                "received_date", "2026-11-15"
+        ));
+        String response = "PUR-0001 was purchased on 2026-11-15.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Claim of purchase date 2026-11-15 must fail when that date belongs only to received_date");
+    }
+
+    @Test
+    @DisplayName("Date Attribution 3: Correct purchase date passes")
+    void testDateAttribution_correctPurchaseDatePasses() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date", "2026-11-10",
+                "invoice_date", "2026-11-12",
+                "received_date", "2026-11-15"
+        ));
+        String response = "PUR-0001 was purchased on 2026-11-10.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertTrue(result.valid(), "Claim of purchase date 2026-11-10 must pass against purchase_date evidence");
+    }
+
+    @Test
+    @DisplayName("Date Attribution 4: Correct invoice date passes when claimed as invoice date")
+    void testDateAttribution_correctInvoiceDatePasses() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "invoice_number", "INV-9001",
+                "purchase_date", "2026-11-10",
+                "invoice_date", "2026-11-12",
+                "received_date", "2026-11-15"
+        ));
+        String response = "Invoice INV-9001 date was 2026-11-12.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertTrue(result.valid(), "Claim of invoice date 2026-11-12 must pass against invoice_date evidence");
+    }
+
+    @Test
+    @DisplayName("Date Attribution 5: Conflicting purchase dates across records fail closed")
+    void testDateAttribution_conflictingPurchaseDatesFailClosed() {
+        var toolResult = List.of(
+                java.util.Map.of("purchase_number", "PUR-0001", "purchase_date", "2026-11-10"),
+                java.util.Map.of("purchase_number", "PUR-0001", "purchase_date", "2026-11-11")
+        );
+        String response = "PUR-0001 was purchased on 2026-11-10.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Conflicting purchase dates (2026-11-10 vs 2026-11-11) must fail closed");
+    }
+
+    // =========================================================================
+    // Regression Tests: Strict Semantic Evidence Isolation (No Fallbacks)
+    // =========================================================================
+
+    @Test
+    @DisplayName("Date Isolation 1: Only invoice_date=2026-11-12; purchase-date claim for that date must fail")
+    void testDateIsolation_onlyInvoiceDateFailsPurchaseDateClaim() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "invoice_date", "2026-11-12"
+        ));
+        String response = "PUR-0001 was purchased on 2026-11-12.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Only invoice_date=2026-11-12 present; purchase-date claim for that date must fail");
+    }
+
+    @Test
+    @DisplayName("Date Isolation 2: Only received_date=2026-11-15; purchase-date claim for that date must fail")
+    void testDateIsolation_onlyReceivedDateFailsPurchaseDateClaim() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "received_date", "2026-11-15"
+        ));
+        String response = "PUR-0001 was purchased on 2026-11-15.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Only received_date=2026-11-15 present; purchase-date claim for that date must fail");
+    }
+
+    @Test
+    @DisplayName("Date Isolation 3: Only payment_date=2026-11-20; purchase-date claim for that date must fail")
+    void testDateIsolation_onlyPaymentDateFailsPurchaseDateClaim() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "payment_date", "2026-11-20"
+        ));
+        String response = "PUR-0001 was purchased on 2026-11-20.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Only payment_date=2026-11-20 present; purchase-date claim for that date must fail");
+    }
+
+    @Test
+    @DisplayName("Date Isolation 4: Only purchase_date=2026-11-10; invoice-date claim for that date must fail")
+    void testDateIsolation_onlyPurchaseDateFailsInvoiceDateClaim() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "invoice_number", "INV-9001",
+                "purchase_date", "2026-11-10"
+        ));
+        String response = "Invoice INV-9001 date was 2026-11-10.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Only purchase_date=2026-11-10 present; invoice-date claim for that date must fail");
+    }
+
+    @Test
+    @DisplayName("Date Isolation 5: Missing relevant date category must fail")
+    void testDateIsolation_missingRelevantDateCategoryFails() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "grand_total", 450.00
+        ));
+        String response = "PUR-0001 was purchased on 2026-11-10.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Missing purchase_date evidence must fail closed for purchase-date claim");
+    }
+
+    @Test
+    @DisplayName("Date Isolation 6: Correct matching date category must pass")
+    void testDateIsolation_correctMatchingDateCategoryPasses() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date", "2026-11-10"
+        ));
+        String response = "PUR-0001 was purchased on 2026-11-10.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertTrue(result.valid(), "Correct matching purchase_date evidence must pass");
+    }
+
+    @Test
+    @DisplayName("Monetary Isolation 1: Only paid_amount=100; grand-total claim of 100 must fail")
+    void testMonetaryIsolation_onlyPaidAmountFailsGrandTotalClaim() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "paid_amount", 100.00
+        ));
+        String response = "PUR-0001 purchase total was ₹100.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Only paid_amount=100 present; grand-total claim of 100 must fail");
+    }
+
+    @Test
+    @DisplayName("Monetary Isolation 2: Only balance=350; grand-total claim of 350 must fail")
+    void testMonetaryIsolation_onlyBalanceFailsGrandTotalClaim() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "balance", 350.00
+        ));
+        String response = "PUR-0001 purchase total was ₹350.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Only balance=350 present; grand-total claim of 350 must fail");
+    }
+
+    @Test
+    @DisplayName("Monetary Isolation 3: Only refund_amount=50; grand-total claim of 50 must fail")
+    void testMonetaryIsolation_onlyRefundAmountFailsGrandTotalClaim() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "refund_amount", 50.00
+        ));
+        String response = "PUR-0001 purchase total was ₹50.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Only refund_amount=50 present; grand-total claim of 50 must fail");
+    }
+
+    @Test
+    @DisplayName("Monetary Isolation 4: Only grand_total=450; paid-amount claim of 450 must fail")
+    void testMonetaryIsolation_onlyGrandTotalFailsPaidAmountClaim() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "grand_total", 450.00
+        ));
+        String response = "For PUR-0001, amount paid was ₹450.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Only grand_total=450 present; paid-amount claim of 450 must fail");
+    }
+
+    @Test
+    @DisplayName("Monetary Isolation 5: tax_total=100 must not establish grand total of 100")
+    void testMonetaryIsolation_taxTotalDoesNotEstablishGrandTotal() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "tax_total", 100.00
+        ));
+        String response = "PUR-0001 purchase total was ₹100.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "tax_total=100 must not establish purchase grand total of 100");
+    }
+
+    @Test
+    @DisplayName("Monetary Isolation 6: Generic amount=100 must not establish grand total without an explicitly supported semantic mapping")
+    void testMonetaryIsolation_genericAmountDoesNotEstablishGrandTotal() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "amount", 100.00
+        ));
+        String response = "PUR-0001 purchase total was ₹100.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Generic amount=100 without semantic mapping must not establish grand total");
+    }
+
+    @Test
+    @DisplayName("Monetary Isolation 7: Correct semantic category must pass")
+    void testMonetaryIsolation_correctSemanticCategoryPasses() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "grand_total", 450.00
+        ));
+        String response = "PUR-0001 purchase total was ₹450.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertTrue(result.valid(), "Matching grand_total evidence must pass");
+    }
+
+    @Test
+    @DisplayName("Monetary Isolation 8: Missing relevant category must fail")
+    void testMonetaryIsolation_missingRelevantCategoryFails() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date", "2026-11-10"
+        ));
+        String response = "PUR-0001 purchase total was ₹450.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Missing grand_total evidence must fail closed for grand-total claim");
+    }
+
+
+    // =========================================================================
+    // Regression Tests: Neutral-Context Isolation & Explicit Balance Aliases
+    // =========================================================================
+
+    @Test
+    @DisplayName("Neutral Date Isolation 1: Only invoice_date exists; neutral date claim must fail")
+    void testNeutralDateIsolation_onlyInvoiceDateCannotAuthorizeNeutralDateClaim() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "invoice_date", "2026-11-12"
+        ));
+        String response = "The date was 2026-11-12.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Neutral date claim must not validate against invoice_date via union fallback");
+    }
+
+    @Test
+    @DisplayName("Neutral Date Isolation 2: Only received_date exists; neutral date claim must fail")
+    void testNeutralDateIsolation_onlyReceivedDateCannotAuthorizeNeutralDateClaim() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "received_date", "2026-11-15"
+        ));
+        String response = "The date was 2026-11-15.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Neutral date claim must not validate against received_date via union fallback");
+    }
+
+    @Test
+    @DisplayName("Neutral Date Isolation 3: Only payment_date exists; neutral date claim must fail")
+    void testNeutralDateIsolation_onlyPaymentDateCannotAuthorizeNeutralDateClaim() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "payment_date", "2026-11-20"
+        ));
+        String response = "The date was 2026-11-20.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Neutral date claim must not validate against payment_date via union fallback");
+    }
+
+    @Test
+    @DisplayName("Neutral Date Isolation 4: Generic 'date' key does not establish a purchase date")
+    void testNeutralDateIsolation_genericDateKeyDoesNotEstablishPurchaseDate() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "date", "2026-11-10"
+        ));
+        assertFalse(validator.validateCitations("PUR-0001 was purchased on 2026-11-10.", List.of(), true, toolResult).valid(),
+                "Ambiguous generic 'date' key must be classified as otherDates, not purchaseDates");
+        assertFalse(validator.validateCitations("The date was 2026-11-10.", List.of(), true, toolResult).valid(),
+                "Neutral date claim must fail closed against ambiguous generic 'date' key");
+    }
+
+    @Test
+    @DisplayName("Neutral Date Isolation 5: Explicit purchase, invoice, received, and payment date claims pass")
+    void testNeutralDateIsolation_explicitDateCategoriesContinueToPass() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "invoice_number", "INV-9001",
+                "purchase_date", "2026-11-10",
+                "invoice_date", "2026-11-12",
+                "received_date", "2026-11-15",
+                "payment_date", "2026-11-20",
+                "payment_status", "PAID"
+        ));
+        assertTrue(validator.validateCitations("PUR-0001 was purchased on 2026-11-10.", List.of(), true, toolResult).valid());
+        assertTrue(validator.validateCitations("Invoice INV-9001 date was 2026-11-12.", List.of(), true, toolResult).valid());
+        assertTrue(validator.validateCitations("PUR-0001 was delivered on 2026-11-15.", List.of(), true, toolResult).valid());
+        assertTrue(validator.validateCitations("PUR-0001 was paid on 2026-11-20.", List.of(), true, toolResult).valid());
+    }
+
+    @Test
+    @DisplayName("Neutral Monetary Isolation 1: Only paid_amount=100 exists; neutral amount claim must fail")
+    void testNeutralMonetaryIsolation_onlyPaidAmountCannotAuthorizeNeutralAmountClaim() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "paid_amount", 100.00
+        ));
+        String response = "The figure was ₹100.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Neutral monetary claim must not validate against paid_amount via union fallback");
+    }
+
+    @Test
+    @DisplayName("Neutral Monetary Isolation 2: Only balance=350 exists; neutral amount claim must fail")
+    void testNeutralMonetaryIsolation_onlyBalanceCannotAuthorizeNeutralAmountClaim() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "balance", 350.00
+        ));
+        String response = "The figure was ₹350.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Neutral monetary claim must not validate against balance via union fallback");
+    }
+
+    @Test
+    @DisplayName("Neutral Monetary Isolation 3: Only refund_amount=50 exists; neutral amount claim must fail")
+    void testNeutralMonetaryIsolation_onlyRefundAmountCannotAuthorizeNeutralAmountClaim() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "refund_amount", 50.00
+        ));
+        String response = "The figure was ₹50.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Neutral monetary claim must not validate against refund_amount via union fallback");
+    }
+
+    @Test
+    @DisplayName("Neutral Monetary Isolation 4: Excluded monetary aliases cannot establish grand total or neutral claim")
+    void testNeutralMonetaryIsolation_excludedMonetaryAliasesCannotEstablishGrandTotal() {
+        for (String excludedKey : List.of("tax_total", "shipping_total", "discount_total", "unit_price")) {
+            var toolResult = List.of(java.util.Map.of(
+                    "purchase_number", "PUR-0001",
+                    excludedKey, 120.00
+            ));
+            assertFalse(validator.validateCitations("PUR-0001 purchase total was ₹120.", List.of(), true, toolResult).valid(),
+                    excludedKey + " must not establish purchase grand total");
+            assertFalse(validator.validateCitations("The figure was ₹120.", List.of(), true, toolResult).valid(),
+                    excludedKey + " must not authorize a neutral monetary claim");
+        }
+    }
+
+    @Test
+    @DisplayName("Neutral Monetary Isolation 5: Generic 'amount' cannot establish grand total or neutral claim")
+    void testNeutralMonetaryIsolation_genericAmountCannotEstablishGrandTotalOrNeutralClaim() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "amount", 100.00
+        ));
+        assertFalse(validator.validateCitations("PUR-0001 purchase total was ₹100.", List.of(), true, toolResult).valid(),
+                "Generic 'amount' must not establish grand total");
+        assertFalse(validator.validateCitations("The figure was ₹100.", List.of(), true, toolResult).valid(),
+                "Generic 'amount' must not authorize a neutral monetary claim");
+    }
+
+    @Test
+    @DisplayName("Neutral Monetary Isolation 6: Explicit monetary categories continue to pass")
+    void testNeutralMonetaryIsolation_explicitMonetaryCategoriesContinueToPass() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "grand_total", 450.00,
+                "subtotal", 400.00,
+                "paid_amount", 100.00,
+                "balance", 350.00,
+                "refund_amount", 50.00
+        ));
+        assertTrue(validator.validateCitations("PUR-0001 purchase total was ₹450.", List.of(), true, toolResult).valid());
+        assertTrue(validator.validateCitations("For PUR-0001, the subtotal was ₹400.", List.of(), true, toolResult).valid());
+        assertTrue(validator.validateCitations("For PUR-0001, amount paid was ₹100.", List.of(), true, toolResult).valid());
+        assertTrue(validator.validateCitations("For PUR-0001, the outstanding balance is ₹350.", List.of(), true, toolResult).valid());
+        assertTrue(validator.validateCitations("For PUR-0001, the refund amount was ₹50.", List.of(), true, toolResult).valid());
+    }
+
+    @Test
+    @DisplayName("Balance Aliases 1: All supported balance aliases are categorized correctly")
+    void testBalanceAliases_supportedAliasesAreCategorizedCorrectly() {
+        for (String alias : List.of(
+                "balance", "balance_amount", "balanceamount", "amount_due", "amountdue", "due_amount", "dueamount",
+                "outstanding_balance", "outstandingbalance", "current_balance", "currentbalance",
+                "outstanding", "balance_due", "balancedue", "remaining_balance", "remainingbalance",
+                "outstanding_amount", "outstandingamount")) {
+            var toolResult = List.of(java.util.Map.of(
+                    "purchase_number", "PUR-0001",
+                    alias, 350.00
+            ));
+            assertTrue(validator.validateCitations("For PUR-0001, the outstanding balance is ₹350.", List.of(), true, toolResult).valid(),
+                    "Supported balance alias '" + alias + "' must authorize a balance claim");
+            assertFalse(validator.validateCitations("PUR-0001 purchase total was ₹350.", List.of(), true, toolResult).valid(),
+                    "Supported balance alias '" + alias + "' must not authorize a grand-total claim");
+        }
+    }
+
+    @Test
+    @DisplayName("Balance Aliases 2: Unrelated numeric keys containing 'due' or 'balance' are not categorized as balances")
+    void testBalanceAliases_unrelatedNumericKeysContainingDueOrBalanceAreRejected() {
+        for (String unrelatedKey : List.of(
+                "due_days", "days_past_due", "balance_sheet_id",
+                "balance_version", "overdue_count", "outstanding_items_count")) {
+            var toolResult = List.of(java.util.Map.of(
+                    "purchase_number", "PUR-0001",
+                    unrelatedKey, 350.00
+            ));
+            assertFalse(validator.validateCitations("For PUR-0001, the outstanding balance is ₹350.", List.of(), true, toolResult).valid(),
+                    "Unrelated numeric key '" + unrelatedKey + "' must not be classified as a balance");
+        }
+    }
+
     private static long countOccurrences(String text, String value) {
         return (text.length() - text.replace(value, "").length()) / value.length();
     }

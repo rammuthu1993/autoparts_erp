@@ -80,6 +80,14 @@ public class CitationValidator {
             "supplied", "provided", "received", "incurred", "shipped", "invoiced", "dated"
     );
 
+    /**
+     * Splits local claim phrases at clause delimiters without splitting legal supplier
+     * names such as "ABC Automotive Components and Spares Pvt Ltd".
+     */
+    private static final Pattern PHRASE_DELIMITER_PATTERN = Pattern.compile(
+            "(?i)(?:,[\\s]|;|\\b(?:but|while|whereas|although|though|however|plus|with|under)\\b)"
+                    + "|\\b[Aa]nd\\b(?!\\s+(?-i:[A-Z][a-z]+))");
+
     // -------------------------------------------------------------------------
     // Public result record
     // -------------------------------------------------------------------------
@@ -331,33 +339,75 @@ public class CitationValidator {
 
             boolean isPolicyContext = isPolicyContext(phrase) || phrase.contains("effective");
             boolean isTransactionContext = phrase.contains("purchas") || phrase.contains("ordered")
-                    || phrase.contains("bought") || phrase.contains("dated") || (phrase.contains("on") && phrase.contains("pur-"));
+                    || phrase.contains("bought") || phrase.contains("dated") || phrase.contains("invoiced")
+                    || phrase.contains("received") || phrase.contains("delivered")
+                    || phrase.contains("pur-") || phrase.contains("inv-")
+                    || (phrase.contains("on") && (phrase.contains("pur-") || phrase.contains("inv-")));
 
-            if (isTransactionContext && !isPolicyContext) {
-                if (specificRecord.isPresent()) {
-                    if (!specificRecord.get().containsDate(date)) {
+            if (isTransactionContext) {
+                // Explicit ERP transaction claim (e.g. "was dated 2025-06-01", "purchased on 2026-11-12", "bought on")
+                // Every date attributed to a transaction MUST match the ERP record.
+                // A cited RAG policy chunk date can NEVER authorize a transaction date mismatch!
+                if (specificRecord.isEmpty()) {
+                    return false;
+                }
+                StructuredErpEvidence.PurchaseRecord rec = specificRecord.get();
+
+                boolean isInvoiceDateClaim = phrase.contains("invoice date") || phrase.contains("invoiced on")
+                        || phrase.contains("billing date") || phrase.contains("billed on")
+                        || (phrase.contains("inv-") && (phrase.contains("dated") || phrase.contains("date")));
+                boolean isReceivedDateClaim = phrase.contains("received on") || phrase.contains("delivery date")
+                        || phrase.contains("delivered on") || phrase.contains("receipt date");
+                boolean isPaymentDateClaim = (phrase.contains("paid on") || phrase.contains("payment date") || phrase.contains("settled on"))
+                        && !phrase.contains("unpaid") && !phrase.contains("pending") && !phrase.contains("awaiting");
+                boolean isPurchaseDateClaim = phrase.contains("purchased") || phrase.contains("purchase date")
+                        || phrase.contains("ordered") || phrase.contains("order date")
+                        || phrase.contains("bought") || (phrase.contains("pur-") && phrase.contains("dated"));
+
+                if (isInvoiceDateClaim && !isPurchaseDateClaim) {
+                    if (rec.hasInvoiceDateConflict() || rec.invoiceDates().isEmpty() || !rec.containsInvoiceDate(date)) {
+                        return false;
+                    }
+                } else if (isReceivedDateClaim && !isPurchaseDateClaim) {
+                    if (rec.hasReceivedDateConflict() || rec.receivedDates().isEmpty() || !rec.containsReceivedDate(date)) {
+                        return false;
+                    }
+                } else if (isPaymentDateClaim && !isPurchaseDateClaim) {
+                    if (rec.hasPaymentDateConflict() || rec.paymentDates().isEmpty() || !rec.containsPaymentDate(date)) {
                         return false;
                     }
                 } else {
-                    return false;
+                    // Default transaction date (purchase date / order date / completed on / dated)
+                    if (rec.hasPurchaseDateConflict() || rec.purchaseDates().isEmpty() || !rec.containsPurchaseDate(date)) {
+                        return false;
+                    }
                 }
-            } else if (isPolicyContext && !isTransactionContext) {
+
+                if (isPolicyContext) {
+                    boolean isRagSupportedDate = citedChunks.stream()
+                            .anyMatch(chunk -> chunk.chunkText() != null && chunk.chunkText().contains(date));
+                    if (!isRagSupportedDate) {
+                        return false;
+                    }
+                }
+            } else if (isPolicyContext) {
+                // Explicit policy claim without transaction attribution (e.g. "under policy effective 2025-06-01")
                 boolean isRagSupportedDate = citedChunks.stream()
                         .anyMatch(chunk -> chunk.chunkText() != null && chunk.chunkText().contains(date));
                 if (!isRagSupportedDate) {
                     return false;
                 }
             } else {
-                boolean isRagSupportedDate = citedChunks.stream()
-                        .anyMatch(chunk -> chunk.chunkText() != null && chunk.chunkText().contains(date));
-                if (isRagSupportedDate && !phrase.contains("purchased") && !phrase.contains("ordered")) {
-                    continue;
-                }
-                if (specificRecord.isPresent()) {
-                    if (!specificRecord.get().containsDate(date)) {
-                        return false;
-                    }
-                } else if (!isRagSupportedDate) {
+                // Neutral context: no explicit transaction-date or policy keywords in local phrase.
+                // Fail closed unless an independently valid RAG citation supports a non-transaction
+                // policy/general date claim. Never fall back to the union of ERP date categories.
+                String lowerClean = clean.toLowerCase(Locale.ROOT);
+                boolean isRagSupportedDate = isCited
+                        && !lowerClean.contains("pur-")
+                        && !lowerClean.contains("inv-")
+                        && citedChunks.stream()
+                                .anyMatch(chunk -> chunk.chunkText() != null && chunk.chunkText().contains(date));
+                if (!isRagSupportedDate) {
                     return false;
                 }
             }
@@ -377,51 +427,74 @@ public class CitationValidator {
                 int end = amtMatcher.end();
                 String phrase = extractLocalPhrase(clean, start, end);
 
-                boolean isPolicy = isPolicyContext(phrase);
+                boolean isPolicy = isPolicyFeeContext(phrase);
                 boolean isTransaction = isTransactionAmountContext(phrase);
 
-                if (isTransaction && !isPolicy) {
-                    // Explicit ERP transaction claim (e.g. "purchased for ₹100", "total was ₹450")
-                    if (specificRecord.isPresent()) {
-                        if (!specificRecord.get().containsAmount(val)) {
-                            return false; // Transaction amount does not match ERP record
-                        }
-                    } else {
+                if (isTransaction) {
+                    // Explicit ERP transaction claim (e.g. "purchased for ₹100", "total was ₹450", "cost", "price", "amount", "worth")
+                    // Every amount attributed to a transaction MUST match the ERP record.
+                    // A cited RAG policy chunk amount can NEVER authorize a transaction amount!
+                    if (specificRecord.isEmpty()) {
                         return false;
                     }
-                } else if (isPolicy && !isTransaction) {
-                    // Explicit policy claim (e.g. "restocking fee of ₹100")
+                    StructuredErpEvidence.PurchaseRecord rec = specificRecord.get();
+
+                    boolean isRefundClaim = phrase.contains("refund");
+                    boolean isPaidClaim = (phrase.contains("paid") || phrase.contains("payment of") || phrase.contains("settled"))
+                            && !phrase.contains("unpaid");
+                    boolean isBalanceClaim = phrase.contains("balance") || phrase.contains("due") || phrase.contains("outstanding") || phrase.contains("remaining");
+                    boolean isSubtotalClaim = phrase.contains("subtotal") || phrase.contains("sub-total") || phrase.contains("net");
+
+                    if (isRefundClaim) {
+                        if (rec.hasRefundConflict() || rec.refundAmounts().isEmpty() || !rec.containsRefund(val)) {
+                            return false;
+                        }
+                    } else if (isPaidClaim) {
+                        if (rec.hasPaidAmountConflict() || rec.paidAmounts().isEmpty() || !rec.containsPaidAmount(val)) {
+                            return false;
+                        }
+                    } else if (isBalanceClaim) {
+                        if (rec.hasBalanceConflict() || rec.balances().isEmpty() || !rec.containsBalance(val)) {
+                            return false;
+                        }
+                    } else if (isSubtotalClaim) {
+                        if (rec.hasSubtotalConflict() || rec.subtotals().isEmpty() || !rec.containsSubtotal(val)) {
+                            return false;
+                        }
+                    } else {
+                        // Grand total / total / cost / price / worth / generic transaction total
+                        if (rec.hasGrandTotalConflict() || rec.grandTotals().isEmpty() || !rec.containsGrandTotal(val)) {
+                            return false;
+                        }
+                    }
+
+                    // If the same local phrase also claims this amount is a policy fee/charge,
+                    // it must ALSO be supported by the cited policy chunk.
+                    if (isPolicy) {
+                        boolean isRagSupported = citedChunks.stream()
+                                .anyMatch(chunk -> chunkContainsAmount(chunk.chunkText(), val));
+                        if (!isRagSupported) {
+                            return false;
+                        }
+                    }
+                } else if (isPolicy) {
+                    // Explicit policy claim without transaction attribution (e.g. "restocking fee of ₹100")
                     boolean isRagSupported = citedChunks.stream()
                             .anyMatch(chunk -> chunkContainsAmount(chunk.chunkText(), val));
                     if (!isRagSupported) {
                         return false; // Fabricated policy fee not in cited chunk
                     }
-                } else if (isPolicy && isTransaction) {
-                    // Both keywords present in the same local phrase.
-                    // If it explicitly references transaction purchase/order/invoice and doesn't match ERP, fail closed!
-                    if (phrase.contains("purchased") || phrase.contains("ordered") || phrase.contains("invoice")) {
-                        if (specificRecord.isPresent() && !specificRecord.get().containsAmount(val)) {
-                            return false;
-                        }
-                    }
-                    boolean isRagSupported = citedChunks.stream()
-                            .anyMatch(chunk -> chunkContainsAmount(chunk.chunkText(), val));
-                    boolean isErpSupported = specificRecord.isPresent() && specificRecord.get().containsAmount(val);
-                    if (!isRagSupported && !isErpSupported) {
-                        return false;
-                    }
                 } else {
-                    // General / neutral context
-                    boolean isRagSupported = citedChunks.stream()
-                            .anyMatch(chunk -> chunkContainsAmount(chunk.chunkText(), val));
-                    if (isRagSupported && !clean.toLowerCase(Locale.ROOT).contains("pur-") && !clean.toLowerCase(Locale.ROOT).contains("inv-")) {
-                        continue;
-                    }
-                    if (specificRecord.isPresent()) {
-                        if (!specificRecord.get().containsAmount(val)) {
-                            return false;
-                        }
-                    } else if (!isRagSupported) {
+                    // Neutral context: no explicit transaction-amount or policy keywords in local phrase.
+                    // Fail closed unless an independently valid RAG citation supports a non-transaction
+                    // policy/general amount claim. Never fall back to the union of ERP monetary categories.
+                    String lowerClean = clean.toLowerCase(Locale.ROOT);
+                    boolean isRagSupported = isCited
+                            && !lowerClean.contains("pur-")
+                            && !lowerClean.contains("inv-")
+                            && citedChunks.stream()
+                                    .anyMatch(chunk -> chunkContainsAmount(chunk.chunkText(), val));
+                    if (!isRagSupported) {
                         return false;
                     }
                 }
@@ -458,6 +531,11 @@ public class CitationValidator {
             }
             PaymentStatus actualStatus = rec.paymentStatus();
 
+            // Unknown or missing payment status cannot authorize any payment claim (positive or negative)
+            if (actualStatus == PaymentStatus.UNKNOWN || actualStatus == PaymentStatus.MISSING) {
+                return false; // Fail closed: no explicit known payment evidence
+            }
+
             // 1. Positive claims: actualStatus MUST match the positive claim
             for (PaymentStatus positive : paymentAnalysis.positiveClaims()) {
                 if (actualStatus != positive) {
@@ -465,10 +543,13 @@ public class CitationValidator {
                 }
             }
 
-            // 2. Negated claims: actualStatus MUST NOT match the negated state
+            // 2. Negated claims: requires known status proving the negation, and actualStatus must not match the negated state
             for (PaymentStatus negated : paymentAnalysis.negatedClaims()) {
                 if (actualStatus == negated) {
                     return false; // e.g. claimed "not settled", but actual is PAID!
+                }
+                if (!statusEstablishesNegation(actualStatus, negated)) {
+                    return false;
                 }
             }
         }
@@ -476,17 +557,37 @@ public class CitationValidator {
         return true;
     }
 
+    private static boolean statusEstablishesNegation(PaymentStatus actual, PaymentStatus negated) {
+        if (actual == PaymentStatus.UNKNOWN || actual == PaymentStatus.MISSING) {
+            return false;
+        }
+        return switch (negated) {
+            case PAID -> actual == PaymentStatus.UNPAID
+                    || actual == PaymentStatus.PENDING
+                    || actual == PaymentStatus.PARTIALLY_PAID
+                    || actual == PaymentStatus.OVERDUE;
+            case UNPAID -> actual == PaymentStatus.PAID
+                    || actual == PaymentStatus.PARTIALLY_PAID;
+            case OVERDUE -> actual == PaymentStatus.PAID;
+            case PENDING -> actual == PaymentStatus.PAID
+                    || actual == PaymentStatus.OVERDUE;
+            case PARTIALLY_PAID -> actual == PaymentStatus.PAID
+                    || actual == PaymentStatus.UNPAID;
+            default -> false;
+        };
+    }
+
     private static String extractLocalPhrase(String text, int start, int end) {
         int left = 0;
         String before = text.substring(0, start);
-        Matcher leftMatcher = Pattern.compile("(?i)(?:,[\\s]|;|\\b(?:and|but|while|whereas|although|though|however|plus|with)\\b)").matcher(before);
+        Matcher leftMatcher = PHRASE_DELIMITER_PATTERN.matcher(before);
         while (leftMatcher.find()) {
             left = leftMatcher.end();
         }
 
         int right = text.length();
         String after = text.substring(end);
-        Matcher rightMatcher = Pattern.compile("(?i)(?:,[\\s]|;|\\b(?:and|but|while|whereas|although|though|however|plus|with)\\b)").matcher(after);
+        Matcher rightMatcher = PHRASE_DELIMITER_PATTERN.matcher(after);
         if (rightMatcher.find()) {
             right = end + rightMatcher.start();
         }
@@ -494,12 +595,16 @@ public class CitationValidator {
         return text.substring(left, right).toLowerCase(Locale.ROOT);
     }
 
-    private static boolean isPolicyContext(String phrase) {
+    private static boolean isPolicyFeeContext(String phrase) {
         return phrase.contains("fee") || phrase.contains("restocking")
-                || phrase.contains("policy") || phrase.contains("charge")
                 || phrase.contains("penalty") || phrase.contains("deduction")
-                || phrase.contains("refund") || phrase.contains("discount")
-                || phrase.contains("warranty") || phrase.contains("coverage");
+                || phrase.contains("policy");
+    }
+
+    private static boolean isPolicyContext(String phrase) {
+        return isPolicyFeeContext(phrase) || phrase.contains("charge")
+                || phrase.contains("discount") || phrase.contains("warranty")
+                || phrase.contains("coverage");
     }
 
     private static boolean isTransactionAmountContext(String phrase) {
@@ -508,7 +613,10 @@ public class CitationValidator {
                 || phrase.contains("total") || phrase.contains("cost")
                 || phrase.contains("price") || phrase.contains("invoice")
                 || phrase.contains("bought") || phrase.contains("paid")
-                || phrase.contains("amount") || phrase.contains("worth");
+                || phrase.contains("balance") || phrase.contains("due")
+                || phrase.contains("outstanding") || phrase.contains("refund")
+                || phrase.contains("amount") || phrase.contains("worth")
+                || phrase.contains("pur-") || phrase.contains("inv-");
     }
 
     static List<String> splitMultiTransactionClauses(String clean) {
@@ -654,7 +762,7 @@ public class CitationValidator {
             Pattern.CASE_INSENSITIVE);
 
     private static final Pattern POSITIVE_SETTLED_PAID = Pattern.compile(
-            "\\b(?:fully\\s+paid|payment\\s+(?:was\\s+|is\s+|has\s+been\s+)?settled|payment\s+completed|has\s+been\s+paid|is\s+paid|payment\s+received|\\bsettled\\b)\\b",
+            "\\b(?:fully\\s+paid|payment\\s+(?:was\\s+|is\\s+|has\\s+been\\s+)?settled|payment\\s+(?:is\\s+|was\\s+|has\\s+been\\s+)?completed|payment\\s+completed|has\\s+been\\s+paid|is\\s+paid|was\\s+paid|payment\\s+received|\\bsettled\\b)\\b",
             Pattern.CASE_INSENSITIVE);
 
     private static final Pattern POSITIVE_UNPAID = Pattern.compile(
@@ -828,18 +936,137 @@ public class CitationValidator {
         public static final class PurchaseRecord {
             private final String purchaseNumber;         // normalized, e.g. "pur-0001"
             private final Set<String> invoiceNumbers;
-            private final Set<String> dates;
-            private final Set<Double> amounts;
+
+            // Categorized dates
+            private final Set<String> purchaseDates;
+            private final Set<String> invoiceDates;
+            private final Set<String> receivedDates;
+            private final Set<String> paymentDates;
+            private final Set<String> otherDates;
+            private final Set<String> dates;             // all dates (union)
+
+            // Categorized amounts
+            private final Set<Double> grandTotals;
+            private final Set<Double> subtotals;
+            private final Set<Double> paidAmounts;
+            private final Set<Double> balances;
+            private final Set<Double> refundAmounts;
+            private final Set<Double> otherAmounts;
+            private final Set<Double> amounts;           // all amounts (union)
+
             private final Set<String> supplierNames;
             private final Set<String> customerNames;
             private final Set<String> productIdentifiers;
             private final Set<Double> quantities;
             private final PaymentStatus paymentStatus;   // resolved, never null
             private final Set<String> rawStatuses;       // kept for diagnostics
+
+            // Conflict flags
+            private final boolean hasPurchaseDateConflict;
+            private final boolean hasInvoiceDateConflict;
+            private final boolean hasReceivedDateConflict;
+            private final boolean hasPaymentDateConflict;
             private final boolean hasDateConflict;
+
+            private final boolean hasGrandTotalConflict;
+            private final boolean hasSubtotalConflict;
+            private final boolean hasPaidAmountConflict;
+            private final boolean hasBalanceConflict;
+            private final boolean hasRefundConflict;
             private final boolean hasAmountConflict;
+
             private final boolean hasSupplierConflict;
             private final boolean hasPaymentStatusConflict;
+
+            public PurchaseRecord(
+                    String purchaseNumber,
+                    Set<String> invoiceNumbers,
+                    Set<String> purchaseDates,
+                    Set<String> invoiceDates,
+                    Set<String> receivedDates,
+                    Set<String> paymentDates,
+                    Set<String> otherDates,
+                    Set<Double> grandTotals,
+                    Set<Double> subtotals,
+                    Set<Double> paidAmounts,
+                    Set<Double> balances,
+                    Set<Double> refundAmounts,
+                    Set<Double> otherAmounts,
+                    Set<String> supplierNames,
+                    Set<String> customerNames,
+                    Set<String> productIdentifiers,
+                    Set<Double> quantities,
+                    PaymentStatus paymentStatus,
+                    Set<String> rawStatuses,
+                    boolean hasPurchaseDateConflict,
+                    boolean hasInvoiceDateConflict,
+                    boolean hasReceivedDateConflict,
+                    boolean hasPaymentDateConflict,
+                    boolean hasGrandTotalConflict,
+                    boolean hasSubtotalConflict,
+                    boolean hasPaidAmountConflict,
+                    boolean hasBalanceConflict,
+                    boolean hasRefundConflict,
+                    boolean hasSupplierConflict,
+                    boolean hasPaymentStatusConflict
+            ) {
+                this.purchaseNumber          = purchaseNumber;
+                this.invoiceNumbers          = Collections.unmodifiableSet(new LinkedHashSet<>(invoiceNumbers));
+                this.purchaseDates           = Collections.unmodifiableSet(new LinkedHashSet<>(purchaseDates));
+                this.invoiceDates            = Collections.unmodifiableSet(new LinkedHashSet<>(invoiceDates));
+                this.receivedDates           = Collections.unmodifiableSet(new LinkedHashSet<>(receivedDates));
+                this.paymentDates            = Collections.unmodifiableSet(new LinkedHashSet<>(paymentDates));
+                this.otherDates              = Collections.unmodifiableSet(new LinkedHashSet<>(otherDates));
+
+                Set<String> allD = new LinkedHashSet<>();
+                allD.addAll(purchaseDates);
+                allD.addAll(invoiceDates);
+                allD.addAll(receivedDates);
+                allD.addAll(paymentDates);
+                allD.addAll(otherDates);
+                this.dates                   = Collections.unmodifiableSet(allD);
+
+                this.grandTotals             = Collections.unmodifiableSet(new LinkedHashSet<>(grandTotals));
+                this.subtotals               = Collections.unmodifiableSet(new LinkedHashSet<>(subtotals));
+                this.paidAmounts             = Collections.unmodifiableSet(new LinkedHashSet<>(paidAmounts));
+                this.balances                = Collections.unmodifiableSet(new LinkedHashSet<>(balances));
+                this.refundAmounts           = Collections.unmodifiableSet(new LinkedHashSet<>(refundAmounts));
+                this.otherAmounts            = Collections.unmodifiableSet(new LinkedHashSet<>(otherAmounts));
+
+                Set<Double> allA = new LinkedHashSet<>();
+                allA.addAll(grandTotals);
+                allA.addAll(subtotals);
+                allA.addAll(paidAmounts);
+                allA.addAll(balances);
+                allA.addAll(refundAmounts);
+                allA.addAll(otherAmounts);
+                this.amounts                 = Collections.unmodifiableSet(allA);
+
+                this.supplierNames           = Collections.unmodifiableSet(new LinkedHashSet<>(supplierNames));
+                this.customerNames           = Collections.unmodifiableSet(new LinkedHashSet<>(customerNames));
+                this.productIdentifiers      = Collections.unmodifiableSet(new LinkedHashSet<>(productIdentifiers));
+                this.quantities              = Collections.unmodifiableSet(new LinkedHashSet<>(quantities));
+                this.paymentStatus           = paymentStatus;
+                this.rawStatuses             = Collections.unmodifiableSet(new LinkedHashSet<>(rawStatuses));
+
+                this.hasPurchaseDateConflict = hasPurchaseDateConflict || (this.purchaseDates.size() > 1);
+                this.hasInvoiceDateConflict  = hasInvoiceDateConflict || (this.invoiceDates.size() > 1);
+                this.hasReceivedDateConflict = hasReceivedDateConflict || (this.receivedDates.size() > 1);
+                this.hasPaymentDateConflict  = hasPaymentDateConflict || (this.paymentDates.size() > 1);
+                this.hasDateConflict         = this.hasPurchaseDateConflict || this.hasInvoiceDateConflict
+                        || this.hasReceivedDateConflict || this.hasPaymentDateConflict;
+
+                this.hasGrandTotalConflict   = hasGrandTotalConflict || hasAmountConflict(this.grandTotals);
+                this.hasSubtotalConflict     = hasSubtotalConflict || hasAmountConflict(this.subtotals);
+                this.hasPaidAmountConflict   = hasPaidAmountConflict || hasAmountConflict(this.paidAmounts);
+                this.hasBalanceConflict      = hasBalanceConflict || hasAmountConflict(this.balances);
+                this.hasRefundConflict       = hasRefundConflict || hasAmountConflict(this.refundAmounts);
+                this.hasAmountConflict       = this.hasGrandTotalConflict || this.hasSubtotalConflict
+                        || this.hasPaidAmountConflict || this.hasBalanceConflict || this.hasRefundConflict;
+
+                this.hasSupplierConflict     = hasSupplierConflict;
+                this.hasPaymentStatusConflict = hasPaymentStatusConflict;
+            }
 
             PurchaseRecord(
                     String purchaseNumber,
@@ -853,75 +1080,111 @@ public class CitationValidator {
                     PaymentStatus paymentStatus,
                     Set<String> rawStatuses
             ) {
-                this(purchaseNumber, invoiceNumbers, dates, amounts, supplierNames,
-                        customerNames, productIdentifiers, quantities, paymentStatus, rawStatuses,
-                        false, false, false, false);
+                this(purchaseNumber, invoiceNumbers, dates, Set.of(), Set.of(), Set.of(), Set.of(),
+                        amounts, Set.of(), Set.of(), Set.of(), Set.of(), Set.of(),
+                        supplierNames, customerNames, productIdentifiers, quantities, paymentStatus, rawStatuses,
+                        false, false, false, false, false, false, false, false, false, false, false);
             }
 
-            PurchaseRecord(
-                    String purchaseNumber,
-                    Set<String> invoiceNumbers,
-                    Set<String> dates,
-                    Set<Double> amounts,
-                    Set<String> supplierNames,
-                    Set<String> customerNames,
-                    Set<String> productIdentifiers,
-                    Set<Double> quantities,
-                    PaymentStatus paymentStatus,
-                    Set<String> rawStatuses,
-                    boolean hasDateConflict,
-                    boolean hasAmountConflict,
-                    boolean hasSupplierConflict,
-                    boolean hasPaymentStatusConflict
-            ) {
-                this.purchaseNumber          = purchaseNumber;
-                this.invoiceNumbers          = Collections.unmodifiableSet(invoiceNumbers);
-                this.dates                   = Collections.unmodifiableSet(dates);
-                this.amounts                 = Collections.unmodifiableSet(amounts);
-                this.supplierNames           = Collections.unmodifiableSet(supplierNames);
-                this.customerNames           = Collections.unmodifiableSet(customerNames);
-                this.productIdentifiers      = Collections.unmodifiableSet(productIdentifiers);
-                this.quantities              = Collections.unmodifiableSet(quantities);
-                this.paymentStatus           = paymentStatus;
-                this.rawStatuses             = Collections.unmodifiableSet(rawStatuses);
-                this.hasDateConflict         = hasDateConflict;
-                this.hasAmountConflict       = hasAmountConflict;
-                this.hasSupplierConflict     = hasSupplierConflict;
-                this.hasPaymentStatusConflict = hasPaymentStatusConflict;
+            public String purchaseNumber()               { return purchaseNumber; }
+            public Set<String> invoiceNumbers()          { return invoiceNumbers; }
+
+            public Set<String> purchaseDates()           { return purchaseDates; }
+            public Set<String> invoiceDates()            { return invoiceDates; }
+            public Set<String> receivedDates()           { return receivedDates; }
+            public Set<String> paymentDates()            { return paymentDates; }
+            public Set<String> otherDates()              { return otherDates; }
+            public Set<String> dates()                   { return dates; }
+
+            public Set<Double> grandTotals()             { return grandTotals; }
+            public Set<Double> subtotals()               { return subtotals; }
+            public Set<Double> paidAmounts()             { return paidAmounts; }
+            public Set<Double> balances()                { return balances; }
+            public Set<Double> refundAmounts()           { return refundAmounts; }
+            public Set<Double> otherAmounts()            { return otherAmounts; }
+            public Set<Double> amounts()                 { return amounts; }
+
+            public Set<String> supplierNames()           { return supplierNames; }
+            public Set<String> customerNames()           { return customerNames; }
+            public Set<String> productIdentifiers()      { return productIdentifiers; }
+            public Set<Double> quantities()              { return quantities; }
+            public PaymentStatus paymentStatus()         { return paymentStatus; }
+            public Set<String> rawStatuses()             { return rawStatuses; }
+
+            public boolean hasPurchaseDateConflict()     { return hasPurchaseDateConflict; }
+            public boolean hasInvoiceDateConflict()      { return hasInvoiceDateConflict; }
+            public boolean hasReceivedDateConflict()     { return hasReceivedDateConflict; }
+            public boolean hasPaymentDateConflict()      { return hasPaymentDateConflict; }
+            public boolean hasDateConflict()             { return hasDateConflict; }
+
+            public boolean hasGrandTotalConflict()       { return hasGrandTotalConflict; }
+            public boolean hasSubtotalConflict()         { return hasSubtotalConflict; }
+            public boolean hasPaidAmountConflict()       { return hasPaidAmountConflict; }
+            public boolean hasBalanceConflict()          { return hasBalanceConflict; }
+            public boolean hasRefundConflict()           { return hasRefundConflict; }
+            public boolean hasAmountConflict()           { return hasAmountConflict; }
+
+            public boolean hasSupplierConflict()         { return hasSupplierConflict; }
+            public boolean hasPaymentStatusConflict()    { return hasPaymentStatusConflict; }
+
+            public boolean containsPurchaseDate(String date) {
+                if (hasPurchaseDateConflict) return false;
+                return purchaseDates.contains(date);
             }
 
-            public String purchaseNumber()          { return purchaseNumber; }
-            public Set<String> invoiceNumbers()     { return invoiceNumbers; }
-            public Set<String> dates()              { return dates; }
-            public Set<Double> amounts()            { return amounts; }
-            public Set<String> supplierNames()      { return supplierNames; }
-            public Set<String> customerNames()      { return customerNames; }
-            public Set<String> productIdentifiers() { return productIdentifiers; }
-            public Set<Double> quantities()         { return quantities; }
-            public PaymentStatus paymentStatus()    { return paymentStatus; }
-            public Set<String> rawStatuses()        { return rawStatuses; }
-            public boolean hasDateConflict()        { return hasDateConflict; }
-            public boolean hasAmountConflict()      { return hasAmountConflict; }
-            public boolean hasSupplierConflict()    { return hasSupplierConflict; }
-            public boolean hasPaymentStatusConflict() { return hasPaymentStatusConflict; }
+            public boolean containsInvoiceDate(String date) {
+                if (hasInvoiceDateConflict) return false;
+                return invoiceDates.contains(date);
+            }
+
+            public boolean containsReceivedDate(String date) {
+                if (hasReceivedDateConflict) return false;
+                return receivedDates.contains(date);
+            }
+
+            public boolean containsPaymentDate(String date) {
+                if (hasPaymentDateConflict) return false;
+                return paymentDates.contains(date);
+            }
 
             public boolean containsDate(String date) {
-                if (hasDateConflict) {
-                    return false; // Contradictory dates cannot authorize a claim
-                }
+                if (hasDateConflict) return false;
                 return dates.contains(date);
             }
 
+            public boolean containsGrandTotal(double val) {
+                if (hasGrandTotalConflict) return false;
+                return grandTotals.stream().anyMatch(a -> Math.abs(a - val) < 0.01);
+            }
+
+            public boolean containsSubtotal(double val) {
+                if (hasSubtotalConflict) return false;
+                return subtotals.stream().anyMatch(a -> Math.abs(a - val) < 0.01);
+            }
+
+            public boolean containsPaidAmount(double val) {
+                if (hasPaidAmountConflict) return false;
+                return paidAmounts.stream().anyMatch(a -> Math.abs(a - val) < 0.01);
+            }
+
+            public boolean containsBalance(double val) {
+                if (hasBalanceConflict) return false;
+                return balances.stream().anyMatch(a -> Math.abs(a - val) < 0.01);
+            }
+
+            public boolean containsRefund(double val) {
+                if (hasRefundConflict) return false;
+                return refundAmounts.stream().anyMatch(a -> Math.abs(a - val) < 0.01);
+            }
+
             public boolean containsAmount(double val) {
-                if (hasAmountConflict) {
-                    return false; // Contradictory amounts cannot authorize a claim
-                }
+                if (hasAmountConflict) return false;
                 return amounts.stream().anyMatch(a -> Math.abs(a - val) < 0.01);
             }
 
             public boolean containsSupplier(String claimed) {
                 if (hasSupplierConflict) {
-                    return false; // Contradictory suppliers cannot authorize a claim
+                    return false;
                 }
                 String normClaimed = normalizeEntityName(claimed);
                 if (normClaimed.isBlank()) return false;
@@ -951,27 +1214,60 @@ public class CitationValidator {
                 Set<String> mergedRawStatuses = new LinkedHashSet<>(this.rawStatuses);
                 mergedRawStatuses.addAll(other.rawStatuses);
 
-                // 1. Date conflict detection
-                boolean dateConflict = this.hasDateConflict || other.hasDateConflict;
-                if (!this.dates.isEmpty() && !other.dates.isEmpty() && !this.dates.equals(other.dates)) {
-                    dateConflict = true;
-                }
-                Set<String> mergedDates = new LinkedHashSet<>(this.dates);
-                mergedDates.addAll(other.dates);
+                // Date merges & conflict detection
+                boolean purchaseDateConflict = this.hasPurchaseDateConflict || other.hasPurchaseDateConflict
+                        || (!this.purchaseDates.isEmpty() && !other.purchaseDates.isEmpty() && !this.purchaseDates.equals(other.purchaseDates));
+                Set<String> mergedPurchaseDates = new LinkedHashSet<>(this.purchaseDates);
+                mergedPurchaseDates.addAll(other.purchaseDates);
 
-                // 2. Amount / total conflict detection
-                boolean amountConflict = this.hasAmountConflict || other.hasAmountConflict;
-                if (!this.amounts.isEmpty() && !other.amounts.isEmpty()) {
-                    boolean allMatch = this.amounts.size() == other.amounts.size()
-                            && this.amounts.stream().allMatch(a -> other.amounts.stream().anyMatch(b -> Math.abs(a - b) < 0.01));
-                    if (!allMatch) {
-                        amountConflict = true;
-                    }
-                }
-                Set<Double> mergedAmounts = new LinkedHashSet<>(this.amounts);
-                mergedAmounts.addAll(other.amounts);
+                boolean invoiceDateConflict = this.hasInvoiceDateConflict || other.hasInvoiceDateConflict
+                        || (!this.invoiceDates.isEmpty() && !other.invoiceDates.isEmpty() && !this.invoiceDates.equals(other.invoiceDates));
+                Set<String> mergedInvoiceDates = new LinkedHashSet<>(this.invoiceDates);
+                mergedInvoiceDates.addAll(other.invoiceDates);
 
-                // 3. Supplier conflict detection (exact normalized)
+                boolean receivedDateConflict = this.hasReceivedDateConflict || other.hasReceivedDateConflict
+                        || (!this.receivedDates.isEmpty() && !other.receivedDates.isEmpty() && !this.receivedDates.equals(other.receivedDates));
+                Set<String> mergedReceivedDates = new LinkedHashSet<>(this.receivedDates);
+                mergedReceivedDates.addAll(other.receivedDates);
+
+                boolean paymentDateConflict = this.hasPaymentDateConflict || other.hasPaymentDateConflict
+                        || (!this.paymentDates.isEmpty() && !other.paymentDates.isEmpty() && !this.paymentDates.equals(other.paymentDates));
+                Set<String> mergedPaymentDates = new LinkedHashSet<>(this.paymentDates);
+                mergedPaymentDates.addAll(other.paymentDates);
+
+                Set<String> mergedOtherDates = new LinkedHashSet<>(this.otherDates);
+                mergedOtherDates.addAll(other.otherDates);
+
+                // Monetary merges & conflict detection
+                boolean grandTotalConflict = this.hasGrandTotalConflict || other.hasGrandTotalConflict
+                        || (!this.grandTotals.isEmpty() && !other.grandTotals.isEmpty() && hasAmountDifference(this.grandTotals, other.grandTotals));
+                Set<Double> mergedGrandTotals = new LinkedHashSet<>(this.grandTotals);
+                mergedGrandTotals.addAll(other.grandTotals);
+
+                boolean subtotalConflict = this.hasSubtotalConflict || other.hasSubtotalConflict
+                        || (!this.subtotals.isEmpty() && !other.subtotals.isEmpty() && hasAmountDifference(this.subtotals, other.subtotals));
+                Set<Double> mergedSubtotals = new LinkedHashSet<>(this.subtotals);
+                mergedSubtotals.addAll(other.subtotals);
+
+                boolean paidAmountConflict = this.hasPaidAmountConflict || other.hasPaidAmountConflict
+                        || (!this.paidAmounts.isEmpty() && !other.paidAmounts.isEmpty() && hasAmountDifference(this.paidAmounts, other.paidAmounts));
+                Set<Double> mergedPaidAmounts = new LinkedHashSet<>(this.paidAmounts);
+                mergedPaidAmounts.addAll(other.paidAmounts);
+
+                boolean balanceConflict = this.hasBalanceConflict || other.hasBalanceConflict
+                        || (!this.balances.isEmpty() && !other.balances.isEmpty() && hasAmountDifference(this.balances, other.balances));
+                Set<Double> mergedBalances = new LinkedHashSet<>(this.balances);
+                mergedBalances.addAll(other.balances);
+
+                boolean refundConflict = this.hasRefundConflict || other.hasRefundConflict
+                        || (!this.refundAmounts.isEmpty() && !other.refundAmounts.isEmpty() && hasAmountDifference(this.refundAmounts, other.refundAmounts));
+                Set<Double> mergedRefundAmounts = new LinkedHashSet<>(this.refundAmounts);
+                mergedRefundAmounts.addAll(other.refundAmounts);
+
+                Set<Double> mergedOtherAmounts = new LinkedHashSet<>(this.otherAmounts);
+                mergedOtherAmounts.addAll(other.otherAmounts);
+
+                // Supplier conflict detection
                 boolean supplierConflict = this.hasSupplierConflict || other.hasSupplierConflict;
                 if (!this.supplierNames.isEmpty() && !other.supplierNames.isEmpty()) {
                     boolean allMatch = this.supplierNames.size() == other.supplierNames.size()
@@ -984,7 +1280,7 @@ public class CitationValidator {
                 Set<String> mergedSuppliers = new LinkedHashSet<>(this.supplierNames);
                 mergedSuppliers.addAll(other.supplierNames);
 
-                // 4. Payment status conflict detection (Issue B)
+                // Payment status conflict detection
                 boolean payConflict = this.hasPaymentStatusConflict || other.hasPaymentStatusConflict;
                 PaymentStatus mergedPaymentStatus;
                 if (this.paymentStatus == PaymentStatus.MISSING) {
@@ -994,7 +1290,6 @@ public class CitationValidator {
                 } else if (this.paymentStatus == other.paymentStatus && this.paymentStatus != PaymentStatus.UNKNOWN) {
                     mergedPaymentStatus = this.paymentStatus;
                 } else {
-                    // Both provided explicit statuses but they differ (or both explicit UNKNOWN like PROCESSING)
                     payConflict = true;
                     mergedPaymentStatus = PaymentStatus.UNKNOWN;
                 }
@@ -1002,19 +1297,60 @@ public class CitationValidator {
                 return new PurchaseRecord(
                         this.purchaseNumber,
                         mergedInvoices,
-                        mergedDates,
-                        mergedAmounts,
+                        mergedPurchaseDates,
+                        mergedInvoiceDates,
+                        mergedReceivedDates,
+                        mergedPaymentDates,
+                        mergedOtherDates,
+                        mergedGrandTotals,
+                        mergedSubtotals,
+                        mergedPaidAmounts,
+                        mergedBalances,
+                        mergedRefundAmounts,
+                        mergedOtherAmounts,
                         mergedSuppliers,
                         mergedCustomers,
                         mergedProducts,
                         mergedQuantities,
                         mergedPaymentStatus,
                         mergedRawStatuses,
-                        dateConflict,
-                        amountConflict,
+                        purchaseDateConflict,
+                        invoiceDateConflict,
+                        receivedDateConflict,
+                        paymentDateConflict,
+                        grandTotalConflict,
+                        subtotalConflict,
+                        paidAmountConflict,
+                        balanceConflict,
+                        refundConflict,
                         supplierConflict,
                         payConflict
                 );
+            }
+
+            private static boolean hasAmountConflict(Set<Double> amounts) {
+                if (amounts.size() <= 1) return false;
+                Double first = null;
+                for (Double a : amounts) {
+                    if (first == null) {
+                        first = a;
+                    } else if (Math.abs(first - a) >= 0.01) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            private static boolean hasAmountDifference(Set<Double> s1, Set<Double> s2) {
+                if (s1.isEmpty() || s2.isEmpty()) return false;
+                for (Double a : s1) {
+                    for (Double b : s2) {
+                        if (Math.abs(a - b) >= 0.01) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
             }
         }
 
@@ -1063,18 +1399,29 @@ public class CitationValidator {
             if (map.isEmpty()) return;
             hasData = true;
 
-            // Collect all scalar fields from this map into local buckets
-            String purchaseNumber       = null;
-            Set<String> invoiceNums     = new LinkedHashSet<>();
-            Set<String> dates           = new LinkedHashSet<>();
-            Set<Double> amounts         = new LinkedHashSet<>();
-            Set<Double> quantities      = new LinkedHashSet<>();
-            Set<String> supplierNames   = new LinkedHashSet<>();
-            Set<String> customerNames   = new LinkedHashSet<>();
-            Set<String> productIds      = new LinkedHashSet<>();
-            Set<String> rawStatuses     = new LinkedHashSet<>();
-            String paymentStatusRaw     = null;   // from payment_status field
-            String generalStatusRaw     = null;   // from status field
+            String purchaseNumber         = null;
+            Set<String> invoiceNums       = new LinkedHashSet<>();
+            Set<String> purchaseDates     = new LinkedHashSet<>();
+            Set<String> invoiceDates      = new LinkedHashSet<>();
+            Set<String> receivedDates     = new LinkedHashSet<>();
+            Set<String> paymentDates      = new LinkedHashSet<>();
+            Set<String> otherDates        = new LinkedHashSet<>();
+
+            Set<Double> grandTotals       = new LinkedHashSet<>();
+            Set<Double> subtotals         = new LinkedHashSet<>();
+            Set<Double> paidAmounts       = new LinkedHashSet<>();
+            Set<Double> balances          = new LinkedHashSet<>();
+            Set<Double> refundAmounts     = new LinkedHashSet<>();
+            Set<Double> otherAmounts      = new LinkedHashSet<>();
+
+            Set<Double> quantities        = new LinkedHashSet<>();
+            Set<String> supplierNames     = new LinkedHashSet<>();
+            Set<String> customerNames     = new LinkedHashSet<>();
+            Set<String> productIds        = new LinkedHashSet<>();
+            Set<String> rawStatuses       = new LinkedHashSet<>();
+
+            Set<PaymentStatus> candidatePaymentStatuses = new LinkedHashSet<>();
+            boolean paymentStatusConflict = false;
 
             for (Map.Entry<?, ?> entry : map.entrySet()) {
                 if (entry.getKey() == null || entry.getValue() == null) continue;
@@ -1112,76 +1459,191 @@ public class CitationValidator {
                     globalCustomerNames.add(lowerVal);
                 }
 
-                // --- Payment status (preferred field) vs general status (fallback) ---
-                // Note: invoice_status is intentionally excluded as it represents invoice lifecycle, not payment.
-                if (key.equals("payment_status") || key.equals("paymentstatus")
-                        || key.equals("payment_state")) {
-                    paymentStatusRaw = lowerVal;
+                // --- Status handling ---
+                if (isLifecycleStatusKey(key)) {
+                    // Lifecycle status (invoice_status, order_status, receipt_status, delivery_status, etc.)
+                    // Intentionally excluded from payment status validation
                     rawStatuses.add(lowerVal);
                     globalStatuses.add(lowerVal);
+                } else if (isExplicitPaymentKey(key)) {
+                    rawStatuses.add(lowerVal);
+                    globalStatuses.add(lowerVal);
+                    PaymentStatus ps = PaymentStatus.resolve(lowerVal);
+                    candidatePaymentStatuses.add(ps);
+                } else if (key.equals("status")) {
+                    rawStatuses.add(lowerVal);
+                    globalStatuses.add(lowerVal);
+                    PaymentStatus ps = PaymentStatus.resolve(lowerVal);
+                    // Generic 'status' field: only accept if value is an explicit payment status, NOT lifecycle UNKNOWN
+                    if (ps != PaymentStatus.UNKNOWN && ps != PaymentStatus.MISSING) {
+                        candidatePaymentStatuses.add(ps);
+                    }
                 } else if (key.contains("status")) {
-                    generalStatusRaw = lowerVal;
                     rawStatuses.add(lowerVal);
                     globalStatuses.add(lowerVal);
                 }
 
-                // --- Dates ---
-                if (key.contains("date") || key.contains("received_at") || key.contains("created_at")) {
-                    Matcher m = DATE_PATTERN.matcher(strVal);
-                    while (m.find()) {
-                        dates.add(m.group());
-                        globalDates.add(m.group());
+                // --- Dates (categorized) ---
+                Matcher m = DATE_PATTERN.matcher(strVal);
+                while (m.find()) {
+                    String d = m.group();
+                    globalDates.add(d);
+                    if (isPurchaseDateKey(key)) {
+                        purchaseDates.add(d);
+                    } else if (isInvoiceDateKey(key)) {
+                        invoiceDates.add(d);
+                    } else if (isReceivedDateKey(key)) {
+                        receivedDates.add(d);
+                    } else if (isPaymentDateKey(key)) {
+                        paymentDates.add(d);
+                    } else {
+                        otherDates.add(d);
                     }
                 }
 
-                // --- Monetary amounts and quantities (mutually exclusive by key) ---
-                if (key.contains("total") || key.contains("amount") || key.contains("price")
-                        || key.contains("balance") || key.contains("subtotal")) {
-                    Double d = parseDouble(val);
-                    if (d != null) { amounts.add(d); globalAmounts.add(d); }
-                } else if (key.contains("quantity") || key.contains("qty")) {
+                // --- Monetary amounts and quantities (categorized) ---
+                if (key.contains("quantity") || key.contains("qty")) {
                     Double d = parseDouble(val);
                     if (d != null) { quantities.add(d); globalQuantities.add(d); }
+                } else {
+                    Double d = parseDouble(val);
+                    if (d != null) {
+                        globalAmounts.add(d);
+                        if (isRefundAmountKey(key)) {
+                            refundAmounts.add(d);
+                        } else if (isPaidAmountKey(key)) {
+                            paidAmounts.add(d);
+                        } else if (isBalanceAmountKey(key)) {
+                            balances.add(d);
+                        } else if (isSubtotalAmountKey(key)) {
+                            subtotals.add(d);
+                        } else if (isGrandTotalAmountKey(key)) {
+                            grandTotals.add(d);
+                        } else {
+                            otherAmounts.add(d);
+                        }
+                    }
                 }
             }
 
-            // Resolve payment status: payment_status field wins; fall back to general status
-            // only if the general status value is unambiguously payment-related.
+            // Resolve payment status order-independently
             PaymentStatus resolvedStatus;
-            if (paymentStatusRaw != null) {
-                resolvedStatus = PaymentStatus.resolve(paymentStatusRaw);
-            } else if (generalStatusRaw != null) {
-                PaymentStatus fromGeneral = PaymentStatus.resolve(generalStatusRaw);
-                // RECEIVED/COMPLETED lifecycle states do NOT imply payment
-                resolvedStatus = (fromGeneral == PaymentStatus.UNKNOWN) ? PaymentStatus.UNKNOWN : fromGeneral;
-            } else {
+            if (candidatePaymentStatuses.isEmpty()) {
                 resolvedStatus = PaymentStatus.MISSING;
+            } else if (candidatePaymentStatuses.size() == 1) {
+                resolvedStatus = candidatePaymentStatuses.iterator().next();
+            } else {
+                paymentStatusConflict = true;
+                resolvedStatus = PaymentStatus.UNKNOWN;
             }
 
-            // Build or merge a PurchaseRecord if a purchase number or invoice number was found,
-            // or if other transaction/financial fields (e.g. cash register balance, inventory) were extracted.
+            PurchaseRecord rec = new PurchaseRecord(
+                    purchaseNumber != null ? purchaseNumber : (!invoiceNums.isEmpty() ? invoiceNums.iterator().next() : "erp-record-" + (records.size() + 1)),
+                    invoiceNums,
+                    purchaseDates, invoiceDates, receivedDates, paymentDates, otherDates,
+                    grandTotals, subtotals, paidAmounts, balances, refundAmounts, otherAmounts,
+                    supplierNames, customerNames, productIds, quantities,
+                    resolvedStatus, rawStatuses,
+                    false, false, false, false,
+                    false, false, false, false, false,
+                    false, paymentStatusConflict
+            );
+
             if (purchaseNumber != null) {
-                PurchaseRecord rec = new PurchaseRecord(
-                        purchaseNumber, invoiceNums, dates, amounts, supplierNames,
-                        customerNames, productIds, quantities, resolvedStatus, rawStatuses);
                 records.merge(purchaseNumber, rec, PurchaseRecord::merge);
                 registerInvoices(invoiceNums, purchaseNumber);
             } else if (!invoiceNums.isEmpty()) {
                 String invKey = invoiceNums.iterator().next();
-                PurchaseRecord rec = new PurchaseRecord(
-                        invKey, invoiceNums, dates, amounts, supplierNames,
-                        customerNames, productIds, quantities, resolvedStatus, rawStatuses);
                 records.merge(invKey, rec, PurchaseRecord::merge);
                 registerInvoices(invoiceNums, invKey);
-            } else if (!amounts.isEmpty() || !dates.isEmpty() || !supplierNames.isEmpty()
+            } else if (!rec.amounts().isEmpty() || !rec.dates().isEmpty() || !supplierNames.isEmpty()
                     || !customerNames.isEmpty() || !productIds.isEmpty() || !quantities.isEmpty()) {
-                // Non-purchase ERP record (e.g. cash register status, financial balance, report summary)
-                String genericKey = "erp-record-" + (records.size() + 1);
-                PurchaseRecord rec = new PurchaseRecord(
-                        genericKey, invoiceNums, dates, amounts, supplierNames,
-                        customerNames, productIds, quantities, resolvedStatus, rawStatuses);
-                records.put(genericKey, rec);
+                records.put(rec.purchaseNumber(), rec);
             }
+        }
+
+        private static boolean isPurchaseDateKey(String key) {
+            return key.equals("purchase_date") || key.equals("purchasedate")
+                    || key.equals("order_date") || key.equals("orderdate")
+                    || key.equals("purchased_at") || key.equals("ordered_at");
+        }
+
+        private static boolean isInvoiceDateKey(String key) {
+            return key.equals("invoice_date") || key.equals("invoicedate")
+                    || key.equals("supplier_invoice_date") || key.equals("supplierinvoicedate")
+                    || key.equals("invoiced_at") || key.equals("billing_date") || key.equals("billed_at");
+        }
+
+        private static boolean isReceivedDateKey(String key) {
+            return key.equals("received_date") || key.equals("receiveddate")
+                    || key.equals("received_at") || key.equals("receipt_date")
+                    || key.equals("delivery_date") || key.equals("delivered_at");
+        }
+
+        private static boolean isPaymentDateKey(String key) {
+            return key.equals("payment_date") || key.equals("paymentdate")
+                    || key.equals("paid_at") || key.equals("paid_date");
+        }
+
+        private static boolean isRefundAmountKey(String key) {
+            return key.equals("refund_amount") || key.equals("refundamount")
+                    || key.equals("refunded_amount") || key.equals("refundedamount")
+                    || key.equals("total_refund") || key.equals("refund");
+        }
+
+        private static boolean isPaidAmountKey(String key) {
+            if (key.contains("unpaid")) return false;
+            return key.equals("paid_amount") || key.equals("paidamount")
+                    || key.equals("amount_paid") || key.equals("amountpaid")
+                    || key.equals("payment_amount") || key.equals("paymentamount")
+                    || key.equals("total_paid") || key.equals("totalpaid")
+                    || key.equals("paid");
+        }
+
+        private static final Set<String> BALANCE_AMOUNT_KEYS = Set.of(
+                "balance",
+                "balance_amount", "balanceamount",
+                "amount_due", "amountdue",
+                "due_amount", "dueamount",
+                "outstanding_balance", "outstandingbalance",
+                "outstanding_amount", "outstandingamount",
+                "current_balance", "currentbalance",
+                "remaining_balance", "remainingbalance",
+                "balance_due", "balancedue",
+                "outstanding"
+        );
+
+        private static boolean isBalanceAmountKey(String key) {
+            return BALANCE_AMOUNT_KEYS.contains(key);
+        }
+
+        private static boolean isSubtotalAmountKey(String key) {
+            return key.equals("subtotal") || key.equals("sub_total")
+                    || key.equals("net_amount") || key.equals("netamount");
+        }
+
+        private static boolean isGrandTotalAmountKey(String key) {
+            return key.equals("grand_total") || key.equals("grandtotal")
+                    || key.equals("total_amount") || key.equals("totalamount")
+                    || key.equals("order_total") || key.equals("ordertotal")
+                    || key.equals("final_amount") || key.equals("finalamount")
+                    || key.equals("invoice_amount") || key.equals("invoiceamount")
+                    || key.equals("total");
+        }
+
+        private static boolean isLifecycleStatusKey(String key) {
+            return key.contains("invoice_status") || key.equals("invoicestatus")
+                    || key.contains("order_status") || key.equals("orderstatus")
+                    || key.contains("receipt_status") || key.equals("receiptstatus")
+                    || key.contains("delivery_status") || key.equals("deliverystatus")
+                    || key.contains("shipping_status") || key.equals("shippingstatus")
+                    || key.contains("fulfillment_status") || key.equals("fulfillmentstatus")
+                    || key.contains("item_status") || key.equals("itemstatus");
+        }
+
+        private static boolean isExplicitPaymentKey(String key) {
+            return key.equals("payment_status") || key.equals("paymentstatus")
+                    || key.equals("payment_state") || key.equals("paymentstate");
         }
 
         private void registerInvoices(Set<String> invoiceNums, String ownerPurId) {
