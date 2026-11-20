@@ -231,6 +231,7 @@ public class ErpAiAgentService {
             ),
             Map.of(
                     "TOOL", "execute_tool",
+                    "HYBRID", "execute_tool",
                     "KNOWLEDGE", "retrieve_knowledge",
                     "GENERAL", "generate_response",
                     "UNSUPPORTED", "unsupported_response",
@@ -238,8 +239,19 @@ public class ErpAiAgentService {
             )
     );
 
-    // Tool execution -> response generation
-    graph.addEdge("execute_tool", "generate_response");
+    // Tool execution -> grounded RAG for hybrid requests, otherwise normal generation.
+    graph.addConditionalEdges(
+            "execute_tool",
+            state -> CompletableFuture.completedFuture(
+                    state.isMultiIntent() && "KNOWLEDGE".equals(state.secondaryIntent())
+                            ? "retrieve_knowledge"
+                            : "generate_response"
+            ),
+            Map.of(
+                    "retrieve_knowledge", "retrieve_knowledge",
+                    "generate_response", "generate_response"
+            )
+    );
 
     // Response paths -> validation
     graph.addEdge("generate_response", "validate_response");

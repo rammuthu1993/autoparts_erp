@@ -274,7 +274,7 @@ class KnowledgeRetrievalEvaluationTest {
                         .dataSource(dbUrl, dbUser, dbPass)
                         .locations("classpath:db/migration")
                         .baselineOnMigrate(true)
-                        .target("32")
+                        .target("33")
                         .load();
                 flyway.migrate();
             }
@@ -287,7 +287,14 @@ class KnowledgeRetrievalEvaluationTest {
                     "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'knowledge_documents'",
                     Integer.class
             );
-            if (tableCount == null || tableCount == 0) {
+            Integer columnCount = 0;
+            if (tableCount != null && tableCount > 0) {
+                columnCount = jdbcTemplate.getJdbcTemplate().queryForObject(
+                        "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'knowledge_documents' AND column_name = 'approval_status'",
+                        Integer.class
+                );
+            }
+            if (tableCount == null || tableCount == 0 || columnCount == null || columnCount == 0) {
                 postgresAvailable = false;
                 return;
             }
@@ -353,8 +360,8 @@ class KnowledgeRetrievalEvaluationTest {
 
         jdbcTemplate.getJdbcTemplate().update(
                 """
-                INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by)
-                VALUES (?, ?, 'Auto Parts Warranty Policy', 'POLICY', 'MARKDOWN', 'PUBLIC', 1, TRUE, 'POL-WAR-001.md', ?, ?, '{}'::jsonb, 'TEST')
+                INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by, approval_status, approved_by, approved_at)
+                VALUES (?, ?, 'Auto Parts Warranty Policy', 'POLICY', 'MARKDOWN', 'PUBLIC', 1, TRUE, 'POL-WAR-001.md', ?, ?, '{}'::jsonb, 'TEST', 'APPROVED', 'TEST', CURRENT_TIMESTAMP)
                 """,
                 warDocId, warCode, DocumentChunker.computeSha256(warBytes), warBytes.length
         );
@@ -383,8 +390,8 @@ class KnowledgeRetrievalEvaluationTest {
 
         jdbcTemplate.getJdbcTemplate().update(
                 """
-                INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by)
-                VALUES (?, ?, 'Daily Cash Register Closing & Reconciliation SOP', 'SOP', 'TEXT', 'ROLE_CASHIER', 1, TRUE, 'SOP-CSH-001.txt', ?, ?, '{}'::jsonb, 'TEST')
+                INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by, approval_status, approved_by, approved_at)
+                VALUES (?, ?, 'Daily Cash Register Closing & Reconciliation SOP', 'SOP', 'TEXT', 'ROLE_CASHIER', 1, TRUE, 'SOP-CSH-001.txt', ?, ?, '{}'::jsonb, 'TEST', 'APPROVED', 'TEST', CURRENT_TIMESTAMP)
                 """,
                 sopDocId, sopCode, DocumentChunker.computeSha256(sopBytes), sopBytes.length
         );
@@ -413,8 +420,8 @@ class KnowledgeRetrievalEvaluationTest {
 
         jdbcTemplate.getJdbcTemplate().update(
                 """
-                INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by)
-                VALUES (?, ?, 'Return and Core Exchange Policy', 'POLICY', 'PDF', 'PUBLIC', 1, TRUE, 'POL-RET-001.pdf', ?, ?, '{}'::jsonb, 'TEST')
+                INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by, approval_status, approved_by, approved_at)
+                VALUES (?, ?, 'Return and Core Exchange Policy', 'POLICY', 'PDF', 'PUBLIC', 1, TRUE, 'POL-RET-001.pdf', ?, ?, '{}'::jsonb, 'TEST', 'APPROVED', 'TEST', CURRENT_TIMESTAMP)
                 """,
                 retDocId, retCode, DocumentChunker.computeSha256(retBytes), retBytes.length
         );
@@ -443,8 +450,8 @@ class KnowledgeRetrievalEvaluationTest {
 
         jdbcTemplate.getJdbcTemplate().update(
                 """
-                INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by)
-                VALUES (?, ?, 'ERP Billing and GST Clarification FAQ', 'FAQ', 'MARKDOWN', 'PUBLIC', 1, TRUE, 'FAQ-GST-001.md', ?, ?, '{}'::jsonb, 'TEST')
+                INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by, approval_status, approved_by, approved_at)
+                VALUES (?, ?, 'ERP Billing and GST Clarification FAQ', 'FAQ', 'MARKDOWN', 'PUBLIC', 1, TRUE, 'FAQ-GST-001.md', ?, ?, '{}'::jsonb, 'TEST', 'APPROVED', 'TEST', CURRENT_TIMESTAMP)
                 """,
                 gstDocId, gstCode, DocumentChunker.computeSha256(gstBytes), gstBytes.length
         );
@@ -804,8 +811,8 @@ class KnowledgeRetrievalEvaluationTest {
             // Insert document 1
             jdbcTemplate.getJdbcTemplate().update(
                     """
-                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by)
-                    VALUES (?, ?, 'Partial 1', 'POLICY', 'TEXT', 'PUBLIC', 1, TRUE, 'p1.txt', 'h1', 100, '{}'::jsonb, 'TEST')
+                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by, approval_status, approved_by, approved_at)
+                    VALUES (?, ?, 'Partial 1', 'POLICY', 'TEXT', 'PUBLIC', 1, TRUE, 'p1.txt', 'h1', 100, '{}'::jsonb, 'TEST', 'APPROVED', 'TEST', CURRENT_TIMESTAMP)
                     """,
                     testDocId1, code1
             );
@@ -823,8 +830,8 @@ class KnowledgeRetrievalEvaluationTest {
             // Insert document 2
             jdbcTemplate.getJdbcTemplate().update(
                     """
-                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by)
-                    VALUES (?, ?, 'Partial 2', 'POLICY', 'TEXT', 'PUBLIC', 1, TRUE, 'p2.txt', 'h2', 100, '{}'::jsonb, 'TEST')
+                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by, approval_status, approved_by, approved_at)
+                    VALUES (?, ?, 'Partial 2', 'POLICY', 'TEXT', 'PUBLIC', 1, TRUE, 'p2.txt', 'h2', 100, '{}'::jsonb, 'TEST', 'APPROVED', 'TEST', CURRENT_TIMESTAMP)
                     """,
                     testDocId2, code2
             );
@@ -1383,8 +1390,8 @@ class KnowledgeRetrievalEvaluationTest {
         try {
             jdbcTemplate.getJdbcTemplate().update(
                     """
-                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by)
-                    VALUES (?, ?, 'Inactive Test Document', 'POLICY', 'TEXT', 'PUBLIC', 1, FALSE, 'inactive.txt', 'hash_inact', 100, '{}'::jsonb, 'TEST')
+                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by, approval_status, approved_by, approved_at)
+                    VALUES (?, ?, 'Inactive Test Document', 'POLICY', 'TEXT', 'PUBLIC', 1, FALSE, 'inactive.txt', 'hash_inact', 100, '{}'::jsonb, 'TEST', 'APPROVED', 'TEST', CURRENT_TIMESTAMP)
                     """,
                     inactiveDocId, inactiveDocCode
             );
@@ -1413,8 +1420,8 @@ class KnowledgeRetrievalEvaluationTest {
         try {
             jdbcTemplate.getJdbcTemplate().update(
                     """
-                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by)
-                    VALUES (?, ?, 'Partially Deactivated Document', 'POLICY', 'TEXT', 'PUBLIC', 1, TRUE, 'part.txt', 'hash_part', 100, '{}'::jsonb, 'TEST')
+                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by, approval_status, approved_by, approved_at)
+                    VALUES (?, ?, 'Partially Deactivated Document', 'POLICY', 'TEXT', 'PUBLIC', 1, TRUE, 'part.txt', 'hash_part', 100, '{}'::jsonb, 'TEST', 'APPROVED', 'TEST', CURRENT_TIMESTAMP)
                     """,
                     docId, docCode
             );
@@ -1457,8 +1464,8 @@ class KnowledgeRetrievalEvaluationTest {
             // Version 1 (active = FALSE)
             jdbcTemplate.getJdbcTemplate().update(
                     """
-                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by)
-                    VALUES (?, ?, 'Warranty Versioned Policy', 'POLICY', 'TEXT', 'PUBLIC', 1, FALSE, 'v1.txt', 'h1', 100, '{}'::jsonb, 'TEST')
+                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by, approval_status, approved_by, approved_at)
+                    VALUES (?, ?, 'Warranty Versioned Policy', 'POLICY', 'TEXT', 'PUBLIC', 1, FALSE, 'v1.txt', 'h1', 100, '{}'::jsonb, 'TEST', 'APPROVED', 'TEST', CURRENT_TIMESTAMP)
                     """,
                     v1Id, versionDocCode
             );
@@ -1473,8 +1480,8 @@ class KnowledgeRetrievalEvaluationTest {
             // Version 2 (active = TRUE)
             jdbcTemplate.getJdbcTemplate().update(
                     """
-                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by)
-                    VALUES (?, ?, 'Warranty Versioned Policy', 'POLICY', 'TEXT', 'PUBLIC', 2, TRUE, 'v2.txt', 'h2', 100, '{}'::jsonb, 'TEST')
+                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by, approval_status, approved_by, approved_at)
+                    VALUES (?, ?, 'Warranty Versioned Policy', 'POLICY', 'TEXT', 'PUBLIC', 2, TRUE, 'v2.txt', 'h2', 100, '{}'::jsonb, 'TEST', 'APPROVED', 'TEST', CURRENT_TIMESTAMP)
                     """,
                     v2Id, versionDocCode
             );

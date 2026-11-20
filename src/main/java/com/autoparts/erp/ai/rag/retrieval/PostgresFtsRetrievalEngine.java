@@ -76,6 +76,9 @@ public class PostgresFtsRetrievalEngine implements KnowledgeRetrievalEngine {
             CROSS JOIN search_query q
             WHERE c.active = TRUE
               AND d.active = TRUE
+              AND d.approval_status = 'APPROVED'
+              AND (d.effective_from IS NULL OR d.effective_from <= CURRENT_TIMESTAMP)
+              AND (d.effective_until IS NULL OR d.effective_until >= CURRENT_TIMESTAMP)
               AND d.required_role IN (:allowedRoles)
               AND c.chunk_vector @@ q.tsq
             %s

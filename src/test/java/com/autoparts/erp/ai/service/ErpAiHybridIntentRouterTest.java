@@ -26,6 +26,50 @@ import static org.mockito.Mockito.when;
 
 class ErpAiHybridIntentRouterTest {
 
+    @Test
+    @DisplayName("Hybrid: product plus return-policy question routes purchase ERP tool then RAG")
+    void shouldRouteProductReturnQuestionAsHybrid() {
+        ErpAiIntentResult result = router.route(
+                "Can I return GAP-000001 purchased last week?",
+                List.of(), conversationId, userContext
+        );
+
+        assertEquals("PURCHASE_SEARCH", result.intent());
+        assertEquals("GAP-000001", result.searchText());
+        assertTrue(result.isMultiIntent());
+        assertEquals("KNOWLEDGE", result.secondaryIntent());
+        verify(llmClassifier, never()).classify(anyString(), any());
+    }
+
+    @Test
+    @DisplayName("Hybrid: product warranty plus purchase date routes purchase ERP tool then RAG")
+    void shouldRouteProductWarrantyAndPurchaseDateQuestionAsHybrid() {
+        ErpAiIntentResult result = router.route(
+                "What is the warranty for GAP-000001 and when did I purchase it?",
+                List.of(), conversationId, userContext
+        );
+
+        assertEquals("PURCHASE_SEARCH", result.intent());
+        assertEquals("GAP-000001", result.searchText());
+        assertTrue(result.isMultiIntent());
+        assertEquals("KNOWLEDGE", result.secondaryIntent());
+        verify(llmClassifier, never()).classify(anyString(), any());
+    }
+
+    @Test
+    @DisplayName("Hybrid: cash balance plus closing procedure routes cash register tool then RAG")
+    void shouldRouteCashBalanceAndClosingProcedureAsHybrid() {
+        ErpAiIntentResult result = router.route(
+                "Show today's cash balance and explain the closing procedure.",
+                List.of(), conversationId, userContext
+        );
+
+        assertEquals("OPEN_CASH_REGISTERS", result.intent());
+        assertTrue(result.isMultiIntent());
+        assertEquals("KNOWLEDGE", result.secondaryIntent());
+        verify(llmClassifier, never()).classify(anyString(), any());
+    }
+
     private ErpAiIntentClassifier deterministicClassifier;
     private ErpAiPendingClarificationStore clarificationStore;
     private ErpAiLlmClassifier llmClassifier;

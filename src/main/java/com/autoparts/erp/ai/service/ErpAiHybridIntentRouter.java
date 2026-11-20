@@ -140,6 +140,13 @@ public class ErpAiHybridIntentRouter {
             return new ErpAiIntentResult("UNSUPPORTED", extractSearchText(currentMessage));
         }
 
+        ErpAiIntentResult hybrid = detectHybridRetailRequest(currentMessage);
+        if (hybrid != null) {
+            log.info("Hybrid ERP+RAG request detected deterministically. Primary intent={}, secondary=KNOWLEDGE",
+                    hybrid.intent());
+            return hybrid;
+        }
+
         // -------------------------------------------------------------
         // GATE 1: MULTI-TURN PENDING CLARIFICATION RESOLUTION
         // -------------------------------------------------------------
@@ -283,6 +290,111 @@ public class ErpAiHybridIntentRouter {
         }
 
         return candidate;
+    }
+
+    private ErpAiIntentResult detectHybridRetailRequest(String message) {
+        if (!StringUtils.hasText(message)) {
+            return null;
+        }
+
+        String lower = message.toLowerCase(Locale.ROOT);
+        boolean policyCue = lower.contains("return") || lower.contains("warranty")
+                || lower.contains("policy") || lower.contains("gst")
+                || lower.contains("reconcile") || lower.contains("closing procedure")
+                || lower.contains("sop") || lower.contains("procedure");
+
+        boolean hasProductId = PRODUCT_ID.matcher(message).find();
+        boolean hasPurchaseId = PURCHASE_ID.matcher(message).find();
+        boolean purchaseCue = lower.contains("purchas") || lower.contains("bought")
+                || lower.contains("order");
+        boolean cashCue = lower.contains("cash") || lower.contains("register");
+        boolean supplierCue = lower.contains("supplier");
+
+        boolean liveErpCue = hasProductId || hasPurchaseId || purchaseCue
+                || cashCue || supplierCue || lower.contains("current stock")
+                || lower.contains("balance");
+
+        if (!policyCue || !liveErpCue) {
+            return null;
+        }
+
+        String primaryIntent;
+        Matcher productMatch = PRODUCT_ID.matcher(message);
+        String productId = productMatch.find() ? productMatch.group() : "";
+        Matcher purchaseMatch = PURCHASE_ID.matcher(message);
+        String purchaseId = purchaseMatch.find() ? purchaseMatch.group() : "";
+
+        String searchText = StringUtils.hasText(productId) ? productId
+                : (StringUtils.hasText(purchaseId) ? purchaseId : extractSearchText(message));
+        String startDate = "";
+        String endDate = "";
+
+        LocalDate today = LocalDate.now();
+        if (lower.contains("last calendar week") || lower.contains("previous calendar week") || lower.contains("prior calendar week")) {
+            LocalDate startOfLastWeek = today.minusWeeks(1).with(java.time.DayOfWeek.MONDAY);
+            LocalDate endOfLastWeek = today.minusWeeks(1).with(java.time.DayOfWeek.SUNDAY);
+            startDate = startOfLastWeek.toString();
+            endDate = endOfLastWeek.toString();
+        } else if (lower.contains("last week") || lower.contains("past week")) {
+            // Rolling 7-day range as commonly spoken at retail counter
+            startDate = today.minusDays(7).toString();
+            endDate = today.toString();
+        } else if (lower.contains("last calendar month") || lower.contains("previous calendar month") || lower.contains("prior calendar month")) {
+            LocalDate firstOfLastMonth = today.minusMonths(1).withDayOfMonth(1);
+            LocalDate lastOfLastMonth = today.minusMonths(1).withDayOfMonth(today.minusMonths(1).lengthOfMonth());
+            startDate = firstOfLastMonth.toString();
+            endDate = lastOfLastMonth.toString();
+        } else if (lower.contains("last month") || lower.contains("past month")) {
+            // Rolling 30-day range
+            startDate = today.minusDays(30).toString();
+            endDate = today.toString();
+        } else if (lower.contains("yesterday")) {
+            startDate = today.minusDays(1).toString();
+            endDate = today.minusDays(1).toString();
+        } else if (lower.contains("today")) {
+            startDate = today.toString();
+            endDate = today.toString();
+        } else {
+            Matcher dateMatch = ISO_DATE.matcher(message);
+            if (dateMatch.find()) {
+                startDate = dateMatch.group();
+                endDate = startDate;
+            }
+        }
+
+        if ((lower.contains("warranty") || lower.contains("return") || lower.contains("eligible"))
+                && (purchaseCue || hasPurchaseId)) {
+            if (hasPurchaseId) {
+                primaryIntent = "PURCHASE_DETAILS";
+                searchText = purchaseId;
+            } else {
+                primaryIntent = "PURCHASE_SEARCH";
+                searchText = StringUtils.hasText(productId) ? productId : extractSearchText(message);
+            }
+        } else if (cashCue && (lower.contains("closing") || lower.contains("procedure")
+                || lower.contains("sop") || lower.contains("policy") || lower.contains("reconcile"))) {
+            primaryIntent = (lower.contains("balance") || lower.contains("status") || lower.contains("open"))
+                    ? "OPEN_CASH_REGISTERS"
+                    : "DAILY_CLOSING";
+            if (!StringUtils.hasText(startDate)) {
+                startDate = today.toString();
+                endDate = today.toString();
+            }
+            if (primaryIntent.equals("DAILY_CLOSING")) {
+                searchText = startDate;
+            }
+        } else if (lower.contains("gst")) {
+            primaryIntent = hasProductId ? "PRODUCT_DETAILS" : "SUPPLIER_DETAILS";
+        } else if (lower.contains("supplier outstanding")) {
+            primaryIntent = "SUPPLIER_SUMMARY";
+        } else if (lower.contains("warranty") || lower.contains("return") || lower.contains("eligible")) {
+            primaryIntent = hasProductId ? "PRODUCT_DETAILS" : "SALES_SEARCH";
+        } else {
+            primaryIntent = hasProductId ? "PRODUCT_DETAILS" : "SALES_SEARCH";
+        }
+
+        return new ErpAiIntentResult(primaryIntent, searchText, startDate, endDate, 10, "",
+                List.of(), 0.95, ClassificationSource.DETERMINISTIC, true, "KNOWLEDGE", "");
     }
 
     public void clearPendingClarification(UUID conversationId, String userSubject) {

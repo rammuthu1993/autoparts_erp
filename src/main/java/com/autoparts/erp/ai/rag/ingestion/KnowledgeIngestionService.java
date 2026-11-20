@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -17,6 +18,8 @@ import org.springframework.jdbc.core.PreparedStatementCallback;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+
+import com.autoparts.erp.ai.security.ErpAiExecutionContext;
 
 import tools.jackson.databind.ObjectMapper;
 
@@ -41,6 +44,9 @@ public class KnowledgeIngestionService {
     );
     public static final Set<String> VALID_ROLES = Set.of(
             "ROLE_ADMIN", "ROLE_MANAGER", "ROLE_CASHIER", "PUBLIC"
+    );
+    public static final Set<String> VALID_APPROVAL_STATUSES = Set.of(
+            "APPROVED", "PENDING_APPROVAL", "REJECTED"
     );
     private static final Pattern DOCUMENT_CODE_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{3,100}$");
 
@@ -79,8 +85,28 @@ public class KnowledgeIngestionService {
             String fileName,
             byte[] fileBytes,
             Map<String, Object> metadata,
-            String createdBy
+            String createdBy,
+            String approvalStatus,
+            String approvedBy,
+            java.time.Instant approvedAt,
+            java.time.Instant effectiveFrom,
+            java.time.Instant effectiveUntil
     ) {
+        public IngestionRequest(
+                String documentCode,
+                String title,
+                String documentType,
+                String contentFormat,
+                String requiredRole,
+                String fileName,
+                byte[] fileBytes,
+                Map<String, Object> metadata,
+                String createdBy
+        ) {
+            this(documentCode, title, documentType, contentFormat, requiredRole,
+                    fileName, fileBytes, metadata, createdBy, "PENDING_APPROVAL", null, null, null, null);
+        }
+
         public IngestionRequest {
             if (!StringUtils.hasText(documentCode)) {
                 throw new IllegalArgumentException("documentCode is required");
@@ -157,6 +183,18 @@ public class KnowledgeIngestionService {
 
             metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
             createdBy = StringUtils.hasText(createdBy) ? createdBy.trim() : "SYSTEM";
+
+            // SECURITY ENFORCEMENT:
+            // Every newly ingested document MUST be PENDING_APPROVAL.
+            // Caller-supplied approvalStatus, approvedBy, and approvedAt are strictly ignored
+            // to prevent authorization bypass and approver impersonation during ingestion.
+            approvalStatus = "PENDING_APPROVAL";
+            approvedBy = null;
+            approvedAt = null;
+
+            if (effectiveFrom != null && effectiveUntil != null && effectiveUntil.isBefore(effectiveFrom)) {
+                throw new IllegalArgumentException("effectiveUntil must not be before effectiveFrom");
+            }
         }
     }
 
@@ -258,8 +296,11 @@ public class KnowledgeIngestionService {
                 INSERT INTO knowledge_documents (
                     id, document_code, title, document_type, content_format, version,
                     required_role, active, file_name, file_hash_sha256, file_size_bytes,
-                    metadata, created_by, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, TRUE, ?, ?, ?, ?::jsonb, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    metadata, created_by, created_at, updated_at,
+                    approval_status, approved_by, approved_at, rejected_by, rejected_at,
+                    effective_from, effective_until
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, TRUE, ?, ?, ?, ?::jsonb, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
+                          'PENDING_APPROVAL', NULL, NULL, NULL, NULL, ?, ?)
                 """,
                 newDocumentId,
                 request.documentCode(),
@@ -272,7 +313,9 @@ public class KnowledgeIngestionService {
                 fileHash,
                 request.fileBytes().length,
                 metadataJson,
-                request.createdBy()
+                request.createdBy(),
+                request.effectiveFrom() != null ? java.sql.Timestamp.from(request.effectiveFrom()) : null,
+                request.effectiveUntil() != null ? java.sql.Timestamp.from(request.effectiveUntil()) : null
         );
 
         // 9. Batch insert passage chunks
@@ -326,5 +369,129 @@ public class KnowledgeIngestionService {
             log.error("Failed to acquire advisory lock for document: {}", documentCode, e);
             throw new IllegalStateException("Failed to acquire advisory lock for documentCode: " + documentCode, e);
         }
+    }
+
+    /**
+     * Approves an ingested document. Restricted to ROLE_ADMIN and ROLE_MANAGER.
+     * Records authenticated approver identity and current timestamp.
+     */
+    @Transactional
+    public void approveDocument(UUID documentId, ErpAiExecutionContext context) {
+        Objects.requireNonNull(documentId, "documentId must not be null");
+        Objects.requireNonNull(context, "context must not be null");
+        context.requireAnyRole("ROLE_ADMIN", "ROLE_MANAGER");
+
+        int updated = jdbcTemplate.update(
+                """
+                UPDATE knowledge_documents
+                SET approval_status = 'APPROVED',
+                    approved_by = ?,
+                    approved_at = CURRENT_TIMESTAMP,
+                    rejected_by = NULL,
+                    rejected_at = NULL,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                context.userSubject(),
+                documentId
+        );
+        if (updated == 0) {
+            throw new IllegalArgumentException("Document not found with ID: " + documentId);
+        }
+        log.info("Document {} approved by {}", documentId, context.userSubject());
+    }
+
+    /**
+     * Approves an active ingested document by document code. Restricted to ROLE_ADMIN and ROLE_MANAGER.
+     * Records authenticated approver identity and current timestamp.
+     */
+    @Transactional
+    public void approveDocumentByCode(String documentCode, ErpAiExecutionContext context) {
+        if (!StringUtils.hasText(documentCode)) {
+            throw new IllegalArgumentException("documentCode must not be null or blank");
+        }
+        Objects.requireNonNull(context, "context must not be null");
+        context.requireAnyRole("ROLE_ADMIN", "ROLE_MANAGER");
+
+        int updated = jdbcTemplate.update(
+                """
+                UPDATE knowledge_documents
+                SET approval_status = 'APPROVED',
+                    approved_by = ?,
+                    approved_at = CURRENT_TIMESTAMP,
+                    rejected_by = NULL,
+                    rejected_at = NULL,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE document_code = ? AND active = TRUE
+                """,
+                context.userSubject(),
+                documentCode.trim().toUpperCase(Locale.ROOT)
+        );
+        if (updated == 0) {
+            throw new IllegalArgumentException("Active document not found with code: " + documentCode);
+        }
+        log.info("Document code {} approved by {}", documentCode, context.userSubject());
+    }
+
+    /**
+     * Rejects an ingested document. Restricted to ROLE_ADMIN and ROLE_MANAGER.
+     * Records authenticated rejecting identity and current timestamp. Clears approval fields.
+     */
+    @Transactional
+    public void rejectDocument(UUID documentId, ErpAiExecutionContext context) {
+        Objects.requireNonNull(documentId, "documentId must not be null");
+        Objects.requireNonNull(context, "context must not be null");
+        context.requireAnyRole("ROLE_ADMIN", "ROLE_MANAGER");
+
+        int updated = jdbcTemplate.update(
+                """
+                UPDATE knowledge_documents
+                SET approval_status = 'REJECTED',
+                    rejected_by = ?,
+                    rejected_at = CURRENT_TIMESTAMP,
+                    approved_by = NULL,
+                    approved_at = NULL,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                context.userSubject(),
+                documentId
+        );
+        if (updated == 0) {
+            throw new IllegalArgumentException("Document not found with ID: " + documentId);
+        }
+        log.info("Document {} rejected by {}", documentId, context.userSubject());
+    }
+
+    /**
+     * Rejects an active ingested document by document code. Restricted to ROLE_ADMIN and ROLE_MANAGER.
+     * Records authenticated rejecting identity and current timestamp. Clears approval fields.
+     */
+    @Transactional
+    public void rejectDocumentByCode(String documentCode, ErpAiExecutionContext context) {
+        if (!StringUtils.hasText(documentCode)) {
+            throw new IllegalArgumentException("documentCode must not be null or blank");
+        }
+        Objects.requireNonNull(context, "context must not be null");
+        context.requireAnyRole("ROLE_ADMIN", "ROLE_MANAGER");
+
+        int updated = jdbcTemplate.update(
+                """
+                UPDATE knowledge_documents
+                SET approval_status = 'REJECTED',
+                    rejected_by = ?,
+                    rejected_at = CURRENT_TIMESTAMP,
+                    approved_by = NULL,
+                    approved_at = NULL,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE document_code = ? AND active = TRUE
+                """,
+                context.userSubject(),
+                documentCode.trim().toUpperCase(Locale.ROOT)
+        );
+        if (updated == 0) {
+            throw new IllegalArgumentException("Active document not found with code: " + documentCode);
+        }
+        log.info("Document code {} rejected by {}", documentCode, context.userSubject());
     }
 }

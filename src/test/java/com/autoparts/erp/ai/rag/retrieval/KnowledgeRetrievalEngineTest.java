@@ -143,6 +143,7 @@ class KnowledgeRetrievalEngineTest {
         for (String sql : sqlCaptor.getAllValues()) {
             assertTrue(sql.contains("c.active = TRUE"));
             assertTrue(sql.contains("d.active = TRUE"));
+            assertTrue(sql.contains("d.approval_status = 'APPROVED'"));
             assertTrue(sql.contains("d.required_role IN (:allowedRoles)"));
             assertTrue(sql.contains("ORDER BY relevance_score DESC, c.chunk_index ASC, c.id ASC"));
         }
@@ -254,6 +255,25 @@ class KnowledgeRetrievalEngineTest {
     @DisplayName("Engine reports multi-tier PostgreSQL FTS type")
     void shouldReportEngineType() {
         assertEquals("POSTGRES_FTS_LEXICAL", engine.getEngineType());
+    }
+
+    @Test
+    @DisplayName("Retrieval SQL strictly enforces active status, APPROVED approval_status, and effective dates")
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void shouldEnforceDocumentApprovalAndEffectiveDatesInSql() {
+        when(namedJdbcTemplate.query(anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
+                .thenReturn((List) List.of(candidate(1, 0, PostgresFtsRetrievalEngine.Tier.PHRASE, 0.9)));
+
+        engine.retrieve("return policy", Set.of("PUBLIC"), 1);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(namedJdbcTemplate).query(sqlCaptor.capture(), any(MapSqlParameterSource.class), any(RowMapper.class));
+        String sql = sqlCaptor.getValue();
+        assertTrue(sql.contains("c.active = TRUE"));
+        assertTrue(sql.contains("d.active = TRUE"));
+        assertTrue(sql.contains("d.approval_status = 'APPROVED'"));
+        assertTrue(sql.contains("d.effective_from IS NULL OR d.effective_from <= CURRENT_TIMESTAMP"));
+        assertTrue(sql.contains("d.effective_until IS NULL OR d.effective_until >= CURRENT_TIMESTAMP"));
     }
 
     @Test

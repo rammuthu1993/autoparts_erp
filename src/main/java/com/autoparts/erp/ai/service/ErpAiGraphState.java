@@ -36,7 +36,8 @@ public class ErpAiGraphState extends AgentState {
             Map.entry("isMultiIntent", Channels.<Boolean>base((o, n) -> n)),
             Map.entry("secondaryIntent", Channels.<String>base((o, n) -> n)),
             Map.entry("pendingSlotName", Channels.<String>base((o, n) -> n)),
-            Map.entry("retrievedChunks", Channels.<List<com.autoparts.erp.ai.rag.model.RetrievedChunk>>base((o, n) -> n))
+            Map.entry("retrievedChunks", Channels.<List<com.autoparts.erp.ai.rag.model.RetrievedChunk>>base((o, n) -> n)),
+            Map.entry("hybridOutcome", Channels.<String>base((o, n) -> n))
     );
 
     public ErpAiGraphState(Map<String, Object> initData) {
@@ -66,6 +67,10 @@ public class ErpAiGraphState extends AgentState {
 
     public String finalResponse() {
         return text("finalResponse");
+    }
+
+    public String hybridOutcome() {
+        return text("hybridOutcome");
     }
 
     public String conversationId() {

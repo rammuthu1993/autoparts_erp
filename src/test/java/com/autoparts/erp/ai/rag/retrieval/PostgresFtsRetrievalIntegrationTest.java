@@ -186,11 +186,18 @@ class PostgresFtsRetrievalIntegrationTest {
                     "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'knowledge_documents'",
                     Integer.class
             );
-            if (tableCount == null || tableCount == 0) {
+            Integer columnCount = 0;
+            if (tableCount != null && tableCount > 0) {
+                columnCount = template.getJdbcTemplate().queryForObject(
+                        "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'knowledge_documents' AND column_name = 'approval_status'",
+                        Integer.class
+                );
+            }
+            if (tableCount == null || tableCount == 0 || columnCount == null || columnCount == 0) {
                 if (MIGRATION_OPT_IN) {
-                    throw new IllegalStateException("Flyway migration to target V32 succeeded but knowledge_documents was not created");
+                    throw new IllegalStateException("Flyway migration to target V33 succeeded but knowledge_documents approval_status was not created");
                 } else {
-                    // Service is running but V32 has not been applied and migration was not opted in
+                    // Service is running but V33 has not been applied and migration was not opted in
                     postgresAvailable = false;
                     return;
                 }
@@ -380,8 +387,8 @@ class PostgresFtsRetrievalIntegrationTest {
         try {
             jdbcTemplate.getJdbcTemplate().update(
                     """
-                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by)
-                    VALUES (?, ?, 'TSVector Test Doc', 'POLICY', 'TEXT', 'PUBLIC', 1, TRUE, 'tsv.txt', 'hash_tsv', 100, '{}'::jsonb, 'TEST')
+                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by, approval_status, approved_by, approved_at)
+                    VALUES (?, ?, 'TSVector Test Doc', 'POLICY', 'TEXT', 'PUBLIC', 1, TRUE, 'tsv.txt', 'hash_tsv', 100, '{}'::jsonb, 'TEST', 'APPROVED', 'TEST', CURRENT_TIMESTAMP)
                     """,
                     docId, docCode
             );
@@ -432,8 +439,8 @@ class PostgresFtsRetrievalIntegrationTest {
         try {
             jdbcTemplate.getJdbcTemplate().update(
                     """
-                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by)
-                    VALUES (?, ?, 'Integration Test Document', 'POLICY', 'TEXT', 'PUBLIC', 1, TRUE, 'test.txt', 'hash_test_123', 100, '{}'::jsonb, 'TEST')
+                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by, approval_status, approved_by, approved_at)
+                    VALUES (?, ?, 'Integration Test Document', 'POLICY', 'TEXT', 'PUBLIC', 1, TRUE, 'test.txt', 'hash_test_123', 100, '{}'::jsonb, 'TEST', 'APPROVED', 'TEST', CURRENT_TIMESTAMP)
                     """,
                     docId, docCode
             );
@@ -489,8 +496,8 @@ class PostgresFtsRetrievalIntegrationTest {
             // Doc 1: Dense match - short text, search terms right next to each other
             jdbcTemplate.getJdbcTemplate().update(
                     """
-                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by)
-                    VALUES (?, ?, 'Dense Match Doc', 'POLICY', 'TEXT', 'PUBLIC', 1, TRUE, 'dense.txt', 'hash_dense', 100, '{}'::jsonb, 'TEST')
+                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by, approval_status, approved_by, approved_at)
+                    VALUES (?, ?, 'Dense Match Doc', 'POLICY', 'TEXT', 'PUBLIC', 1, TRUE, 'dense.txt', 'hash_dense', 100, '{}'::jsonb, 'TEST', 'APPROVED', 'TEST', CURRENT_TIMESTAMP)
                     """,
                     docIdDense, codeDense
             );
@@ -505,8 +512,8 @@ class PostgresFtsRetrievalIntegrationTest {
             // Doc 2: Sparse match - long text where terms are separated by extensive filler prose
             jdbcTemplate.getJdbcTemplate().update(
                     """
-                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by)
-                    VALUES (?, ?, 'Sparse Match Doc', 'POLICY', 'TEXT', 'PUBLIC', 1, TRUE, 'sparse.txt', 'hash_sparse', 500, '{}'::jsonb, 'TEST')
+                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by, approval_status, approved_by, approved_at)
+                    VALUES (?, ?, 'Sparse Match Doc', 'POLICY', 'TEXT', 'PUBLIC', 1, TRUE, 'sparse.txt', 'hash_sparse', 500, '{}'::jsonb, 'TEST', 'APPROVED', 'TEST', CURRENT_TIMESTAMP)
                     """,
                     docIdSparse, codeSparse
             );
@@ -575,8 +582,8 @@ class PostgresFtsRetrievalIntegrationTest {
             // Document active, but Chunk inactive
             jdbcTemplate.getJdbcTemplate().update(
                     """
-                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by)
-                    VALUES (?, ?, 'Active Doc Inactive Chunk', 'POLICY', 'TEXT', 'PUBLIC', 1, TRUE, 'act.txt', 'h1', 100, '{}'::jsonb, 'TEST')
+                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by, approval_status, approved_by, approved_at)
+                    VALUES (?, ?, 'Active Doc Inactive Chunk', 'POLICY', 'TEXT', 'PUBLIC', 1, TRUE, 'act.txt', 'h1', 100, '{}'::jsonb, 'TEST', 'APPROVED', 'TEST', CURRENT_TIMESTAMP)
                     """,
                     docActive, codeActive
             );
@@ -591,8 +598,8 @@ class PostgresFtsRetrievalIntegrationTest {
             // Document inactive, Chunk active
             jdbcTemplate.getJdbcTemplate().update(
                     """
-                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by)
-                    VALUES (?, ?, 'Inactive Doc Active Chunk', 'POLICY', 'TEXT', 'PUBLIC', 1, FALSE, 'inact.txt', 'h2', 100, '{}'::jsonb, 'TEST')
+                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by, approval_status, approved_by, approved_at)
+                    VALUES (?, ?, 'Inactive Doc Active Chunk', 'POLICY', 'TEXT', 'PUBLIC', 1, FALSE, 'inact.txt', 'h2', 100, '{}'::jsonb, 'TEST', 'APPROVED', 'TEST', CURRENT_TIMESTAMP)
                     """,
                     docInactive, codeInactive
             );
@@ -638,8 +645,8 @@ class PostgresFtsRetrievalIntegrationTest {
         try {
             jdbcTemplate.getJdbcTemplate().update(
                     """
-                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by)
-                    VALUES (?, ?, 'Admin Sensitive Compensation Policy', 'POLICY', 'TEXT', 'ROLE_ADMIN', 1, TRUE, 'comp.txt', 'h_comp', 100, '{}'::jsonb, 'TEST')
+                    INSERT INTO knowledge_documents (id, document_code, title, document_type, content_format, required_role, version, active, file_name, file_hash_sha256, file_size_bytes, metadata, created_by, approval_status, approved_by, approved_at)
+                    VALUES (?, ?, 'Admin Sensitive Compensation Policy', 'POLICY', 'TEXT', 'ROLE_ADMIN', 1, TRUE, 'comp.txt', 'h_comp', 100, '{}'::jsonb, 'TEST', 'APPROVED', 'TEST', CURRENT_TIMESTAMP)
                     """,
                     docAdminId, docAdminCode
             );
@@ -897,8 +904,8 @@ class PostgresFtsRetrievalIntegrationTest {
                 """
                 INSERT INTO knowledge_documents
                     (id, document_code, title, document_type, content_format, required_role, version, active,
-                     file_name, file_hash_sha256, file_size_bytes, metadata, created_by)
-                VALUES (?, ?, ?, 'POLICY', 'TEXT', ?, 1, TRUE, 'tier-test.txt', ?, ?, '{}'::jsonb, 'TEST')
+                     file_name, file_hash_sha256, file_size_bytes, metadata, created_by, approval_status, approved_by, approved_at)
+                VALUES (?, ?, ?, 'POLICY', 'TEXT', ?, 1, TRUE, 'tier-test.txt', ?, ?, '{}'::jsonb, 'TEST', 'APPROVED', 'TEST', CURRENT_TIMESTAMP)
                 """,
                 documentId, documentCode, title, requiredRole, uniqueHash, chunkText.length());
         jdbcTemplate.getJdbcTemplate().update(

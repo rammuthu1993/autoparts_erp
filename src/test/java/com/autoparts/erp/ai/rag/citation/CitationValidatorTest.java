@@ -216,6 +216,1145 @@ class CitationValidatorTest {
         assertEquals("A &amp; B &lt;tag&gt;", sanitized);
     }
 
+    @Test
+    @DisplayName("Test G: User-provided invoice identifier does not prove a transaction exists")
+    void testG_userProvidedInvoiceIdentifierDoesNotProveTransactionExists() {
+        // toolResult does NOT contain PUR-9999 (it contains PUR-0001)
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date", "2026-11-12",
+                "grand_total", 450.00
+        ));
+        // Even if user query mentioned PUR-9999, PUR-9999 cannot be treated as a verified transaction fact
+        String response = "Invoice PUR-9999 was processed on 2026-11-12. "
+                + "A 15% restocking fee applies [Source: Return and Refund Policy v1, §Restocking Fee].";
+
+        var result = validator.validateCitations(response, List.of(policyChunk), true, toolResult, "Was invoice PUR-9999 paid?");
+        assertFalse(result.valid());
+        assertEquals(1, result.unsupportedStatements().size());
+        assertTrue(result.unsupportedStatements().get(0).contains("PUR-9999"));
+        assertFalse(result.normalizedResponse().contains("PUR-9999"));
+        assertTrue(result.normalizedResponse().contains("15% restocking fee"));
+    }
+
+    @Test
+    @DisplayName("Test H: Purchase date must match purchase_date in toolResult")
+    void testH_purchaseDateMustMatchPurchaseDate() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date", "2026-11-12",
+                "grand_total", 450.00
+        ));
+        String response = "Purchase PUR-0001 was completed on 2025-01-01 for 450.00. "
+                + "A 15% restocking fee applies [Source: Return and Refund Policy v1, §Restocking Fee].";
+
+        var result = validator.validateCitations(response, List.of(policyChunk), true, toolResult);
+        assertFalse(result.valid());
+        assertEquals(1, result.unsupportedStatements().size());
+        assertTrue(result.unsupportedStatements().get(0).contains("2025-01-01"));
+        assertFalse(result.normalizedResponse().contains("2025-01-01"));
+    }
+
+    @Test
+    @DisplayName("Test I: Supplier name must match supplier_name in toolResult")
+    void testI_supplierNameMustMatchSupplierName() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "supplier_name", "Acme Parts",
+                "purchase_date", "2026-11-12",
+                "grand_total", 450.00
+        ));
+        String response = "Order from supplier Fake Motors under PUR-0001 was completed on 2026-11-12. "
+                + "A 15% restocking fee applies [Source: Return and Refund Policy v1, §Restocking Fee].";
+
+        var result = validator.validateCitations(response, List.of(policyChunk), true, toolResult);
+        assertFalse(result.valid());
+        assertEquals(1, result.unsupportedStatements().size());
+        assertTrue(result.unsupportedStatements().get(0).contains("Fake Motors"));
+    }
+
+    @Test
+    @DisplayName("Test J: Amount must match grand_total in toolResult")
+    void testJ_amountMustMatchGrandTotal() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date", "2026-11-12",
+                "grand_total", 450.00
+        ));
+        String response = "Purchase PUR-0001 total was 9999.00 on 2026-11-12. "
+                + "A 15% restocking fee applies [Source: Return and Refund Policy v1, §Restocking Fee].";
+
+        var result = validator.validateCitations(response, List.of(policyChunk), true, toolResult);
+        assertFalse(result.valid());
+        assertEquals(1, result.unsupportedStatements().size());
+        assertTrue(result.unsupportedStatements().get(0).contains("9999.00"));
+        assertFalse(result.normalizedResponse().contains("9999.00"));
+    }
+
+    @Test
+    @DisplayName("Test K: Payment status must be supported by payment evidence")
+    void testK_paymentStatusMustBeSupportedByPaymentEvidence() {
+        // Status is PENDING, not PAID
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date", "2026-11-12",
+                "status", "PENDING",
+                "grand_total", 450.00
+        ));
+        String response = "A payment was settled for PUR-0001 on 2026-11-12. "
+                + "A 15% restocking fee applies [Source: Return and Refund Policy v1, §Restocking Fee].";
+
+        var result = validator.validateCitations(response, List.of(policyChunk), true, toolResult);
+        assertFalse(result.valid());
+        assertEquals(1, result.unsupportedStatements().size());
+        assertTrue(result.unsupportedStatements().get(0).contains("payment"));
+    }
+
+    @Test
+    @DisplayName("Test L: Valid ERP claims plus valid RAG citations are accepted in the same sentence")
+    void testL_validErpClaimsPlusValidRagCitationsAccepted() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date", "2026-11-12",
+                "status", "RECEIVED",
+                "grand_total", 450.00
+        ));
+        String response = "You purchased under invoice PUR-0001 on 2026-11-12 for 450.00. "
+                + "Under company policy, eligible items incur a fee [Source: Return and Refund Policy v1, §Restocking Fee].";
+
+        var result = validator.validateCitations(response, List.of(policyChunk), true, toolResult);
+        assertTrue(result.valid());
+        assertTrue(result.unsupportedStatements().isEmpty());
+        assertTrue(result.normalizedResponse().contains("PUR-0001"));
+        assertTrue(result.normalizedResponse().contains("450.00"));
+        assertTrue(result.normalizedResponse().contains("[Source: Return and Refund Policy v1, §Restocking Fee]"));
+    }
+
+    @Test
+    @DisplayName("Test M: Unsupported ERP claims are rejected and removed from normalized response")
+    void testM_unsupportedErpClaimsRejected() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date", "2026-11-12",
+                "grand_total", 450.00
+        ));
+        String response = "Fabricated purchase PUR-8888 was placed on 2024-01-01 for 8888.00. "
+                + "A 15% restocking fee applies [Source: Return and Refund Policy v1, §Restocking Fee].";
+
+        var result = validator.validateCitations(response, List.of(policyChunk), true, toolResult);
+        assertFalse(result.valid());
+        assertEquals(1, result.unsupportedStatements().size());
+        assertFalse(result.normalizedResponse().contains("PUR-8888"));
+        assertTrue(result.normalizedResponse().contains("15% restocking fee"));
+    }
+
+    @Test
+    @DisplayName("Test N: Inventory quantity cannot validate a monetary amount claim")
+    void testN_inventoryQuantityCannotValidateMonetaryAmountClaim() {
+        // grand_total=450.00, quantity=5. The AI claims ₹5 — quantity=5 must NOT satisfy a monetary claim.
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date", "2026-11-12",
+                "grand_total", 450.00,
+                "quantity", 5.0
+        ));
+        // "₹5" matches AMOUNT_PATTERN (currency-prefixed). evidence.amounts()={450.00}, evidence.quantities()={5.0}.
+        // After fix: amounts-only check → 5.0 ∉ {450.00} → rejected.
+        String response = "Purchase PUR-0001 cost ₹5 on 2026-11-12.";
+        var result = validator.validateCitations(response, List.of(policyChunk), true, toolResult);
+        assertFalse(result.valid(), "A monetary claim of ₹5 must not be validated by an inventory quantity of 5");
+        assertEquals(1, result.unsupportedStatements().size());
+    }
+
+    @Test
+    @DisplayName("Test P: PAID status from one transaction cannot validate a PENDING transaction's payment claim")
+    void testP_paidStatusFromOtherTransactionCannotValidatePendingTransaction() {
+        // PUR-0001 is PAID; PUR-0002 is PENDING.
+        // The AI claims PUR-0002 was settled — the PAID status of PUR-0001 must not bleed over.
+        var toolResult = List.of(
+                java.util.Map.of(
+                        "purchase_number", "PUR-0001",
+                        "purchase_date", "2026-11-10",
+                        "grand_total", 450.00,
+                        "status", "PAID"),
+                java.util.Map.of(
+                        "purchase_number", "PUR-0002",
+                        "purchase_date", "2026-11-12",
+                        "grand_total", 300.00,
+                        "status", "PENDING")
+        );
+        // Segment mentions PUR-0002 specifically → validator must look up PUR-0002's statuses → {pending} → no paid status → rejected
+        String response = "Payment was settled for PUR-0002 on 2026-11-12.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(),
+                "A settled/paid claim about PUR-0002 must be rejected when PUR-0002 status is PENDING, "
+                        + "even though PUR-0001 in the same evidence is PAID");
+    }
+
+    // =========================================================================
+    // Per-record evidence & payment-status semantic regression tests (Q–Z)
+    // =========================================================================
+
+    // ---- Shared two-record tool result used by tests Q–Z ----
+    // PUR-0001: 2026-11-10, ABC Motors, ₹450, PAID
+    // PUR-0002: 2026-11-12, XYZ Parts, ₹300, PENDING
+    private static java.util.List<java.util.Map<String, Object>> twoRecordResult() {
+        return List.of(
+                java.util.Map.of(
+                        "purchase_number", "PUR-0001",
+                        "purchase_date",   "2026-11-10",
+                        "supplier_name",   "ABC Motors",
+                        "grand_total",     450.00,
+                        "payment_status",  "PAID"),
+                java.util.Map.of(
+                        "purchase_number", "PUR-0002",
+                        "purchase_date",   "2026-11-12",
+                        "supplier_name",   "XYZ Parts",
+                        "grand_total",     300.00,
+                        "payment_status",  "PENDING")
+        );
+    }
+
+    @Test
+    @DisplayName("Test Q-A: UNPAID status must not validate a 'paid' claim")
+    void testQA_unpaidMustNotValidatePaidClaim() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date",   "2026-11-12",
+                "grand_total",     450.00,
+                "payment_status",  "UNPAID"));
+        String response = "Payment was settled for PUR-0001 on 2026-11-12.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "UNPAID must not satisfy a 'settled' payment claim");
+    }
+
+    @Test
+    @DisplayName("Test Q-B: PARTIALLY_PAID must not validate a fully-paid claim")
+    void testQB_partiallyPaidMustNotValidateFullyPaidClaim() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date",   "2026-11-12",
+                "grand_total",     450.00,
+                "payment_status",  "PARTIALLY_PAID"));
+        String response = "Payment was settled for PUR-0001 on 2026-11-12.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "PARTIALLY_PAID must not satisfy a fully-settled payment claim");
+    }
+
+    @Test
+    @DisplayName("Test Q-C: RECEIVED purchase status must not establish payment confirmation")
+    void testQC_receivedStatusMustNotConfirmPayment() {
+        // "RECEIVED" means goods arrived in inventory; the invoice may not be paid
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date",   "2026-11-12",
+                "grand_total",     450.00,
+                "status",          "RECEIVED"));
+        String response = "Payment was settled for PUR-0001 on 2026-11-12.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "RECEIVED is a goods-receipt status and must not confirm payment");
+    }
+
+    @Test
+    @DisplayName("Test Q-D: PAID for PUR-0001 must not validate a payment claim about PUR-0002")
+    void testQD_paidStatusMustNotBleedAcrossPurchases() {
+        // PUR-0001=PAID, PUR-0002=PENDING; claim about PUR-0002 must be rejected
+        String response = "Payment was settled for PUR-0002 on 2026-11-12.";
+        var result = validator.validateCitations(response, List.of(), true, twoRecordResult());
+        assertFalse(result.valid(),
+                "PAID status for PUR-0001 must not validate a payment claim about PUR-0002 (PENDING)");
+    }
+
+    @Test
+    @DisplayName("Test Q-E: Amount from PUR-0001 must not validate a claim about PUR-0002")
+    void testQE_amountMustNotBleedAcrossPurchases() {
+        // PUR-0001 total=450, PUR-0002 total=300. AI claims PUR-0002 cost ₹450 (wrong amount).
+        String response = "PUR-0002 was purchased for ₹450 on 2026-11-12.";
+        var result = validator.validateCitations(response, List.of(), true, twoRecordResult());
+        assertFalse(result.valid(),
+                "₹450 belongs to PUR-0001 and must not validate a claim about PUR-0002");
+    }
+
+    @Test
+    @DisplayName("Test Q-F: Date from PUR-0001 must not validate a claim about PUR-0002")
+    void testQF_dateMustNotBleedAcrossPurchases() {
+        // PUR-0001 date=2026-11-10, PUR-0002 date=2026-11-12. AI claims PUR-0002 on 2026-11-10.
+        String response = "PUR-0002 was purchased on 2026-11-10.";
+        var result = validator.validateCitations(response, List.of(), true, twoRecordResult());
+        assertFalse(result.valid(),
+                "2026-11-10 belongs to PUR-0001 and must not validate a date claim about PUR-0002");
+    }
+
+    @Test
+    @DisplayName("Test Q-G: Supplier from PUR-0001 must not validate a claim about PUR-0002")
+    void testQG_supplierMustNotBleedAcrossPurchases() {
+        // PUR-0001 supplier=ABC Motors, PUR-0002 supplier=XYZ Parts. AI claims PUR-0002 from ABC Motors.
+        String response = "PUR-0002 was ordered from supplier ABC Motors on 2026-11-12.";
+        var result = validator.validateCitations(response, List.of(), true, twoRecordResult());
+        assertFalse(result.valid(),
+                "ABC Motors belongs to PUR-0001 and must not validate a supplier claim about PUR-0002");
+    }
+
+    @Test
+    @DisplayName("Test Q-H: Correct values for PUR-0002 must be accepted")
+    void testQH_correctValuesForPurchase2AreAccepted() {
+        // All values belong to PUR-0002's own record — must pass
+        String response = "PUR-0002 was ordered from supplier XYZ Parts on 2026-11-12 for 300.00.";
+        var result = validator.validateCitations(response, List.of(), true, twoRecordResult());
+        assertTrue(result.valid(),
+                "All claimed values belong to PUR-0002 and should be accepted");
+    }
+
+    @Test
+    @DisplayName("Test Q-I: Ambiguous payment claim with no purchase ID and multiple records fails closed")
+    void testQI_ambiguousPaymentClaimFailsClosed() {
+        // No purchase number in the segment; two records present — must fail closed
+        String response = "The supplier payment has been settled.";
+        var result = validator.validateCitations(response, List.of(), true, twoRecordResult());
+        assertFalse(result.valid(),
+                "An unidentified payment claim must fail closed when multiple records exist in evidence");
+    }
+
+    @Test
+    @DisplayName("Test Q-J: Existing Test N (qty cannot validate amount) still passes")
+    void testQJ_existingTestN_quantityCannotValidateMonetaryAmount() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date",   "2026-11-12",
+                "grand_total",     450.00,
+                "quantity",        5.0));
+        String response = "Purchase PUR-0001 cost ₹5 on 2026-11-12.";
+        var result = validator.validateCitations(response, List.of(policyChunk), true, toolResult);
+        assertFalse(result.valid(), "Quantity=5 must not validate a monetary claim of ₹5");
+        assertEquals(1, result.unsupportedStatements().size());
+    }
+
+    @Test
+    @DisplayName("Test Q-J2: Existing Test P (PAID bleed) still passes")
+    void testQJ2_existingTestP_paidStatusBleedPrevented() {
+        var toolResult = List.of(
+                java.util.Map.of("purchase_number", "PUR-0001", "purchase_date", "2026-11-10",
+                        "grand_total", 450.00, "status", "PAID"),
+                java.util.Map.of("purchase_number", "PUR-0002", "purchase_date", "2026-11-12",
+                        "grand_total", 300.00, "status", "PENDING"));
+        String response = "Payment was settled for PUR-0002 on 2026-11-12.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(),
+                "PAID status of PUR-0001 must not validate PUR-0002's payment claim (PENDING)");
+    }
+
+    @Test
+    @DisplayName("Test Q-K: PAID single-record payment claim is accepted")
+    void testQK_singleRecordPaidPaymentClaimAccepted() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date",   "2026-11-12",
+                "grand_total",     450.00,
+                "payment_status",  "PAID"));
+        String response = "Payment was settled for PUR-0001 on 2026-11-12.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertTrue(result.valid(), "PAID single-record claim must be accepted");
+    }
+
+    @Test
+    @DisplayName("Test Q-L: Ambiguous payment with single record is accepted when record is PAID")
+    void testQL_singleRecordAmbiguousPaymentAcceptedWhenPaid() {
+        // No purchase number in segment; only one record in evidence and it is PAID
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "grand_total",     450.00,
+                "payment_status",  "PAID"));
+        String response = "The supplier payment has been settled.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertTrue(result.valid(),
+                "With exactly one PAID record, an unidentified payment claim should be accepted");
+    }
+
+    @Test
+    @DisplayName("Test R-B: Named supplier claim with no supplier evidence in record must fail")
+    void testRB_namedSupplierWithNoSupplierEvidenceMustFail() {
+        // PUR-0001 has no supplier_name
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date",   "2026-11-12",
+                "grand_total",     450.00
+        ));
+        String response = "PUR-0001 was purchased from supplier ABC Motors on 2026-11-12.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Supplier claim must fail when record has no supplier evidence");
+    }
+
+    @Test
+    @DisplayName("Test R-C: Fabricated supplier name must fail")
+    void testRC_fabricatedSupplierNameMustFail() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "supplier_name",   "Acme Parts",
+                "purchase_date",   "2026-11-12",
+                "grand_total",     450.00
+        ));
+        String response = "PUR-0001 was purchased from supplier Fraudulent Auto Parts on 2026-11-12.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Fabricated supplier name must fail");
+    }
+
+    @Test
+    @DisplayName("Test R-D: Correct supplier name for referenced purchase must pass")
+    void testRD_correctSupplierNameMustPass() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "supplier_name",   "Acme Parts",
+                "purchase_date",   "2026-11-12",
+                "grand_total",     450.00
+        ));
+        String response = "PUR-0001 was purchased from supplier Acme Parts on 2026-11-12 for 450.00.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertTrue(result.valid(), "Correct supplier name must pass");
+    }
+
+    @Test
+    @DisplayName("Test R-F: Date from PUR-0001 must not validate an unidentified transaction claim when multiple records exist")
+    void testRF_dateFromPur0001MustNotValidateUnidentifiedTransaction() {
+        // Two records. Response claims date 2026-11-10 without identifying PUR-0001
+        String response = "The purchase was made on 2026-11-10.";
+        var result = validator.validateCitations(response, List.of(), true, twoRecordResult());
+        assertFalse(result.valid(), "Unidentified transaction date claim must fail closed when multiple records exist");
+    }
+
+    @Test
+    @DisplayName("Test R-G: Amount from PUR-0001 must not validate an unidentified transaction claim when multiple records exist")
+    void testRG_amountFromPur0001MustNotValidateUnidentifiedTransaction() {
+        // Two records. Response claims ₹450 without identifying PUR-0001
+        String response = "The purchase order total was ₹450.";
+        var result = validator.validateCitations(response, List.of(), true, twoRecordResult());
+        assertFalse(result.valid(), "Unidentified transaction amount claim must fail closed when multiple records exist");
+    }
+
+    @Test
+    @DisplayName("Test R-H: Invoice number resolves to the owning purchase record for date/amount validation")
+    void testRH_invoiceNumberResolvesToOwningPurchaseRecord() {
+        var toolResult = List.of(
+                java.util.Map.of(
+                        "purchase_number",     "PUR-0001",
+                        "supplier_invoice_no", "INV-1001",
+                        "purchase_date",       "2026-11-10",
+                        "grand_total",         450.00),
+                java.util.Map.of(
+                        "purchase_number",     "PUR-0002",
+                        "supplier_invoice_no", "INV-1002",
+                        "purchase_date",       "2026-11-12",
+                        "grand_total",         300.00)
+        );
+        // Correct match: INV-1002 with its own date and amount
+        String validResponse = "Invoice INV-1002 was issued on 2026-11-12 for 300.00.";
+        var validResult = validator.validateCitations(validResponse, List.of(), true, toolResult);
+        assertTrue(validResult.valid(), "INV-1002 should resolve to PUR-0002 and accept its valid date and amount");
+
+        // Cross-contamination: INV-1002 with PUR-0001's amount (450.00)
+        String invalidResponse = "Invoice INV-1002 was issued on 2026-11-12 for 450.00.";
+        var invalidResult = validator.validateCitations(invalidResponse, List.of(), true, toolResult);
+        assertFalse(invalidResult.valid(), "INV-1002 must not accept amount belonging to PUR-0001");
+    }
+
+    @Test
+    @DisplayName("Test R-I: Two maps for the same purchase with complementary fields preserve both sets of evidence")
+    void testRI_complementaryDuplicateMapsPreserveBothEvidences() {
+        var toolResult = List.of(
+                java.util.Map.of(
+                        "purchase_number", "PUR-0001",
+                        "supplier_name",   "ABC Motors"),
+                java.util.Map.of(
+                        "purchase_number", "PUR-0001",
+                        "grand_total",     450.00,
+                        "purchase_date",   "2026-11-10")
+        );
+        // Response uses supplier from map 1 and amount/date from map 2
+        String response = "PUR-0001 was purchased from supplier ABC Motors for 450.00 on 2026-11-10.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertTrue(result.valid(), "Complementary maps for same purchase must merge without losing evidence");
+    }
+
+    @Test
+    @DisplayName("Test R-J: Two maps for the same purchase with conflicting payment statuses do not accept PAID")
+    void testRJ_conflictingPaymentStatusesFailClosed() {
+        var toolResult = List.of(
+                java.util.Map.of(
+                        "purchase_number", "PUR-0001",
+                        "purchase_date",   "2026-11-10",
+                        "payment_status",  "PAID"),
+                java.util.Map.of(
+                        "purchase_number", "PUR-0001",
+                        "purchase_date",   "2026-11-10",
+                        "payment_status",  "PENDING")
+        );
+        // Should detect conflict and NOT accept PAID
+        String response = "Payment was settled for PUR-0001 on 2026-11-10.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Conflicting payment statuses for the same purchase must fail closed");
+    }
+
+    // =========================================================================
+    // Correctness Pass Tests (Issues A - F)
+    // =========================================================================
+
+    @Test
+    @DisplayName("Issue A-1: Conflicting dates for the same purchase fail closed")
+    void testIssueA1_conflictingDatesFailClosed() {
+        var toolResult = List.of(
+                java.util.Map.of("purchase_number", "PUR-0001", "purchase_date", "2026-11-10", "grand_total", 450.00),
+                java.util.Map.of("purchase_number", "PUR-0001", "purchase_date", "2026-11-15", "grand_total", 450.00)
+        );
+        // Neither date can authorize a claim
+        String response1 = "PUR-0001 was purchased on 2026-11-10.";
+        assertFalse(validator.validateCitations(response1, List.of(), true, toolResult).valid());
+
+        String response2 = "PUR-0001 was purchased on 2026-11-15.";
+        assertFalse(validator.validateCitations(response2, List.of(), true, toolResult).valid());
+    }
+
+    @Test
+    @DisplayName("Issue A-2: Conflicting monetary amounts for the same purchase fail closed")
+    void testIssueA2_conflictingAmountsFailClosed() {
+        var toolResult = List.of(
+                java.util.Map.of("purchase_number", "PUR-0001", "grand_total", 450.00, "purchase_date", "2026-11-10"),
+                java.util.Map.of("purchase_number", "PUR-0001", "grand_total", 600.00, "purchase_date", "2026-11-10")
+        );
+        // Neither amount can authorize a claim
+        String response1 = "PUR-0001 total was ₹450 on 2026-11-10.";
+        assertFalse(validator.validateCitations(response1, List.of(), true, toolResult).valid());
+
+        String response2 = "PUR-0001 total was ₹600 on 2026-11-10.";
+        assertFalse(validator.validateCitations(response2, List.of(), true, toolResult).valid());
+    }
+
+    @Test
+    @DisplayName("Issue A-3: Conflicting suppliers for the same purchase fail closed")
+    void testIssueA3_conflictingSuppliersFailClosed() {
+        var toolResult = List.of(
+                java.util.Map.of("purchase_number", "PUR-0001", "supplier_name", "ABC Motors"),
+                java.util.Map.of("purchase_number", "PUR-0001", "supplier_name", "XYZ Parts")
+        );
+        String response1 = "PUR-0001 was purchased from supplier ABC Motors.";
+        assertFalse(validator.validateCitations(response1, List.of(), true, toolResult).valid());
+
+        String response2 = "PUR-0001 was purchased from supplier XYZ Parts.";
+        assertFalse(validator.validateCitations(response2, List.of(), true, toolResult).valid());
+    }
+
+    @Test
+    @DisplayName("Issue B: Explicit unrecognised status (PROCESSING) conflicting with PAID fails closed")
+    void testIssueB_processingStatusConflictingWithPaidFailsClosed() {
+        var toolResult = List.of(
+                java.util.Map.of("purchase_number", "PUR-0001", "payment_status", "PROCESSING"),
+                java.util.Map.of("purchase_number", "PUR-0001", "payment_status", "PAID")
+        );
+        String response = "Payment was settled for PUR-0001.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "PROCESSING conflicting with PAID must fail closed");
+    }
+
+    @Test
+    @DisplayName("Issue C-1: Cited policy amount passes when supported by RAG chunk even if differing from purchase total")
+    void testIssueC1_citedPolicyAmountPassesWhenSupportedByRagChunk() {
+        RetrievedChunk feePolicyChunk = new RetrievedChunk(105L, UUID.randomUUID(), "POL-RET-01",
+                "Return and Refund Policy", 1, "Restocking Fee",
+                "A ₹100 restocking fee applies to special order parts.", 30, 0.95);
+
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date",   "2026-11-12",
+                "grand_total",     450.00
+        ));
+
+        // ₹100 is supported by the cited policy chunk, not the purchase total (₹450)
+        String response = "A ₹100 restocking fee applies [Source: Return and Refund Policy v1, §Restocking Fee].";
+        var result = validator.validateCitations(response, List.of(feePolicyChunk), true, toolResult);
+        assertTrue(result.valid(), "Cited RAG policy amount must be validated against the policy chunk, not purchase total");
+    }
+
+    @Test
+    @DisplayName("Issue C-2: Cited policy date passes when supported by RAG chunk even if differing from purchase date")
+    void testIssueC2_citedPolicyDatePassesWhenSupportedByRagChunk() {
+        RetrievedChunk datedPolicyChunk = new RetrievedChunk(106L, UUID.randomUUID(), "POL-RET-01",
+                "Return and Refund Policy", 1, "General",
+                "Under policy effective 2025-06-01, returns must be pre-approved.", 30, 0.95);
+
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date",   "2026-11-12",
+                "grand_total",     450.00
+        ));
+
+        // 2025-06-01 is supported by the policy chunk, not the purchase date (2026-11-12)
+        String response = "Under policy effective 2025-06-01, returns must be pre-approved [Source: Return and Refund Policy v1].";
+        var result = validator.validateCitations(response, List.of(datedPolicyChunk), true, toolResult);
+        assertTrue(result.valid(), "Cited RAG policy date must be validated against the policy chunk, not purchase date");
+    }
+
+    @Test
+    @DisplayName("Issue C-3: Mixed sentence with valid policy amount but fabricated ERP amount must fail")
+    void testIssueC3_mixedSentenceWithFabricatedErpAmountFails() {
+        RetrievedChunk feePolicyChunk = new RetrievedChunk(105L, UUID.randomUUID(), "POL-RET-01",
+                "Return and Refund Policy", 1, "Restocking Fee",
+                "A ₹100 restocking fee applies to special order parts.", 30, 0.95);
+
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date",   "2026-11-12",
+                "grand_total",     450.00
+        ));
+
+        // ₹100 is valid (RAG), but ₹9999 is fabricated (ERP)
+        String response = "PUR-0001 was purchased for ₹9999.00 and incurs a ₹100 fee [Source: Return and Refund Policy v1, §Restocking Fee].";
+        var result = validator.validateCitations(response, List.of(feePolicyChunk), true, toolResult);
+        assertFalse(result.valid(), "Fabricated ERP amount in mixed sentence must still fail");
+    }
+
+    @Test
+    @DisplayName("Issue C-4: Valid mixed ERP and RAG response passes")
+    void testIssueC4_validMixedErpAndRagResponsePasses() {
+        RetrievedChunk feePolicyChunk = new RetrievedChunk(105L, UUID.randomUUID(), "POL-RET-01",
+                "Return and Refund Policy", 1, "Restocking Fee",
+                "A ₹100 restocking fee applies to special order parts.", 30, 0.95);
+
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date",   "2026-11-12",
+                "grand_total",     450.00
+        ));
+
+        // ₹450 and 2026-11-12 match PUR-0001; ₹100 matches the policy chunk
+        String response = "PUR-0001 was purchased on 2026-11-12 for 450.00 and incurs a ₹100 fee [Source: Return and Refund Policy v1, §Restocking Fee].";
+        var result = validator.validateCitations(response, List.of(feePolicyChunk), true, toolResult);
+        assertTrue(result.valid(), "Valid mixed ERP and RAG response must pass");
+    }
+
+    @Test
+    @DisplayName("Issue D-1: Truthful PENDING payment claim passes, and false PENDING claim fails")
+    void testIssueD1_pendingPaymentValidation() {
+        var toolResultPending = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0002",
+                "purchase_date",   "2026-11-12",
+                "payment_status",  "PENDING"
+        ));
+        String response = "PUR-0002 is currently pending payment on 2026-11-12.";
+        var result = validator.validateCitations(response, List.of(), true, toolResultPending);
+        assertTrue(result.valid(), "Truthful PENDING claim must pass");
+
+        var toolResultUnpaid = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0002",
+                "purchase_date",   "2026-11-12",
+                "payment_status",  "UNPAID"
+        ));
+        var resultFalse = validator.validateCitations(response, List.of(), true, toolResultUnpaid);
+        assertFalse(resultFalse.valid(), "PENDING claim must fail when record is UNPAID");
+    }
+
+    @Test
+    @DisplayName("Issue D-2: Truthful UNPAID payment claim passes, and false UNPAID claim fails")
+    void testIssueD2_unpaidPaymentValidation() {
+        var toolResultUnpaid = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date",   "2026-11-12",
+                "payment_status",  "UNPAID"
+        ));
+        String response = "PUR-0001 is currently unpaid on 2026-11-12.";
+        var result = validator.validateCitations(response, List.of(), true, toolResultUnpaid);
+        assertTrue(result.valid(), "Truthful UNPAID claim must pass");
+
+        var toolResultPaid = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date",   "2026-11-12",
+                "payment_status",  "PAID"
+        ));
+        var resultFalse = validator.validateCitations(response, List.of(), true, toolResultPaid);
+        assertFalse(resultFalse.valid(), "UNPAID claim must fail when record is PAID");
+    }
+
+    @Test
+    @DisplayName("Issue D-3: PARTIALLY_PAID and OVERDUE truthful payment claims pass")
+    void testIssueD3_partialAndOverduePaymentValidation() {
+        var toolResultPartial = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "payment_status",  "PARTIALLY_PAID"
+        ));
+        String responsePartial = "PUR-0001 was partially paid.";
+        assertTrue(validator.validateCitations(responsePartial, List.of(), true, toolResultPartial).valid());
+
+        var toolResultOverdue = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "payment_status",  "OVERDUE"
+        ));
+        String responseOverdue = "PUR-0001 payment is overdue.";
+        assertTrue(validator.validateCitations(responseOverdue, List.of(), true, toolResultOverdue).valid());
+    }
+
+    @Test
+    @DisplayName("Issue E-1: Partial supplier name substring does not match full supplier entity")
+    void testIssueE1_partialSupplierNameDoesNotMatchFullEntity() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "supplier_name",   "Acme Parts"
+        ));
+        // Claiming only "Parts" should not match "Acme Parts"
+        String response = "PUR-0001 was ordered from supplier Parts.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Substring 'Parts' must not match entity 'Acme Parts'");
+    }
+
+    @Test
+    @DisplayName("Issue E-2: Literal 'supplier: ABC Motors' syntax is extracted and validated")
+    void testIssueE2_literalSupplierColonSyntaxExtracted() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "supplier_name",   "ABC Motors",
+                "purchase_date",   "2026-11-10"
+        ));
+        String response = "PUR-0001 from supplier: ABC Motors on 2026-11-10.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertTrue(result.valid(), "'supplier: ABC Motors' must be properly recognized and matched");
+    }
+
+    @Test
+    @DisplayName("Issue F: Conflicting invoice ownership fails closed")
+    void testIssueF_conflictingInvoiceOwnershipFailsClosed() {
+        // Same invoice INV-1001 appears under two different purchases
+        var toolResult = List.of(
+                java.util.Map.of("purchase_number", "PUR-0001", "supplier_invoice_no", "INV-1001", "purchase_date", "2026-11-10"),
+                java.util.Map.of("purchase_number", "PUR-0002", "supplier_invoice_no", "INV-1001", "purchase_date", "2026-11-12")
+        );
+        String response = "Invoice INV-1001 was issued on 2026-11-10.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Ambiguous invoice ownership must fail closed");
+    }
+
+    // -------------------------------------------------------------------------
+    // Final Edge-Case Hardening Tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("Edge-Case 1A: Multiple transactions in one sentence validate amounts per record")
+    void testMultiTransactionSentence_differentAmountsValidatedPerRecord() {
+        var toolResult = List.of(
+                java.util.Map.of("purchase_number", "PUR-0001", "grand_total", 450.00),
+                java.util.Map.of("purchase_number", "PUR-0002", "grand_total", 300.00)
+        );
+
+        // Matching amounts per record: PUR-0001=450, PUR-0002=300 -> PASS
+        String validResponse = "PUR-0001 was ₹450 and PUR-0002 was ₹300.";
+        var validResult = validator.validateCitations(validResponse, List.of(), true, toolResult);
+        assertTrue(validResult.valid(), "Each purchase amount must be correctly matched to its specific record");
+
+        // Fabricated amount for PUR-0002: 999 instead of 300 -> FAIL
+        String invalidResponse = "PUR-0001 was ₹450 and PUR-0002 was ₹999.";
+        var invalidResult = validator.validateCitations(invalidResponse, List.of(), true, toolResult);
+        assertFalse(invalidResult.valid(), "Fabricated amount for PUR-0002 must fail even if PUR-0001 amount is valid");
+    }
+
+    @Test
+    @DisplayName("Edge-Case 1B: Multi-transaction sentence with unassigned fact in preamble fails closed")
+    void testMultiTransactionSentence_unassignedPreambleFailsClosed() {
+        var toolResult = List.of(
+                java.util.Map.of("purchase_number", "PUR-0001", "grand_total", 450.00),
+                java.util.Map.of("purchase_number", "PUR-0002", "grand_total", 300.00)
+        );
+
+        // Preamble has an amount before the first PUR ID that cannot be unambiguously attributed
+        String response = "The total cost was ₹450 for PUR-0001 and PUR-0002.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Ambiguous preamble fact across multiple transactions must fail closed");
+    }
+
+    @Test
+    @DisplayName("Edge-Case 2A: Payment negation 'not settled' fails when record is PAID")
+    void testPaymentNegation_notSettledFailsAgainstPaid() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "payment_status", "PAID"
+        ));
+        String response = "PUR-0001 payment is not settled.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Claiming 'not settled' when record is PAID must fail");
+    }
+
+    @Test
+    @DisplayName("Edge-Case 2B: Payment negation 'not overdue' fails when record is OVERDUE")
+    void testPaymentNegation_notOverdueFailsAgainstOverdue() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "payment_status", "OVERDUE"
+        ));
+        String response = "PUR-0001 payment is not overdue.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Claiming 'not overdue' when record is OVERDUE must fail");
+    }
+
+    @Test
+    @DisplayName("Edge-Case 2C: Payment negation 'not pending' fails when record is PENDING")
+    void testPaymentNegation_notPendingFailsAgainstPending() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "payment_status", "PENDING"
+        ));
+        String response = "PUR-0001 payment is not pending.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Claiming 'not pending' when record is PENDING must fail");
+    }
+
+    @Test
+    @DisplayName("Edge-Case 2D: Positive 'unpaid' matches UNPAID, while 'not unpaid' fails against UNPAID")
+    void testPaymentNegation_unpaidAndNotUnpaid() {
+        var toolResultUnpaid = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "payment_status", "UNPAID"
+        ));
+        // Positive unpaid matches UNPAID
+        String responseUnpaid = "PUR-0001 is unpaid.";
+        assertTrue(validator.validateCitations(responseUnpaid, List.of(), true, toolResultUnpaid).valid(),
+                "Positive 'unpaid' claim must match UNPAID record");
+
+        // Negated unpaid must NOT match UNPAID record
+        String responseNotUnpaid = "PUR-0001 is not unpaid.";
+        assertFalse(validator.validateCitations(responseNotUnpaid, List.of(), true, toolResultUnpaid).valid(),
+                "Negated 'not unpaid' claim must fail when record is UNPAID");
+    }
+
+    @Test
+    @DisplayName("Edge-Case 2E: Contradictory payment claims in one sentence fail closed")
+    void testPaymentContradiction_paidAndUnpaidFailsClosed() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "payment_status", "PAID"
+        ));
+        String response = "PUR-0001 is paid but also unpaid.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Contradictory payment assertions in the same sentence must fail closed");
+    }
+
+    @Test
+    @DisplayName("Edge-Case 3A: Invoices resolving to different purchases in one sentence fail closed")
+    void testMultipleInvoices_differentPurchasesFailsClosed() {
+        var toolResult = List.of(
+                java.util.Map.of("purchase_number", "PUR-0001", "supplier_invoice_no", "INV-1001", "purchase_date", "2026-11-10"),
+                java.util.Map.of("purchase_number", "PUR-0002", "supplier_invoice_no", "INV-2002", "purchase_date", "2026-11-12")
+        );
+        String response = "Invoices INV-1001 and INV-2002 were processed on 2026-11-10.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Invoices belonging to different purchases in one clause must fail closed");
+    }
+
+    @Test
+    @DisplayName("Edge-Case 3B: Invoices resolving to same purchase pass")
+    void testMultipleInvoices_samePurchasePasses() {
+        var toolResult = List.of(
+                java.util.Map.of("purchase_number", "PUR-0001", "supplier_invoice_no", "INV-1001", "purchase_date", "2026-11-10")
+        );
+        String response = "Invoice INV-1001 was processed on 2026-11-10.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertTrue(result.valid(), "Single invoice resolving unambiguously must pass");
+    }
+
+    @Test
+    @DisplayName("Edge-Case 4A: Fabricated purchase total matching policy chunk amount must fail")
+    void testRagVsErpAmountCollision_fabricatedPurchaseTotalFailsEvenIfInPolicy() {
+        RetrievedChunk feePolicyChunk = new RetrievedChunk(105L, UUID.randomUUID(), "POL-RET-01",
+                "Return and Refund Policy", 1, "Restocking Fee",
+                "A ₹100 restocking fee applies to special order parts.", 30, 0.95);
+
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date",   "2026-11-12",
+                "grand_total",     450.00
+        ));
+
+        // The sentence claims purchase price was ₹100 (which is in the policy chunk, but NOT in PUR-0001 total which is ₹450)
+        String response = "PUR-0001 was purchased for ₹100 and a ₹100 fee applies [Source: Return and Refund Policy v1, §Restocking Fee].";
+        var result = validator.validateCitations(response, List.of(feePolicyChunk), true, toolResult);
+        assertFalse(result.valid(), "Fabricated purchase total of ₹100 must fail against ERP record of ₹450, even if ₹100 exists in policy chunk");
+    }
+
+    @Test
+    @DisplayName("Edge-Case 4B: Truthful purchase total with cited policy fee passes")
+    void testRagVsErpAmountCollision_validPurchaseTotalWithCitedPolicyFeePasses() {
+        RetrievedChunk feePolicyChunk = new RetrievedChunk(105L, UUID.randomUUID(), "POL-RET-01",
+                "Return and Refund Policy", 1, "Restocking Fee",
+                "A ₹100 restocking fee applies to special order parts.", 30, 0.95);
+
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date",   "2026-11-12",
+                "grand_total",     450.00
+        ));
+
+        String response = "PUR-0001 was purchased for 450.00 and a ₹100 fee applies [Source: Return and Refund Policy v1, §Restocking Fee].";
+        var result = validator.validateCitations(response, List.of(feePolicyChunk), true, toolResult);
+        assertTrue(result.valid(), "Valid purchase total and valid policy fee must both pass");
+    }
+
+    @Test
+    @DisplayName("Edge-Case 5: Long supplier legal name is accepted without truncation")
+    void testLongSupplierLegalName_acceptedWithoutTruncation() {
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "supplier_name",   "ABC Automotive Components and Spares Pvt Ltd",
+                "purchase_date",   "2026-11-10"
+        ));
+        String response = "PUR-0001 from supplier: ABC Automotive Components and Spares Pvt Ltd on 2026-11-10.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertTrue(result.valid(), "Long supplier legal name with literal 'supplier:' must match entity");
+    }
+
+    // -------------------------------------------------------------------------
+    // Final Regression Coverage: Multiple Invoices, Payment Negation, Date Collisions
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("Coverage 1A: Two invoices belonging to different purchases without dates or amounts must fail")
+    void testMultipleInvoices_differentPurchasesWithoutDatesOrAmountsFailsClosed() {
+        var toolResult = List.of(
+                java.util.Map.of("purchase_number", "PUR-0001", "supplier_invoice_no", "INV-1001"),
+                java.util.Map.of("purchase_number", "PUR-0002", "supplier_invoice_no", "INV-2002")
+        );
+        String response = "Invoices INV-1001 and INV-2002 were processed.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Two invoices from different purchases in one response must fail closed on ownership alone");
+    }
+
+    @Test
+    @DisplayName("Coverage 1B: Two invoices belonging to the same purchase must pass")
+    void testMultipleInvoices_samePurchaseMultipleInvoicesPasses() {
+        var toolResult = List.of(
+                java.util.Map.of("purchase_number", "PUR-0001", "supplier_invoice_no", "INV-1001"),
+                java.util.Map.of("purchase_number", "PUR-0001", "supplier_invoice_no", "INV-1002")
+        );
+        String response = "Invoices INV-1001 and INV-1002 were processed.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertTrue(result.valid(), "Multiple invoices belonging to the same purchase must pass");
+    }
+
+    @Test
+    @DisplayName("Coverage 1C: One valid invoice and one unknown invoice must fail")
+    void testMultipleInvoices_oneValidOneUnknownInvoiceFails() {
+        var toolResult = List.of(
+                java.util.Map.of("purchase_number", "PUR-0001", "supplier_invoice_no", "INV-1001")
+        );
+        String response = "Invoices INV-1001 and INV-9999 were processed.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Response referencing an unknown invoice ID must fail");
+    }
+
+    @Test
+    @DisplayName("Coverage 1D: An invoice with ambiguous ownership must fail")
+    void testMultipleInvoices_ambiguousInvoiceOwnershipFails() {
+        var toolResult = List.of(
+                java.util.Map.of("purchase_number", "PUR-0001", "supplier_invoice_no", "INV-1001"),
+                java.util.Map.of("purchase_number", "PUR-0002", "supplier_invoice_no", "INV-1001")
+        );
+        String response = "Invoice INV-1001 was processed.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Ambiguous invoice owned by multiple purchases must fail closed");
+    }
+
+    @Test
+    @DisplayName("Coverage 1E: Purchase ID combined with an invoice ID belonging to another purchase must fail")
+    void testMultipleInvoices_purchaseIdCombinedWithOtherPurchaseInvoiceFails() {
+        var toolResult = List.of(
+                java.util.Map.of("purchase_number", "PUR-0001", "supplier_invoice_no", "INV-1001"),
+                java.util.Map.of("purchase_number", "PUR-0002", "supplier_invoice_no", "INV-2002")
+        );
+        String response = "PUR-0001 was billed under invoice INV-2002.";
+        var result = validator.validateCitations(response, List.of(), true, toolResult);
+        assertFalse(result.valid(), "Mismatched purchase ID and invoice ID from different purchase must fail");
+    }
+
+    @Test
+    @DisplayName("Coverage 2A: 'has not yet been paid' fails against PAID and passes against UNPAID")
+    void testPaymentNegation_hasNotYetBeenPaidFailsAgainstPaidAndPassesAgainstUnpaid() {
+        var toolResultPaid = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "payment_status", "PAID"
+        ));
+        String response = "PUR-0001 has not yet been paid.";
+        var resultPaid = validator.validateCitations(response, List.of(), true, toolResultPaid);
+        assertFalse(resultPaid.valid(), "Claiming 'has not yet been paid' when record is PAID must fail");
+
+        var toolResultUnpaid = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "payment_status", "UNPAID"
+        ));
+        var resultUnpaid = validator.validateCitations(response, List.of(), true, toolResultUnpaid);
+        assertTrue(resultUnpaid.valid(), "Claiming 'has not yet been paid' when record is UNPAID must pass");
+    }
+
+    @Test
+    @DisplayName("Coverage 2B: 'payment wasn't settled' fails against PAID and passes against UNPAID")
+    void testPaymentNegation_paymentWasntSettledFailsAgainstPaid() {
+        var toolResultPaid = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "payment_status", "PAID"
+        ));
+        String response = "PUR-0001 payment wasn't settled.";
+        var resultPaid = validator.validateCitations(response, List.of(), true, toolResultPaid);
+        assertFalse(resultPaid.valid(), "Claiming 'payment wasn't settled' when record is PAID must fail");
+
+        var toolResultUnpaid = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "payment_status", "UNPAID"
+        ));
+        var resultUnpaid = validator.validateCitations(response, List.of(), true, toolResultUnpaid);
+        assertTrue(resultUnpaid.valid(), "Claiming 'payment wasn't settled' when record is UNPAID must pass");
+    }
+
+    @Test
+    @DisplayName("Coverage 2C: 'payment has not been completed' fails against PAID and passes against UNPAID")
+    void testPaymentNegation_paymentHasNotBeenCompletedFailsAgainstPaid() {
+        var toolResultPaid = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "payment_status", "PAID"
+        ));
+        String response = "PUR-0001 payment has not been completed.";
+        var resultPaid = validator.validateCitations(response, List.of(), true, toolResultPaid);
+        assertFalse(resultPaid.valid(), "Claiming 'payment has not been completed' when record is PAID must fail");
+
+        var toolResultUnpaid = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "payment_status", "UNPAID"
+        ));
+        var resultUnpaid = validator.validateCitations(response, List.of(), true, toolResultUnpaid);
+        assertTrue(resultUnpaid.valid(), "Claiming 'payment has not been completed' when record is UNPAID must pass");
+    }
+
+    @Test
+    @DisplayName("Coverage 2D: 'payment is not fully paid' fails against PAID and passes against UNPAID")
+    void testPaymentNegation_paymentIsNotFullyPaidFailsAgainstPaid() {
+        var toolResultPaid = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "payment_status", "PAID"
+        ));
+        String response = "PUR-0001 payment is not fully paid.";
+        var resultPaid = validator.validateCitations(response, List.of(), true, toolResultPaid);
+        assertFalse(resultPaid.valid(), "Claiming 'not fully paid' when record is PAID must fail");
+
+        var toolResultUnpaid = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "payment_status", "UNPAID"
+        ));
+        var resultUnpaid = validator.validateCitations(response, List.of(), true, toolResultUnpaid);
+        assertTrue(resultUnpaid.valid(), "Claiming 'not fully paid' when record is UNPAID must pass");
+    }
+
+    @Test
+    @DisplayName("Coverage 2E: Positive PAID, UNPAID, and PARTIALLY_PAID claims match their respective statuses")
+    void testPaymentPositive_exactStatusMatching() {
+        var toolResultPaid = List.of(java.util.Map.of("purchase_number", "PUR-0001", "payment_status", "PAID"));
+        var toolResultUnpaid = List.of(java.util.Map.of("purchase_number", "PUR-0001", "payment_status", "UNPAID"));
+        var toolResultPartial = List.of(java.util.Map.of("purchase_number", "PUR-0001", "payment_status", "PARTIALLY_PAID"));
+
+        // Positive PAID
+        assertTrue(validator.validateCitations("PUR-0001 was fully paid.", List.of(), true, toolResultPaid).valid());
+        assertFalse(validator.validateCitations("PUR-0001 was fully paid.", List.of(), true, toolResultUnpaid).valid());
+
+        // Positive UNPAID
+        assertTrue(validator.validateCitations("PUR-0001 is unpaid.", List.of(), true, toolResultUnpaid).valid());
+        assertFalse(validator.validateCitations("PUR-0001 is unpaid.", List.of(), true, toolResultPaid).valid());
+
+        // Positive PARTIALLY_PAID
+        assertTrue(validator.validateCitations("PUR-0001 was partially paid.", List.of(), true, toolResultPartial).valid());
+        assertFalse(validator.validateCitations("PUR-0001 was partially paid.", List.of(), true, toolResultPaid).valid());
+    }
+
+    @Test
+    @DisplayName("Coverage 2F: Contradictory positive and negated claims in same sentence fail closed")
+    void testPaymentContradiction_positiveAndNegatedClaimsFailClosed() {
+        var toolResultPaid = List.of(java.util.Map.of("purchase_number", "PUR-0001", "payment_status", "PAID"));
+
+        String response1 = "PUR-0001 is paid but has not yet been paid.";
+        assertFalse(validator.validateCitations(response1, List.of(), true, toolResultPaid).valid(),
+                "Contradiction between 'is paid' and 'has not yet been paid' must fail closed");
+
+        String response2 = "PUR-0001 payment wasn't settled and was settled.";
+        assertFalse(validator.validateCitations(response2, List.of(), true, toolResultPaid).valid(),
+                "Contradiction between 'wasn't settled' and 'was settled' must fail closed");
+    }
+
+    @Test
+    @DisplayName("Coverage 3A: Policy effective date differing from purchase date passes when cited")
+    void testDateAttribution_policyEffectiveDateDiffersFromPurchaseDatePasses() {
+        RetrievedChunk policyChunk = new RetrievedChunk(101L, UUID.randomUUID(), "POL-RET-01",
+                "Return Policy", 1, "General",
+                "Under policy effective 2025-06-01, returns require prior manager approval.", 30, 0.95);
+
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date", "2026-11-12",
+                "grand_total", 450.00
+        ));
+
+        String response = "Under policy effective 2025-06-01, returns require prior manager approval [Source: Return Policy v1].";
+        var result = validator.validateCitations(response, List.of(policyChunk), true, toolResult);
+        assertTrue(result.valid(), "Policy effective date supported by cited chunk must pass even though it differs from purchase date");
+    }
+
+    @Test
+    @DisplayName("Coverage 3B: Fabricated purchase date matching cited policy chunk date must fail against ERP record")
+    void testDateCollision_fabricatedPurchaseDateMatchingCitedPolicyDateFails() {
+        RetrievedChunk policyChunk = new RetrievedChunk(101L, UUID.randomUUID(), "POL-RET-01",
+                "Return Policy", 1, "General",
+                "Under policy effective 2025-06-01, returns require prior manager approval.", 30, 0.95);
+
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date", "2026-11-12",
+                "grand_total", 450.00
+        ));
+
+        // Attempting to attribute policy date 2025-06-01 as the PUR-0001 purchase date
+        String response = "PUR-0001 was purchased on 2025-06-01 under policy effective 2025-06-01 [Source: Return Policy v1].";
+        var result = validator.validateCitations(response, List.of(policyChunk), true, toolResult);
+        assertFalse(result.valid(), "Fabricated purchase date 2025-06-01 must fail against actual ERP purchase date 2026-11-12");
+    }
+
+    @Test
+    @DisplayName("Coverage 3C: Correct purchase date combined with valid cited policy effective date passes")
+    void testDateCollision_correctPurchaseDateWithValidCitedPolicyDatePasses() {
+        RetrievedChunk policyChunk = new RetrievedChunk(101L, UUID.randomUUID(), "POL-RET-01",
+                "Return Policy", 1, "General",
+                "Under policy effective 2025-06-01, returns require prior manager approval.", 30, 0.95);
+
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date", "2026-11-12",
+                "grand_total", 450.00
+        ));
+
+        String response = "PUR-0001 was purchased on 2026-11-12 and under policy effective 2025-06-01 returns require approval [Source: Return Policy v1].";
+        var result = validator.validateCitations(response, List.of(policyChunk), true, toolResult);
+        assertTrue(result.valid(), "True purchase date (2026-11-12) and true cited policy date (2025-06-01) must both pass");
+    }
+
+    @Test
+    @DisplayName("Coverage 3D: Policy date without ERP transaction claim passes only when supported by chunk")
+    void testDateAttribution_policyDateWithoutErpDateClaimPassesOnlyWhenSupported() {
+        RetrievedChunk policyChunk = new RetrievedChunk(102L, UUID.randomUUID(), "POL-WAR-01",
+                "Warranty Policy", 1, "General",
+                "The warranty policy became effective on 2025-01-01 for all registered accounts.", 30, 0.95);
+
+        var toolResult = List.of(java.util.Map.of(
+                "purchase_number", "PUR-0001",
+                "purchase_date", "2026-11-12"
+        ));
+
+        // Supported policy date
+        String validResponse = "The warranty policy became effective on 2025-01-01 [Source: Warranty Policy v1].";
+        assertTrue(validator.validateCitations(validResponse, List.of(policyChunk), true, toolResult).valid(),
+                "Supported policy date must pass");
+
+        // Unsupported policy date
+        String invalidResponse = "The warranty policy became effective on 2024-01-01 [Source: Warranty Policy v1].";
+        assertFalse(validator.validateCitations(invalidResponse, List.of(policyChunk), true, toolResult).valid(),
+                "Unsupported policy date must fail");
+    }
+
     private static long countOccurrences(String text, String value) {
         return (text.length() - text.replace(value, "").length()) / value.length();
     }

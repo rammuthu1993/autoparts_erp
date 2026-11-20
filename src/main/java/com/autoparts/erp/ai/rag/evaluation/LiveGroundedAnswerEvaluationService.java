@@ -20,6 +20,7 @@ import org.bsc.langgraph4j.RunnableConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -62,8 +63,10 @@ public class LiveGroundedAnswerEvaluationService {
     private final String inputCostPerMillion;
     private final String outputCostPerMillion;
     private final String costCurrency;
+    private final int evaluationMaxOutputTokens;
     private final AtomicBoolean running = new AtomicBoolean(false);
 
+    @Autowired
     public LiveGroundedAnswerEvaluationService(
             ErpAiGraphNodes graphNodes,
             CitationValidator citationValidator,
@@ -74,7 +77,8 @@ public class LiveGroundedAnswerEvaluationService {
             @Value("${spring.ai.openai.max-retries:0}") int configuredMaxRetries,
             @Value("${app.ai.live-evaluation.input-cost-per-million:}") String inputCostPerMillion,
             @Value("${app.ai.live-evaluation.output-cost-per-million:}") String outputCostPerMillion,
-            @Value("${app.ai.live-evaluation.cost-currency:UNCONFIGURED}") String costCurrency
+            @Value("${app.ai.live-evaluation.cost-currency:UNCONFIGURED}") String costCurrency,
+            @Value("${app.ai.evaluation.max-output-tokens:1024}") int evaluationMaxOutputTokens
     ) {
         this.graphNodes = graphNodes;
         this.citationValidator = citationValidator;
@@ -86,6 +90,23 @@ public class LiveGroundedAnswerEvaluationService {
         this.inputCostPerMillion = inputCostPerMillion;
         this.outputCostPerMillion = outputCostPerMillion;
         this.costCurrency = costCurrency;
+        this.evaluationMaxOutputTokens = evaluationMaxOutputTokens;
+    }
+
+    public LiveGroundedAnswerEvaluationService(
+            ErpAiGraphNodes graphNodes,
+            CitationValidator citationValidator,
+            boolean enabled,
+            String provider,
+            String configuredModel,
+            String providerTimeout,
+            int configuredMaxRetries,
+            String inputCostPerMillion,
+            String outputCostPerMillion,
+            String costCurrency
+    ) {
+        this(graphNodes, citationValidator, enabled, provider, configuredModel, providerTimeout,
+                configuredMaxRetries, inputCostPerMillion, outputCostPerMillion, costCurrency, 1024);
     }
 
     public Report run(boolean confirmProviderCalls) {
@@ -154,7 +175,7 @@ public class LiveGroundedAnswerEvaluationService {
                 providerAttempted = true;
 
                 try {
-                    generation = graphNodes.generateGroundedResponseWithUsage(state);
+                    generation = graphNodes.generateGroundedResponseWithUsage(state, evaluationMaxOutputTokens);
 
                     providerSucceeded = generation != null
                             && generation.providerCalled()

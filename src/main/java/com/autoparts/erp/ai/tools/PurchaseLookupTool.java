@@ -73,6 +73,7 @@ public class PurchaseLookupTool {
         }
 
         String searchPattern = "%" + query.trim() + "%";
+        String productCodeOrPartNo = query.trim();
         String sql = """
                 SELECT p.purchase_number, p.supplier_invoice_no, s.supplier_name,
                        p.purchase_date, p.status, p.subtotal, p.tax_total, p.grand_total
@@ -81,11 +82,69 @@ public class PurchaseLookupTool {
                 WHERE LOWER(p.purchase_number) LIKE LOWER(?)
                    OR LOWER(p.supplier_invoice_no) LIKE LOWER(?)
                    OR LOWER(s.supplier_name) LIKE LOWER(?)
+                   OR EXISTS (
+                       SELECT 1 FROM purchase_products pp
+                       JOIN products pr ON pr.id = pp.product_id
+                       WHERE pp.purchase_id = p.id
+                         AND (LOWER(pr.product_code) = LOWER(?) OR LOWER(pr.part_no) = LOWER(?))
+                   )
                 ORDER BY p.purchase_date DESC, p.id DESC
                 LIMIT 20
                 """;
 
-        return queryForList("searchPurchases", sql, searchPattern, searchPattern, searchPattern);
+        return queryForList("searchPurchases", sql, searchPattern, searchPattern, searchPattern, productCodeOrPartNo, productCodeOrPartNo);
+    }
+
+    public List<Map<String, Object>> searchPurchases(String query, String startDate, String endDate, ErpAiExecutionContext context) {
+        checkCancellation();
+        checkAdminOrManagerAccess(context);
+
+        if (!StringUtils.hasText(query)) {
+            return List.of();
+        }
+
+        if (!StringUtils.hasText(startDate) || !StringUtils.hasText(endDate)) {
+            return searchPurchases(query, context);
+        }
+
+        LocalDate from;
+        LocalDate to;
+        try {
+            from = LocalDate.parse(startDate.trim());
+            to = LocalDate.parse(endDate.trim());
+        } catch (Exception e) {
+            log.warn("Invalid date range for purchase search: start={}, end={}", startDate, endDate);
+            return searchPurchases(query, context);
+        }
+
+        if (to.isBefore(from)) {
+            LocalDate temp = from;
+            from = to;
+            to = temp;
+        }
+
+        String searchPattern = "%" + query.trim() + "%";
+        String productCodeOrPartNo = query.trim();
+        String sql = """
+                SELECT p.purchase_number, p.supplier_invoice_no, s.supplier_name,
+                       p.purchase_date, p.status, p.subtotal, p.tax_total, p.grand_total
+                FROM purchases p
+                JOIN suppliers s ON s.id = p.supplier_id
+                WHERE (LOWER(p.purchase_number) LIKE LOWER(?)
+                   OR LOWER(p.supplier_invoice_no) LIKE LOWER(?)
+                   OR LOWER(s.supplier_name) LIKE LOWER(?)
+                   OR EXISTS (
+                       SELECT 1 FROM purchase_products pp
+                       JOIN products pr ON pr.id = pp.product_id
+                       WHERE pp.purchase_id = p.id
+                         AND (LOWER(pr.product_code) = LOWER(?) OR LOWER(pr.part_no) = LOWER(?))
+                   ))
+                   AND p.purchase_date >= ? AND p.purchase_date <= ?
+                ORDER BY p.purchase_date DESC, p.id DESC
+                LIMIT 20
+                """;
+
+        return queryForList("searchPurchasesDateFiltered", sql, searchPattern, searchPattern, searchPattern, productCodeOrPartNo, productCodeOrPartNo, from, to);
     }
 
     // --------------------------------------------------

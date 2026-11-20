@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -15,7 +16,12 @@ import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.jdbc.core.JdbcTemplate;
+
+import com.autoparts.erp.ai.security.ErpAiExecutionContext;
+import com.autoparts.erp.ai.security.ToolAuthorizationException;
+
 import tools.jackson.databind.ObjectMapper;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -345,5 +351,121 @@ class KnowledgeDocumentIngestionTest {
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> svc.ingestDocument(request));
         assertTrue(ex.getMessage().contains("Failed to serialize document metadata to JSON"));
+    }
+
+    @Test
+    @DisplayName("Test A: Ingestion request attempting APPROVED status is forced to PENDING_APPROVAL")
+    void testA_ingestionRequestAttemptsApprovedStatus_forcedToPendingApproval() {
+        KnowledgeIngestionService.IngestionRequest request = new KnowledgeIngestionService.IngestionRequest(
+                "POL-ATT-01",
+                "Attempt Bypass Policy",
+                "POLICY",
+                "TEXT",
+                "PUBLIC",
+                "policy.txt",
+                "Valid policy text.".getBytes(StandardCharsets.UTF_8),
+                Map.of(),
+                "author",
+                "APPROVED", // Malicious / unauthorized approval attempt
+                "admin_user",
+                java.time.Instant.now(),
+                null,
+                null
+        );
+
+        assertEquals("PENDING_APPROVAL", request.approvalStatus(),
+                "IngestionRequest must strictly ignore caller-supplied APPROVED status");
+        assertNull(request.approvedBy(),
+                "IngestionRequest must clear approvedBy when status is forced to PENDING_APPROVAL");
+        assertNull(request.approvedAt());
+    }
+
+    @Test
+    @DisplayName("Test B: Ingestion request attempting to impersonate an approver is sanitized to null")
+    void testB_ingestionRequestAttemptsApproverImpersonation_sanitizedToNull() {
+        KnowledgeIngestionService.IngestionRequest request = new KnowledgeIngestionService.IngestionRequest(
+                "POL-IMP-01",
+                "Impersonation Policy",
+                "POLICY",
+                "TEXT",
+                "PUBLIC",
+                "policy.txt",
+                "Valid policy text.".getBytes(StandardCharsets.UTF_8),
+                Map.of(),
+                "untrusted_user",
+                "APPROVED",
+                "fake_admin@company.com",
+                java.time.Instant.now(),
+                null,
+                null
+        );
+
+        assertNull(request.approvedBy(), "approvedBy must not be populated via ingestion request parameters");
+        assertEquals("PENDING_APPROVAL", request.approvalStatus());
+    }
+
+    @Test
+    @DisplayName("Test C: Admin approval succeeds and updates database with approver identity")
+    void testC_adminApprovalSucceeds() {
+        UUID docId = UUID.randomUUID();
+        ErpAiExecutionContext adminContext = ErpAiExecutionContext.create(
+                UUID.randomUUID(), "admin_user", Set.of("ROLE_ADMIN")
+        );
+        when(jdbcTemplate.update(anyString(), eq("admin_user"), eq(docId))).thenReturn(1);
+
+        assertDoesNotThrow(() -> ingestionService.approveDocument(docId, adminContext));
+        verify(jdbcTemplate).update(contains("approval_status = 'APPROVED'"), eq("admin_user"), eq(docId));
+    }
+
+    @Test
+    @DisplayName("Test D: Cashier approval fails with ToolAuthorizationException (fail-closed)")
+    void testD_cashierApprovalFails() {
+        UUID docId = UUID.randomUUID();
+        ErpAiExecutionContext cashierContext = ErpAiExecutionContext.create(
+                UUID.randomUUID(), "cashier_user", Set.of("ROLE_CASHIER")
+        );
+
+        assertThrows(ToolAuthorizationException.class, () ->
+                ingestionService.approveDocument(docId, cashierContext)
+        );
+        verify(jdbcTemplate, never()).update(anyString(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Test E: Rejection sets rejected_by and explicitly does not populate approved_by")
+    void testE_rejectionDoesNotPopulateApprovedBy() {
+        UUID docId = UUID.randomUUID();
+        ErpAiExecutionContext managerContext = ErpAiExecutionContext.create(
+                UUID.randomUUID(), "manager_user", Set.of("ROLE_MANAGER")
+        );
+        when(jdbcTemplate.update(anyString(), eq("manager_user"), eq(docId))).thenReturn(1);
+
+        assertDoesNotThrow(() -> ingestionService.rejectDocument(docId, managerContext));
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).update(sqlCaptor.capture(), eq("manager_user"), eq(docId));
+        String sql = sqlCaptor.getValue();
+        assertTrue(sql.contains("approval_status = 'REJECTED'"));
+        assertTrue(sql.contains("rejected_by = ?"));
+        assertTrue(sql.contains("approved_by = NULL"));
+        assertTrue(sql.contains("approved_at = NULL"));
+    }
+
+    @Test
+    @DisplayName("Test F: Legacy documents default to PENDING_APPROVAL and are not automatically approved")
+    void testF_legacyDocumentsNotAutomaticallyApproved() {
+        com.autoparts.erp.ai.rag.model.KnowledgeDocument legacyDoc =
+                new com.autoparts.erp.ai.rag.model.KnowledgeDocument(
+                        UUID.randomUUID(), "LEGACY-01", "Legacy Policy", "POLICY", "TEXT",
+                        1, "PUBLIC", true, "legacy.txt", "hash123", 1024L,
+                        Map.of(), "system", java.time.Instant.now(), java.time.Instant.now()
+                );
+
+        assertEquals("PENDING_APPROVAL", legacyDoc.approvalStatus(),
+                "Legacy knowledge document records must default to PENDING_APPROVAL");
+        assertNull(legacyDoc.approvedBy(), "Legacy knowledge document must have null approvedBy");
+        assertNull(legacyDoc.approvedAt());
+        assertNull(legacyDoc.rejectedBy());
+        assertNull(legacyDoc.rejectedAt());
     }
 }

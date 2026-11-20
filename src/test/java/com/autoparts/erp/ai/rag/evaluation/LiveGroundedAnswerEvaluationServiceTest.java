@@ -79,7 +79,7 @@ class LiveGroundedAnswerEvaluationServiceTest {
         ErpAiGraphNodes nodes = mock(ErpAiGraphNodes.class);
         stubRetrieval(nodes);
 
-        when(nodes.generateGroundedResponseWithUsage(any(ErpAiGraphState.class)))
+        when(nodes.generateGroundedResponseWithUsage(any(ErpAiGraphState.class), anyInt()))
                 .thenThrow(new IllegalStateException("Synthetic provider failure"));
 
         LiveGroundedAnswerEvaluationService service = service(nodes, true);
@@ -103,7 +103,7 @@ class LiveGroundedAnswerEvaluationServiceTest {
         ErpAiGraphNodes nodes = mock(ErpAiGraphNodes.class);
         stubRetrieval(nodes);
 
-        when(nodes.generateGroundedResponseWithUsage(any(ErpAiGraphState.class)))
+        when(nodes.generateGroundedResponseWithUsage(any(ErpAiGraphState.class), anyInt()))
                 .thenReturn(new ErpAiGraphNodes.GroundedGenerationResult(
                         "", true, 100L, 0L, 100L, "test-model"));
 
@@ -168,7 +168,7 @@ class LiveGroundedAnswerEvaluationServiceTest {
     }
 
     private static void stubGroundedGeneration(ErpAiGraphNodes nodes) {
-        when(nodes.generateGroundedResponseWithUsage(any(ErpAiGraphState.class)))
+        when(nodes.generateGroundedResponseWithUsage(any(ErpAiGraphState.class), anyInt()))
                 .thenAnswer(invocation -> {
                     ErpAiGraphState state = invocation.getArgument(0);
                     String q = state.currentMessage().toLowerCase();
