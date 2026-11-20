@@ -56,7 +56,19 @@ class LiveGroundedAnswerEvaluationServiceTest {
 
         assertEquals(8, report.caseCount());
         assertTrue(report.providerCalls() >= 5);
+        assertEquals(report.providerCalls(), report.providerSuccessCount());
+        assertEquals(0, report.providerErrorCount());
+        assertEquals(1.0, report.providerSuccessRate());
+        assertEquals(0.0, report.providerErrorRate());
+        assertEquals(0, report.skippedCaseCount());
+        assertEquals(8, report.metrics().abstentionDecisionCount());
         assertEquals(0, report.metrics().unauthorizedCitationLeaks());
+        LiveGroundedAnswerEvaluationService.CaseResult generatedCase = report.cases().stream()
+                .filter(c -> "LIVE-001".equals(c.caseId()))
+                .findFirst().orElseThrow();
+        assertEquals("STOP", generatedCase.finishReason());
+        assertEquals("STOP", generatedCase.primaryFinishReason());
+        assertEquals(0, generatedCase.recoveryAttemptCount());
         LiveGroundedAnswerEvaluationService.CaseResult authorizedCashierCase = report.cases().stream()
                 .filter(c -> "LIVE-005".equals(c.caseId()))
                 .findFirst().orElseThrow();
@@ -96,6 +108,15 @@ class LiveGroundedAnswerEvaluationServiceTest {
         assertFalse(failedCase.providerSucceeded());
         assertTrue(report.providerCalls() > 0);
         assertTrue(report.errorCases() > 0);
+        assertEquals(report.providerCalls(), report.providerErrorCount());
+        assertEquals(0.0, report.providerSuccessRate());
+        assertEquals(1.0, report.providerErrorRate());
+        assertEquals(1, report.metrics().abstentionDecisionCount());
+        LiveGroundedAnswerEvaluationService.CaseResult insufficientEvidenceCase = report.cases().stream()
+                .filter(c -> "LIVE-007".equals(c.caseId()))
+                .findFirst().orElseThrow();
+        assertEquals("ERROR", insufficientEvidenceCase.outcome());
+        assertFalse(insufficientEvidenceCase.abstentionCorrect());
     }
 
     @Test
@@ -118,6 +139,57 @@ class LiveGroundedAnswerEvaluationServiceTest {
 
         assertTrue(emptyCase.providerAttempted());
         assertFalse(emptyCase.providerSucceeded(), "Empty provider response must not be counted as successful");
+        assertEquals("ERROR", emptyCase.outcome());
+        assertEquals("EmptyProviderResponse", emptyCase.errorType());
+        assertEquals(report.providerCalls(), report.providerSuccessCount() + report.providerErrorCount());
+    }
+
+    @Test
+    void shouldReportFinishReasonAndRecoveryAttemptsWhenRecoveryFails() {
+        ErpAiGraphNodes nodes = mock(ErpAiGraphNodes.class);
+        stubRetrieval(nodes);
+        ErpAiGraphNodes.GroundedGenerationResult failedGeneration =
+                new ErpAiGraphNodes.GroundedGenerationResult(
+                        "", true, 1382L, 2048L, 3430L, "sarvam-105b",
+                        "LENGTH", "LENGTH", 1);
+        when(nodes.generateGroundedResponseWithUsage(any(ErpAiGraphState.class), anyInt()))
+                .thenThrow(new ErpAiGraphNodes.GroundedGenerationFailureException(
+                        "Primary and recovery generation failed",
+                        new IllegalStateException("Synthetic recovery failure"),
+                        failedGeneration));
+
+        LiveGroundedAnswerEvaluationService.Report report = service(nodes, true).run(true);
+
+        LiveGroundedAnswerEvaluationService.CaseResult failedCase = report.cases().stream()
+                .filter(c -> "LIVE-001".equals(c.caseId()))
+                .findFirst().orElseThrow();
+        assertEquals("ERROR", failedCase.outcome());
+        assertEquals("LENGTH", failedCase.finishReason());
+        assertEquals("LENGTH", failedCase.primaryFinishReason());
+        assertEquals(1, failedCase.recoveryAttemptCount());
+        assertEquals(2048L, failedCase.completionTokens());
+        assertEquals("sarvam-105b", failedCase.model());
+    }
+
+    @Test
+    void shouldMarkUnexecutedCasesSkippedAfterPermanentProviderFailure() {
+        ErpAiGraphNodes nodes = mock(ErpAiGraphNodes.class);
+        stubRetrieval(nodes);
+        when(nodes.generateGroundedResponseWithUsage(any(ErpAiGraphState.class), anyInt()))
+                .thenThrow(new BadRequestException("Invalid provider configuration"));
+
+        LiveGroundedAnswerEvaluationService.Report report = service(nodes, true).run(true);
+
+        assertEquals(1, report.providerCalls());
+        assertEquals(0, report.providerSuccessCount());
+        assertEquals(1, report.providerErrorCount());
+        assertEquals(1.0, report.providerErrorRate());
+        assertEquals(1, report.errorCases());
+        assertEquals(7, report.skippedCaseCount());
+        assertFalse(report.evaluationComplete());
+        assertTrue(report.cases().stream().skip(1).allMatch(c -> "SKIPPED".equals(c.outcome())));
+        assertEquals(0, report.metrics().abstentionDecisionCount());
+        verify(nodes, times(1)).retrieveKnowledge(any(ErpAiGraphState.class), any(RunnableConfig.class));
     }
 
     private static LiveGroundedAnswerEvaluationService service(ErpAiGraphNodes nodes, boolean enabled) {
@@ -175,7 +247,7 @@ class LiveGroundedAnswerEvaluationServiceTest {
                     if (q.contains("turbocharger")) {
                         return new ErpAiGraphNodes.GroundedGenerationResult(
                                 "I do not have sufficient authorized documentation to answer this question.",
-                                true, 100L, 25L, 125L, "test-model");
+                                true, 100L, 25L, 125L, "test-model", "STOP", "STOP", 0);
                     }
                     String response;
                     if (q.contains("opening cash float")) {
@@ -203,8 +275,14 @@ class LiveGroundedAnswerEvaluationServiceTest {
                                 + warrantyChunk().formatCitation() + ".";
                     }
                     return new ErpAiGraphNodes.GroundedGenerationResult(
-                            response, true, 120L, 40L, 160L, "test-model");
+                            response, true, 120L, 40L, 160L, "test-model", "STOP", "STOP", 0);
                 });
+    }
+
+    private static final class BadRequestException extends RuntimeException {
+        private BadRequestException(String message) {
+            super(message);
+        }
     }
 
     private static RetrievedChunk warrantyChunk() {

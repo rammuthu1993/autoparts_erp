@@ -72,7 +72,7 @@ public class LiveGroundedAnswerEvaluationService {
             CitationValidator citationValidator,
             @Value("${app.ai.live-evaluation.enabled:false}") boolean enabled,
             @Value("${app.ai.live-evaluation.provider:SARVAM}") String provider,
-            @Value("${spring.ai.openai.chat.model:unknown}") String configuredModel,
+            @Value("${spring.ai.openai.chat.options.model:sarvam-105b}") String configuredModel,
             @Value("${spring.ai.openai.timeout:45s}") String providerTimeout,
             @Value("${spring.ai.openai.max-retries:0}") int configuredMaxRetries,
             @Value("${app.ai.live-evaluation.input-cost-per-million:}") String inputCostPerMillion,
@@ -126,8 +126,16 @@ public class LiveGroundedAnswerEvaluationService {
         Instant startedAt = Instant.now();
         List<CaseResult> caseResults = new ArrayList<>();
         try {
-            for (EvaluationCase evaluationCase : dataset()) {
-                caseResults.add(runCase(evaluationCase));
+            List<EvaluationCase> evaluationCases = dataset();
+            for (int i = 0; i < evaluationCases.size(); i++) {
+                CaseResult result = runCase(evaluationCases.get(i));
+                caseResults.add(result);
+                if (isPermanentProviderFailure(result)) {
+                    for (int skipped = i + 1; skipped < evaluationCases.size(); skipped++) {
+                        caseResults.add(skippedCase(evaluationCases.get(skipped)));
+                    }
+                    break;
+                }
             }
             Instant finishedAt = Instant.now();
             return buildReport(startedAt, finishedAt, caseResults);
@@ -200,6 +208,9 @@ public class LiveGroundedAnswerEvaluationService {
             }
             state = merge(state, graphNodes.validateCitations(state, config));
         } catch (RuntimeException exception) {
+            if (exception instanceof ErpAiGraphNodes.GroundedGenerationFailureException failure) {
+                generation = failure.generationResult();
+            }
             providerError = rootCauseType(exception);
 
             log.warn(
@@ -209,6 +220,10 @@ public class LiveGroundedAnswerEvaluationService {
                     providerError,
                     exception
             );
+        }
+
+        if (providerAttempted && !providerSucceeded && providerError == null) {
+            providerError = "EmptyProviderResponse";
         }
 
         String finalResponse = state.finalResponse();
@@ -272,7 +287,8 @@ public class LiveGroundedAnswerEvaluationService {
                 || chunks.stream().noneMatch(c -> evaluationCase.restrictedDocumentCodes()
                         .stream().anyMatch(code -> code.equalsIgnoreCase(c.documentCode())));
         boolean expectedFactsPassed = supportedFacts == evaluationCase.expectedFacts().size();
-        boolean abstentionPassed = evaluationCase.abstentionRequired() == abstained;
+        boolean abstentionPassed = providerError == null
+                && evaluationCase.abstentionRequired() == abstained;
         boolean noProviderError = providerError == null;
         boolean casePassed = noProviderError && roleIsolationPassed && expectedFactsPassed
                 && abstentionPassed && unauthorizedLeaks == 0;
@@ -304,7 +320,31 @@ public class LiveGroundedAnswerEvaluationService {
                 abstentionPassed, unauthorizedAttempts, unauthorizedLeaks, fabricatedAttempts,
                 promptTokens, completionTokens, totalTokens, model,
                 truncate(finalResponse, 1800), providerError,
+                generation == null ? null : generation.finishReason(),
+                generation == null ? null : generation.primaryFinishReason(),
+                generation == null ? 0 : generation.recoveryAttemptCount(),
                 Duration.between(caseStarted, Instant.now()).toMillis());
+    }
+
+    private CaseResult skippedCase(EvaluationCase evaluationCase) {
+        return new CaseResult(
+                evaluationCase.caseId(), evaluationCase.category(), "SKIPPED",
+                0, List.of(), false, false, 0,
+                0, 0, 0, 0, 0, 0,
+                evaluationCase.expectedDocumentCodes().size(), 0,
+                evaluationCase.expectedFacts().size(), 0,
+                false, 0, 0, 0,
+                null, null, null, configuredModel, "", null,
+                null, null, 0, 0);
+    }
+
+    private static boolean isPermanentProviderFailure(CaseResult result) {
+        if (!result.providerAttempted() || !"ERROR".equals(result.outcome())) return false;
+        return switch (result.errorType()) {
+            case "BadRequestException", "UnauthorizedException", "PermissionDeniedException",
+                    "UnprocessableEntityException", "NotFoundException" -> true;
+            default -> false;
+        };
     }
 
     private Report buildReport(Instant startedAt, Instant finishedAt, List<CaseResult> results) {
@@ -319,7 +359,13 @@ public class LiveGroundedAnswerEvaluationService {
         int citedSources = sum(results, CaseResult::citedExpectedSourceCount);
         int expectedFacts = sum(results, CaseResult::expectedFactCount);
         int supportedFacts = sum(results, CaseResult::evidenceSupportedFactCount);
-        int abstentionCorrect = (int) results.stream().filter(CaseResult::abstentionCorrect).count();
+        int abstentionCorrect = (int) results.stream()
+                .filter(r -> !"ERROR".equals(r.outcome()) && !"SKIPPED".equals(r.outcome()))
+                .filter(CaseResult::abstentionCorrect)
+                .count();
+        int abstentionEligibleCases = (int) results.stream()
+                .filter(r -> !"ERROR".equals(r.outcome()) && !"SKIPPED".equals(r.outcome()))
+                .count();
         int unauthorized = sum(results, CaseResult::unauthorizedCitationAttempts);
         int leaks = sum(results, CaseResult::unauthorizedCitationLeaks);
         int fabricated = sum(results, CaseResult::fabricatedCitationAttempts);
@@ -335,13 +381,21 @@ public class LiveGroundedAnswerEvaluationService {
         long totalLatency = results.stream().mapToLong(CaseResult::caseLatencyMs).sum();
         long providerLatency = results.stream().mapToLong(CaseResult::providerLatencyMs).sum();
 
+        long providerErrorCount = results.stream()
+                .filter(CaseResult::providerAttempted)
+                .filter(r -> !r.providerSucceeded())
+                .count();
+        int skippedCaseCount = (int) results.stream().filter(r -> "SKIPPED".equals(r.outcome())).count();
+
         double answerSupportRate = rate(supportedClaims, claims);
         double unsupportedClaimRate = rate(claims - supportedClaims, claims);
         double citationPrecision = rate(validRawCitations, rawCitations);
         double citationRecall = rate(citedSources, expectedSources);
         double citationValidity = rate(validFinalCitations, finalCitations);
         double evidenceCoverage = rate(supportedFacts, expectedFacts);
-        double abstentionAccuracy = rate(abstentionCorrect, cases);
+        double abstentionAccuracy = rate(abstentionCorrect, abstentionEligibleCases);
+        double providerSuccessRate = rate(successfulProviderCalls, providerCalls);
+        double providerErrorRate = rate(providerErrorCount, providerCalls);
 
         boolean thresholdsPassed = answerSupportRate >= ACCEPTANCE_THRESHOLDS.minimumAnswerSupportRate()
                 && unsupportedClaimRate <= ACCEPTANCE_THRESHOLDS.maximumUnsupportedClaimRate()
@@ -351,7 +405,7 @@ public class LiveGroundedAnswerEvaluationService {
                 && evidenceCoverage >= ACCEPTANCE_THRESHOLDS.minimumEvidenceCoverage()
                 && abstentionAccuracy >= ACCEPTANCE_THRESHOLDS.minimumAbstentionAccuracy()
                 && leaks <= ACCEPTANCE_THRESHOLDS.maximumUnauthorizedCitationLeaks();
-        boolean complete = errors == 0 && results.stream().noneMatch(r -> "SKIPPED".equals(r.outcome()));
+        boolean complete = errors == 0 && skippedCaseCount == 0;
         boolean overallPassed = complete && thresholdsPassed && passed == cases;
 
         Long promptTokens = nullableSum(results.stream().map(CaseResult::promptTokens).toList());
@@ -370,14 +424,16 @@ public class LiveGroundedAnswerEvaluationService {
                 finalCitations, validFinalCitations, citationValidity,
                 expectedSources, citedSources, citationRecall,
                 expectedFacts, supportedFacts, evidenceCoverage,
-                cases, abstentionCorrect, abstentionAccuracy,
+                abstentionEligibleCases, abstentionCorrect, abstentionAccuracy,
                 unauthorized, leaks, fabricated, unauthorized + fabricated);
 
         return new Report(
                 "STAGE_3C_PHASE_5_LIVE_PROVIDER_EVALUATION",
                 "SYNTHETIC_EVALUATION_CORPUS_NOT_APPROVED_PRODUCTION_POLICY",
                 provider, configuredModel, providerTimeout, configuredMaxRetries, startedAt, finishedAt,
-                cases, passed, cases - passed - errors, errors, providerCalls,
+                cases, passed, cases - passed - errors - skippedCaseCount, errors, skippedCaseCount,
+                providerCalls, successfulProviderCalls, providerErrorCount,
+                providerSuccessRate, providerErrorRate,
                 complete, thresholdsPassed, overallPassed,
                 ACCEPTANCE_THRESHOLDS, metrics, promptTokens, completionTokens, totalTokens, usageAvailable,
                 estimatedCost, estimatedCost == null ? "UNCONFIGURED" : costCurrency,
@@ -482,6 +538,10 @@ public class LiveGroundedAnswerEvaluationService {
     }
 
     private static double rate(int numerator, int denominator) {
+        return denominator == 0 ? 0.0 : (double) numerator / denominator;
+    }
+
+    private static double rate(long numerator, long denominator) {
         return denominator == 0 ? 0.0 : (double) numerator / denominator;
     }
 
@@ -645,6 +705,9 @@ public class LiveGroundedAnswerEvaluationService {
             String model,
             String validatedResponse,
             String errorType,
+            String finishReason,
+            String primaryFinishReason,
+            int recoveryAttemptCount,
             long caseLatencyMs
     ) {}
 
@@ -661,7 +724,12 @@ public class LiveGroundedAnswerEvaluationService {
             int passedCases,
             int failedCases,
             int errorCases,
+            int skippedCaseCount,
             long providerCalls,
+            long providerSuccessCount,
+            long providerErrorCount,
+            double providerSuccessRate,
+            double providerErrorRate,
             boolean evaluationComplete,
             boolean thresholdsPassed,
             boolean overallPassed,

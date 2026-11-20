@@ -18,7 +18,9 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -57,6 +59,8 @@ public class ErpAiLlmClassifier {
     private final ChatModel chatModel;
     private final ObjectMapper objectMapper;
     private final String classifierPrompt;
+    @Value("${spring.ai.openai.chat.options.model:sarvam-105b}")
+    private String configuredModel = "sarvam-105b";
 
     @Autowired
     public ErpAiLlmClassifier(ChatModel chatModel, ObjectMapper objectMapper) {
@@ -93,7 +97,10 @@ public class ErpAiLlmClassifier {
 
             messages.add(new UserMessage("User Message: " + currentMessage));
 
-            var response = chatModel.call(new Prompt(messages));
+            OpenAiChatOptions options = OpenAiChatOptions.builder()
+                    .model(configuredModel)
+                    .build();
+            var response = chatModel.call(new Prompt(messages, options));
             if (response == null || response.getResult() == null || response.getResult().getOutput() == null) {
                 log.warn("LLM intent classifier received null response from provider.");
                 return Optional.empty();
