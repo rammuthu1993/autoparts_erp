@@ -1,14 +1,13 @@
 package com.autoparts.erp.ai.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ErpAiIntentClassifierTest {
 
@@ -89,6 +88,7 @@ class ErpAiIntentClassifierTest {
         assertEquals("PRODUCT_SEARCH", result.intent());
         assertEquals(expectedSearchText, result.searchText());
     }
+
 
     @Test
     void shouldClassifyProductStockRequest() {
@@ -223,7 +223,7 @@ class ErpAiIntentClassifierTest {
         assertEquals("INVENTORY_ADJUSTMENTS", product.intent());
         assertEquals("GAP-000001", product.searchText());
     }
-    
+
     @Test
     void shouldExtractProductSearchTextWithoutMatchingPrefix() {
         ErpAiIntentResult result =
@@ -231,6 +231,18 @@ class ErpAiIntentClassifierTest {
 
         assertEquals("PRODUCT_SEARCH", result.intent());
         assertEquals("brake pad", result.searchText());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "Find products matching brake pad, brake pad",
+            "Search products containing brake pad, brake pad",
+            "Show products with brake pad, brake pad"
+    })
+    void shouldRemoveNaturalLanguageSearchQualifier(String message, String expected) {
+        ErpAiIntentResult result = classifier.classify(message);
+        assertEquals("PRODUCT_SEARCH", result.intent());
+        assertEquals(expected, result.searchText());
     }
 
     @Test

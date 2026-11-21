@@ -68,7 +68,7 @@ class ProductLookupToolTest {
     }
 
     @Test
-    void shouldSearchProductsUsingProductCodePartNumberAndName() {
+    void shouldSearchProductsUsingProductCodePartNumberNameAndDescription() {
         Map<String, Object> product = Map.of(
                 "uuid", UUID.randomUUID(),
                 "product_code", "PRD001",
@@ -106,9 +106,11 @@ class ProductLookupToolTest {
         assertTrue(sql.contains("lower(product_code) like lower(?)"));
         assertTrue(sql.contains("lower(part_no) like lower(?)"));
         assertTrue(sql.contains("lower(name) like lower(?)"));
+        assertTrue(sql.contains("lower(description) like lower(?)"));
 
         assertArrayEquals(
                 new Object[]{
+                        "%PRD001%",
                         "%PRD001%",
                         "%PRD001%",
                         "%PRD001%"
