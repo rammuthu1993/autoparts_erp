@@ -64,6 +64,12 @@ public class ErpAiGraphNodes {
     private final KnowledgeRetrievalService knowledgeRetrievalService;
     private final CitationValidator citationValidator;
     private final String systemPrompt;
+    @org.springframework.beans.factory.annotation.Autowired
+    private AiResilienceService aiResilienceService;
+    @org.springframework.beans.factory.annotation.Autowired
+    private AiMetricsService aiMetricsService;
+    @org.springframework.beans.factory.annotation.Autowired
+    private AiToolAuditService aiToolAuditService;
     @Value("${spring.ai.openai.chat.options.model:sarvam-105b}")
     private String configuredModel = "sarvam-105b";
     @Value("${app.ai.generation.max-output-tokens:1024}")
@@ -100,6 +106,19 @@ public class ErpAiGraphNodes {
         }
         if (evaluationMaxOutputTokens < 128 || evaluationMaxOutputTokens > 8192) {
             throw new IllegalStateException("app.ai.evaluation.max-output-tokens must be between 128 and 8192");
+        }
+        
+        if (aiToolAuditService == null) {
+            throw new IllegalStateException(
+                    "AiToolAuditService must be injected. "
+                            + "AI tool auditing cannot be disabled."
+            );
+        }
+
+        if (aiMetricsService == null) {
+            throw new IllegalStateException(
+                    "AiMetricsService must be injected."
+            );
         }
         log.info("AI generation effective settings: model={}, normalMaxOutputTokens={}, groundedMaxOutputTokens={}, evaluationMaxOutputTokens={}, recoveryMaxOutputTokens={}, recoveryMaxAttempts={}, reasoningEffort={}",
                 configuredModel, normalMaxOutputTokens, groundedMaxOutputTokens, evaluationMaxOutputTokens, recoveryMaxOutputTokens, recoveryMaxAttempts, groundedReasoningEffort);
@@ -236,10 +255,24 @@ public class ErpAiGraphNodes {
             } catch (Exception ignored) {
             }
         }
+        
+        log.info(
+                "ERP AI incoming message: conversation={}, message='{}'",
+                conversationId,
+                currentMessage
+        );
 
         ErpAiIntentResult classification = (hybridRouter != null)
                 ? hybridRouter.route(currentMessage, state.history(), conversationId, context)
                 : intentClassifier.classify(currentMessage);
+        
+        log.info(
+                "ERP AI final classification: conversation={}, intent={}, searchText='{}', source={}",
+                conversationId,
+                classification.intent(),
+                classification.searchText(),
+                classification.source()
+        );
 
         log.info(
                 "ERP AI intent classified. Intent: {}, Source: {}, Confidence: {}, Conversation: {}",
@@ -275,6 +308,10 @@ public class ErpAiGraphNodes {
     ) {
         String intent = state.text("intent");
         String searchText = state.text("searchText");
+        long started = System.nanoTime();
+        Object resultForAudit = null;
+        String auditStatus = "SUCCESS";
+        String safeError = null;
 
         log.info("ERP AI tool execution started. Tool intent: {}", intent);
 
@@ -285,83 +322,121 @@ public class ErpAiGraphNodes {
                         .orElse(null)
                 : null;
 
-        if (context == null) {
-            log.warn("ERP AI tool execution rejected: No execution context present in RunnableConfig metadata. Intent: {}", intent);
-            return Map.of(
-                    "toolResult", "",
-                    "toolError", "ACCESS_DENIED: No execution context provided. Access denied."
-            );
-        }
-
         try {
-            Object result = executeWithContext(intent, searchText, state, context);
-
-            if (hybridRouter != null && context != null) {
-                hybridRouter.clearPendingClarification(context.conversationId(), context.userSubject());
-            }
-
-            log.info("ERP AI tool execution completed. Intent: {}", intent);
-
-            if (state.isMultiIntent() && "KNOWLEDGE".equals(state.secondaryIntent())
-                    && intent.startsWith("PURCHASE_")
-                    && result instanceof List<?> list && list.size() > 1) {
-                log.info("Multiple purchases found for hybrid query. Asking for clarification.");
+            if (context == null) {
+                auditStatus = "FAILED";
+                safeError = "Missing authenticated execution context";
+                log.warn("ERP AI tool execution rejected: no execution context. Intent: {}", intent);
                 return Map.of(
-                        "toolResult", result,
-                        "toolError", "",
-                        "finalResponse", "Multiple purchase records were found for " + searchText
-                                + ". Please specify the purchase number or invoice date to determine return eligibility."
+                        "toolResult", "",
+                        "toolError", "ACCESS_DENIED: No execution context provided. Access denied."
                 );
             }
 
-            return Map.of(
-                    "toolResult", result != null ? result : Map.of(),
-                    "toolError", ""
-            );
+            try {
+                Object result = executeWithContext(intent, searchText, state, context);
+                resultForAudit = result;
 
-        } catch (CancellationException exception) {
-            throw exception;
+                if (hybridRouter != null) {
+                    hybridRouter.clearPendingClarification(context.conversationId(), context.userSubject());
+                }
 
-        } catch (ToolAuthorizationException exception) {
-            log.warn("ERP AI tool authorization denied. Intent: {}, Reason: {}", intent, exception.getMessage());
+                log.info("ERP AI tool execution completed. Intent: {}", intent);
 
-            boolean requiresAdminOnly = intent.equals("RECONCILIATION_DISCREPANCIES")
-                    || intent.equals("AUDIT_LOG_SEARCH")
-                    || intent.equals("AI_TOOL_RUNS_LOG");
+                if (state.isMultiIntent() && "KNOWLEDGE".equals(state.secondaryIntent())
+                        && intent.startsWith("PURCHASE_")
+                        && result instanceof List<?> list && list.size() > 1) {
+                    log.info("Multiple purchases found for hybrid query. Asking for clarification.");
+                    return Map.of(
+                            "toolResult", result,
+                            "toolError", "",
+                            "finalResponse", "Multiple purchase records were found for " + searchText
+                                    + ". Please specify the purchase number or invoice date to determine return eligibility."
+                    );
+                }
 
-            boolean requiresAdminOrManager = intent.startsWith("PURCHASE_")
-                    || intent.equals("SUPPLIER_PURCHASE_HISTORY")
-                    || intent.equals("SUPPLIER_SUMMARY")
-                    || intent.startsWith("PRODUCT_MOVEMENT")
-                    || intent.equals("RECENT_INVENTORY_MOVEMENTS")
-                    || intent.equals("INVENTORY_ADJUSTMENTS")
-                    || intent.startsWith("PURCHASE_RETURN_")
-                    || intent.equals("RETURN_SUMMARY")
-                    || intent.equals("EXPENSE_SUMMARY")
-                    || intent.equals("EXPENSES_BY_CATEGORY")
-                    || intent.equals("DAILY_CLOSING")
-                    || intent.equals("CASH_DISCREPANCIES")
-                    || intent.equals("KPI_SUMMARY")
-                    || intent.equals("INVENTORY_ABC_ANALYSIS")
-                    || intent.equals("CUSTOMER_RFM_ANALYSIS");
+                return Map.of(
+                        "toolResult", result != null ? result : Map.of(),
+                        "toolError", ""
+                );
 
-            String roleMsg = requiresAdminOnly ? "Admin only"
-                    : (requiresAdminOrManager ? "Admin or Manager" : "Cashier, Manager, or Admin");
+            } catch (CancellationException exception) {
+                auditStatus = "CANCELLED";
+                safeError = "Execution cancelled";
+                throw exception;
 
-            return Map.of(
-                    "toolResult", "",
-                    "toolError",
-                    "ACCESS_DENIED: You do not have permission to view this ERP data. Required role: " + roleMsg + "."
-            );
+            } catch (ToolAuthorizationException exception) {
+                auditStatus = "FAILED";
+                safeError = "Authorization denied";
+                log.warn("ERP AI tool authorization denied. Intent: {}, Reason: {}", intent, exception.getMessage());
 
-        } catch (RuntimeException exception) {
-            log.error("ERP AI tool execution failed. Intent: {}", intent, exception);
+                boolean requiresAdminOnly = intent.equals("RECONCILIATION_DISCREPANCIES")
+                        || intent.equals("AUDIT_LOG_SEARCH")
+                        || intent.equals("AI_TOOL_RUNS_LOG");
 
-            return Map.of(
-                    "toolResult", "",
-                    "toolError",
-                    "Unable to retrieve the requested ERP information."
-            );
+                boolean requiresAdminOrManager = intent.startsWith("PURCHASE_")
+                        || intent.equals("SUPPLIER_PURCHASE_HISTORY")
+                        || intent.equals("SUPPLIER_SUMMARY")
+                        || intent.startsWith("PRODUCT_MOVEMENT")
+                        || intent.equals("RECENT_INVENTORY_MOVEMENTS")
+                        || intent.equals("INVENTORY_ADJUSTMENTS")
+                        || intent.startsWith("PURCHASE_RETURN_")
+                        || intent.equals("RETURN_SUMMARY")
+                        || intent.equals("EXPENSE_SUMMARY")
+                        || intent.equals("EXPENSES_BY_CATEGORY")
+                        || intent.equals("DAILY_CLOSING")
+                        || intent.equals("CASH_DISCREPANCIES")
+                        || intent.equals("KPI_SUMMARY")
+                        || intent.equals("INVENTORY_ABC_ANALYSIS")
+                        || intent.equals("CUSTOMER_RFM_ANALYSIS");
+
+                String roleMsg = requiresAdminOnly ? "Admin only"
+                        : (requiresAdminOrManager ? "Admin or Manager" : "Cashier, Manager, or Admin");
+
+                return Map.of(
+                        "toolResult", "",
+                        "toolError",
+                        "ACCESS_DENIED: You do not have permission to view this ERP data. Required role: " + roleMsg + "."
+                );
+
+            } catch (RuntimeException exception) {
+                auditStatus = "FAILED";
+                safeError = "Tool execution failed";
+                log.error("ERP AI tool execution failed. Intent: {}", intent, exception);
+
+                return Map.of(
+                        "toolResult", "",
+                        "toolError",
+                        "Unable to retrieve the requested ERP information."
+                );
+            }
+        } finally {
+            long durationNanos = System.nanoTime() - started;
+            long durationMs = durationNanos / 1_000_000L;
+            int rowsReturned = resultForAudit instanceof java.util.Collection<?> collection
+                    ? collection.size()
+                    : resultForAudit instanceof Map<?, ?> map
+                            ? (map.isEmpty() ? 0 : 1)
+                            : (resultForAudit == null ? 0 : 1);
+
+            if (aiMetricsService != null) {
+                aiMetricsService.recordTool(intent, auditStatus, durationNanos, rowsReturned);
+            }
+            if (aiToolAuditService != null) {
+                Integer limit = state.object("limit") instanceof Number number
+                        ? number.intValue() : null;
+                aiToolAuditService.record(
+                        context,
+                        intent,
+                        searchText,
+                        state.text("startDate"),
+                        state.text("endDate"),
+                        limit,
+                        resultForAudit,
+                        auditStatus,
+                        safeError,
+                        durationMs);
+            }
         }
     }
 
@@ -672,7 +747,7 @@ public class ErpAiGraphNodes {
                 .maxTokens(normalMaxOutputTokens)
                 .reasoningEffort(groundedReasoningEffort)
                 .build();
-        var chatResponse = chatModel.call(new Prompt(promptMessages, normalOptions));
+        var chatResponse = callProvider(new Prompt(promptMessages, normalOptions));
         if (chatResponse == null || chatResponse.getResult() == null || chatResponse.getResult().getOutput() == null) {
             throw new AiProviderResponseException("AI provider returned an empty response. Please try again.");
         }
@@ -683,6 +758,16 @@ public class ErpAiGraphNodes {
         }
 
         return Map.of("finalResponse", response.trim());
+    }
+
+    private ChatResponse callProvider(Prompt prompt) {
+        ChatResponse response = aiResilienceService == null
+                ? chatModel.call(prompt)
+                : aiResilienceService.execute(() -> chatModel.call(prompt));
+        if (aiMetricsService != null) {
+            aiMetricsService.recordTokenUsage(response);
+        }
+        return response;
     }
 
     // --------------------------------------------------
@@ -1440,6 +1525,8 @@ public class ErpAiGraphNodes {
             out.append("\n\n").append(index).append(". Tool: ").append(value(run, "tool_name"))
                     .append("\nUser: ").append(value(run, "user_subject"))
                     .append("\nStatus: ").append(value(run, "status"))
+                    .append("\nDuration (ms): ").append(value(run, "execution_duration_ms"))
+                    .append("\nRows returned: ").append(value(run, "rows_returned"))
                     .append("\nConversation: ").append(value(run, "conversation_id"))
                     .append("\nTimestamp: ").append(value(run, "created_at"));
 
@@ -2348,7 +2435,7 @@ public class ErpAiGraphNodes {
                 .build();
         log.info("Calling SARVAM grounded generation. attempt={}, maxTokens={}, reasoningEffort={}, model={}",
                 recovery ? "recovery" : "primary", maxOutputTokens, groundedReasoningEffort, configuredModel);
-        return chatModel.call(new Prompt(promptMessages, options));
+        return callProvider(new Prompt(promptMessages, options));
     }
 
     private List<Message> buildRecoveryPrompt(

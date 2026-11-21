@@ -61,6 +61,20 @@ public interface AiRepository {
             String errorMessage
     );
 
+    default void saveToolRun(
+            UUID conversationId,
+            String userSubject,
+            String toolName,
+            String arguments,
+            String result,
+            String status,
+            String errorMessage,
+            long executionDurationMs,
+            int rowsReturned
+    ) {
+        saveToolRun(conversationId, userSubject, toolName, arguments, result, status, errorMessage);
+    }
+
     int archiveConversation(
             UUID id,
             String userSubject

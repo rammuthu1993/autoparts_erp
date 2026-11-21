@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -59,6 +60,10 @@ public class ErpAiLlmClassifier {
     private final ChatModel chatModel;
     private final ObjectMapper objectMapper;
     private final String classifierPrompt;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private AiResilienceService aiResilienceService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private AiMetricsService aiMetricsService;
     @Value("${spring.ai.openai.chat.options.model:sarvam-105b}")
     private String configuredModel = "sarvam-105b";
 
@@ -100,7 +105,13 @@ public class ErpAiLlmClassifier {
             OpenAiChatOptions options = OpenAiChatOptions.builder()
                     .model(configuredModel)
                     .build();
-            var response = chatModel.call(new Prompt(messages, options));
+            var prompt = new Prompt(messages, options);
+            var response = aiResilienceService == null
+                    ? chatModel.call(prompt)
+                    : aiResilienceService.execute(() -> chatModel.call(prompt));
+            if (aiMetricsService != null) {
+                aiMetricsService.recordTokenUsage(response);
+            }
             if (response == null || response.getResult() == null || response.getResult().getOutput() == null) {
                 log.warn("LLM intent classifier received null response from provider.");
                 return Optional.empty();
@@ -114,6 +125,8 @@ public class ErpAiLlmClassifier {
 
             return parseAndValidate(outputText);
 
+        } catch (CancellationException cancellation) {
+            throw cancellation;
         } catch (Exception ex) {
             log.warn("LLM intent classification failed due to provider error or timeout: {}", ex.getMessage());
             return Optional.empty();

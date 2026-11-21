@@ -74,7 +74,7 @@ public class LiveGroundedAnswerEvaluationService {
             @Value("${app.ai.live-evaluation.provider:SARVAM}") String provider,
             @Value("${spring.ai.openai.chat.options.model:sarvam-105b}") String configuredModel,
             @Value("${spring.ai.openai.timeout:45s}") String providerTimeout,
-            @Value("${spring.ai.openai.max-retries:0}") int configuredMaxRetries,
+            @Value("${app.ai.resilience.max-retries:3}") int configuredMaxRetries,
             @Value("${app.ai.live-evaluation.input-cost-per-million:}") String inputCostPerMillion,
             @Value("${app.ai.live-evaluation.output-cost-per-million:}") String outputCostPerMillion,
             @Value("${app.ai.live-evaluation.cost-currency:UNCONFIGURED}") String costCurrency,

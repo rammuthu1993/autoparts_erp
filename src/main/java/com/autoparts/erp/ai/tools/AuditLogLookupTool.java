@@ -120,7 +120,8 @@ public class AuditLogLookupTool {
             String pattern = "%" + query.trim() + "%";
             String sql = """
                     SELECT atr.id, atr.conversation_id, atr.user_subject, atr.tool_name,
-                           atr.status, atr.error_message, atr.created_at
+                           atr.status, atr.execution_duration_ms, atr.rows_returned,
+                           atr.error_message, atr.created_at
                     FROM ai_tool_runs atr
                     WHERE LOWER(atr.tool_name) LIKE LOWER(?)
                        OR LOWER(atr.user_subject) LIKE LOWER(?)
@@ -133,7 +134,8 @@ public class AuditLogLookupTool {
 
         String sql = """
                 SELECT atr.id, atr.conversation_id, atr.user_subject, atr.tool_name,
-                       atr.status, atr.error_message, atr.created_at
+                       atr.status, atr.execution_duration_ms, atr.rows_returned,
+                           atr.error_message, atr.created_at
                 FROM ai_tool_runs atr
                 ORDER BY atr.created_at DESC, atr.id DESC
                 LIMIT ?

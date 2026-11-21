@@ -670,11 +670,22 @@ public class ErpAiIntentClassifier {
             String query = hasSearchText ? searchText : message.trim();
             return new ErpAiIntentResult("KNOWLEDGE", query);
         }
+//        if (PRODUCT_STOCK_REQUEST.matcher(normalized).find()) {
+//            return hasSearchText && !GENERIC_STOCK_REQUEST.matcher(searchText).matches()
+//                    ? new ErpAiIntentResult("PRODUCT_STOCK", searchText)
+//                    : ErpAiIntentResult.clarification(
+//                            "Please provide the product code or part number to check current stock.");
+//        }
         if (PRODUCT_STOCK_REQUEST.matcher(normalized).find()) {
-            return hasSearchText && !GENERIC_STOCK_REQUEST.matcher(searchText).matches()
-                    ? new ErpAiIntentResult("PRODUCT_STOCK", searchText)
-                    : ErpAiIntentResult.clarification(
-                            "Please provide the product code or part number to check current stock.");
+
+            if (!identifier.isEmpty()) {
+                return new ErpAiIntentResult("PRODUCT_STOCK", identifier);
+            }
+
+            return ErpAiIntentResult.clarification(
+                    "Please provide the product code or part number "
+                            + "to check current stock."
+            );
         }
         if (PRODUCT_DETAILS_REQUEST.matcher(normalized).find()) {
             return hasSearchText
@@ -730,7 +741,7 @@ public class ErpAiIntentClassifier {
         if (CASH_REGISTER_STATUS_REQUEST.matcher(message).find()) {
             return false;
         }
-        if (Pattern.compile("\\b(?:create|make|record|add|update|delete|generate|register|process|open|close|post)\\s+(?:a\\s+)?(?:new\\s+)?(?:purchase|sale|sales|invoice|customer|supplier|vendor|return|refund|credit|expense|register|session|closing)\\b", Pattern.CASE_INSENSITIVE).matcher(message).find()) {
+        if (Pattern.compile("\\b(?:named|called|create|make|record|add|update|delete|generate|register|process|open|close|post)\\s+(?:a\\s+)?(?:new\\s+)?(?:purchase|sale|sales|invoice|customer|supplier|vendor|return|refund|credit|expense|register|session|closingmatching|containing|with)\\b", Pattern.CASE_INSENSITIVE).matcher(message).find()) {
             return true;
         }
         return containsAny(message,

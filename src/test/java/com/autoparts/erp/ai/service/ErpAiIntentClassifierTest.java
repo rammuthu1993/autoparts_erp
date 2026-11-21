@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ErpAiIntentClassifierTest {
 
@@ -220,6 +222,42 @@ class ErpAiIntentClassifierTest {
         assertEquals("", all.searchText());
         assertEquals("INVENTORY_ADJUSTMENTS", product.intent());
         assertEquals("GAP-000001", product.searchText());
+    }
+    
+    @Test
+    void shouldExtractProductSearchTextWithoutMatchingPrefix() {
+        ErpAiIntentResult result =
+                classifier.classify("Find products matching brake pad");
+
+        assertEquals("PRODUCT_SEARCH", result.intent());
+        assertEquals("brake pad", result.searchText());
+    }
+
+    @Test
+    void shouldClarifyStockRequestWithoutProductIdentifier() {
+        ErpAiIntentResult result =
+                classifier.classify("How many available quantity?");
+
+        assertEquals("CLARIFICATION", result.intent());
+        assertTrue(result.clarificationMessage()
+                .contains("product code or part number"));
+    }
+
+    @Test
+    void shouldClassifyStockRequestWithProductCode() {
+        ErpAiIntentResult result =
+                classifier.classify("Stock for GAP-000001?");
+
+        assertEquals("PRODUCT_STOCK", result.intent());
+        assertEquals("GAP-000001", result.searchText());
+    }
+
+    @Test
+    void shouldClassifyProductCountRequest() {
+        ErpAiIntentResult result =
+                classifier.classify("How many products are there?");
+
+        assertEquals("COUNT_PRODUCTS", result.intent());
     }
 
 }

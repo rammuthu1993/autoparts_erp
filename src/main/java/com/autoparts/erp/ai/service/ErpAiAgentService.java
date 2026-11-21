@@ -79,6 +79,11 @@ public class ErpAiAgentService {
             new AtomicBoolean(false);
 
     private final ScheduledExecutorService timeoutScheduler;
+    @org.springframework.beans.factory.annotation.Autowired
+    private AiRateLimiterService aiRateLimiterService =
+            new AiRateLimiterService(20, 60, 10, 10000, System::nanoTime);
+    @org.springframework.beans.factory.annotation.Autowired
+    private AiMetricsService aiMetricsService = new AiMetricsService();
 
     // --------------------------------------------------
     // SPRING CONSTRUCTOR
@@ -144,7 +149,7 @@ public class ErpAiAgentService {
 	    graph.addNode(
 	            "classify",
 	            (state, config) -> CompletableFuture.completedFuture(
-	                    nodes.classifyIntent(state, config)
+	                    aiMetricsService.recordNode("classify", () -> nodes.classifyIntent(state, config))
 	            )
 	    );
 
@@ -152,7 +157,7 @@ public class ErpAiAgentService {
     graph.addNode(
             "execute_tool",
             (state, config) -> CompletableFuture.completedFuture(
-                    nodes.executeProductTool(state, config)
+                    aiMetricsService.recordNode("execute_tool", () -> nodes.executeProductTool(state, config))
             )
     );
 
@@ -160,7 +165,7 @@ public class ErpAiAgentService {
     graph.addNode(
             "generate_response",
             (state, config) -> CompletableFuture.completedFuture(
-                    nodes.generateResponse(state, config)
+                    aiMetricsService.recordNode("generate_response", () -> nodes.generateResponse(state, config))
             )
     );
 
@@ -168,7 +173,7 @@ public class ErpAiAgentService {
     graph.addNode(
             "unsupported_response",
             (state, config) -> CompletableFuture.completedFuture(
-                    nodes.unsupportedResponse(state, config)
+                    aiMetricsService.recordNode("unsupported_response", () -> nodes.unsupportedResponse(state, config))
             )
     );
 
@@ -176,7 +181,7 @@ public class ErpAiAgentService {
     graph.addNode(
             "clarification_response",
             (state, config) -> CompletableFuture.completedFuture(
-                    nodes.clarificationResponse(state, config)
+                    aiMetricsService.recordNode("clarification_response", () -> nodes.clarificationResponse(state, config))
             )
     );
 
@@ -184,7 +189,7 @@ public class ErpAiAgentService {
     graph.addNode(
             "validate_response",
             (state, config) -> CompletableFuture.completedFuture(
-                    nodes.validateResponse(state, config)
+                    aiMetricsService.recordNode("validate_response", () -> nodes.validateResponse(state, config))
             )
     );
 
@@ -192,7 +197,7 @@ public class ErpAiAgentService {
     graph.addNode(
             "retrieve_knowledge",
             (state, config) -> CompletableFuture.completedFuture(
-                    nodes.retrieveKnowledge(state, config)
+                    aiMetricsService.recordNode("retrieve_knowledge", () -> nodes.retrieveKnowledge(state, config))
             )
     );
 
@@ -200,7 +205,7 @@ public class ErpAiAgentService {
     graph.addNode(
             "validate_retrieved_context",
             (state, config) -> CompletableFuture.completedFuture(
-                    nodes.validateRetrievedContext(state, config)
+                    aiMetricsService.recordNode("validate_retrieved_context", () -> nodes.validateRetrievedContext(state, config))
             )
     );
 
@@ -208,7 +213,7 @@ public class ErpAiAgentService {
     graph.addNode(
             "generate_grounded_response",
             (state, config) -> CompletableFuture.completedFuture(
-                    nodes.generateGroundedResponse(state, config)
+                    aiMetricsService.recordNode("generate_grounded_response", () -> nodes.generateGroundedResponse(state, config))
             )
     );
 
@@ -216,7 +221,7 @@ public class ErpAiAgentService {
     graph.addNode(
             "validate_citations",
             (state, config) -> CompletableFuture.completedFuture(
-                    nodes.validateCitations(state, config)
+                    aiMetricsService.recordNode("validate_citations", () -> nodes.validateCitations(state, config))
             )
     );
 
@@ -325,27 +330,21 @@ public class ErpAiAgentService {
         }
 
         var execution = new ActiveExecution(runId);
-
-        synchronized (registryLock) {
-
-            if (shutdown.get()) {
-                throw new IllegalStateException(
-                        "AI agent service is shutting down"
-                );
-            }
-
-            if (activeExecutions.putIfAbsent(
-                    conversationId,
-                    execution
-            ) != null) {
-
-                throw new AiExecutionInProgressException(
-                        "An AI execution is already active for this conversation"
-                );
-            }
-        }
+        AiRateLimiterService.GlobalPermit globalPermit =
+                aiRateLimiterService.acquireGlobalExecution();
+        boolean registered = false;
 
         try {
+            synchronized (registryLock) {
+                if (shutdown.get()) {
+                    throw new IllegalStateException("AI agent service is shutting down");
+                }
+                if (activeExecutions.putIfAbsent(conversationId, execution) != null) {
+                    throw new AiExecutionInProgressException(
+                            "An AI execution is already active for this conversation");
+                }
+                registered = true;
+            }
 
             execution.scheduleTimeout(
                     conversationId,
@@ -443,10 +442,10 @@ public class ErpAiAgentService {
                 execution.timeoutTask.cancel(false);
             }
 
-            activeExecutions.remove(
-                    conversationId,
-                    execution
-            );
+            if (registered) {
+                activeExecutions.remove(conversationId, execution);
+            }
+            globalPermit.close();
 
             log.info(
                     "Custom ERP graph execution removed. Conversation: {}, Run: {}",

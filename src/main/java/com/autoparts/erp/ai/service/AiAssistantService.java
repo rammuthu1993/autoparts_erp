@@ -44,6 +44,13 @@ public class AiAssistantService {
     private final ErpAiAgentService erpAiAgentService;
     private final AiRepository aiRepository;
     private final TransactionTemplate transactionTemplate;
+    @org.springframework.beans.factory.annotation.Autowired
+    private AiRateLimiterService aiRateLimiterService =
+            new AiRateLimiterService(20, 60, 10, 10000, System::nanoTime);
+    @org.springframework.beans.factory.annotation.Autowired
+    private AiMetricsService aiMetricsService = new AiMetricsService();
+    @org.springframework.beans.factory.annotation.Autowired
+    private AiConversationHistoryBudget historyBudget = new AiConversationHistoryBudget();
     private static final Logger log =
             LoggerFactory.getLogger(AiAssistantService.class);
 
@@ -80,9 +87,35 @@ public class AiAssistantService {
             String userSubject,
             ErpAiExecutionContext executionContext
     ) {
+        long requestStarted = System.nanoTime();
+        try {
+            return chatInternal(conversationId, message, userSubject, executionContext);
+        } finally {
+            aiMetricsService.recordRequestDuration(System.nanoTime() - requestStarted);
+        }
+    }
+
+    private AiChatResponse chatInternal(
+            UUID conversationId,
+            String message,
+            String userSubject,
+            ErpAiExecutionContext executionContext
+    ) {
 
         validateMessage(message);
         validateUserSubject(userSubject);
+        aiRateLimiterService.checkUserRequest(userSubject);
+        if (executionContext == null) {
+            throw new AccessDeniedException(
+                    "Trusted AI execution context is required"
+            );
+        }
+
+        if (!userSubject.equals(executionContext.userSubject())) {
+            throw new AccessDeniedException(
+                    "Execution context userSubject does not match authenticated user"
+            );
+        }
 
         UUID activeConversationId = conversationId;
 
@@ -145,6 +178,7 @@ public class AiAssistantService {
         List<Message> messages = history.stream()
                 .map(this::mapToSpringAiMessage)
                 .toList();
+        messages = historyBudget.trim(messages);
 
         // Create agent execution record.
         UUID runId = aiRepository.createAgentRun(
@@ -178,18 +212,12 @@ public class AiAssistantService {
         try {
 
             // Execute LangGraph4j agent with propagated execution context.
-            String assistantResponse = (effectiveContext != null)
-                    ? erpAiAgentService.chat(
-                            activeConversationId,
-                            runId,
-                            messages,
-                            effectiveContext
-                    )
-                    : erpAiAgentService.chat(
-                            activeConversationId,
-                            runId,
-                            messages
-                    );
+        	String assistantResponse = erpAiAgentService.chat(
+        	        activeConversationId,
+        	        runId,
+        	        messages,
+        	        effectiveContext
+        	);
         	
             if (!StringUtils.hasText(assistantResponse)) {
                 throw new IllegalStateException(
@@ -543,6 +571,9 @@ public class AiAssistantService {
             throw new IllegalArgumentException(
                     "Chat message cannot be empty"
             );
+        }
+        if (message.length() > 8000) {
+            throw new IllegalArgumentException("Chat message cannot exceed 8000 characters");
         }
     }
 

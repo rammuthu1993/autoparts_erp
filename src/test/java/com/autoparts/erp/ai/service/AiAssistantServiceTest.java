@@ -75,7 +75,12 @@ class AiAssistantServiceTest {
                 Map.of("role", "USER", "content", message)
         ));
         when(aiRepository.createAgentRun(conversationId, "admin")).thenReturn(runId);
-        when(erpAiAgentService.chat(eq(conversationId), any(UUID.class), anyList()))
+        when(erpAiAgentService.chat(
+                eq(conversationId),
+                any(UUID.class),
+                anyList(),
+                any(ErpAiExecutionContext.class)
+        ))
                 .thenThrow(exception);
         when(aiRepository.updateAgentRunStatus(
                 runId,
@@ -85,7 +90,7 @@ class AiAssistantServiceTest {
 
         AiExecutionInProgressException thrown = assertThrows(
                 AiExecutionInProgressException.class,
-                () -> aiAssistantService.chat(conversationId, message, "admin")
+                () -> chatWithTrustedContext(conversationId, message, "admin")
         );
 
         assertEquals(exception, thrown);
@@ -132,7 +137,8 @@ class AiAssistantServiceTest {
         when(erpAiAgentService.chat(
                 eq(conversationId),
                 any(UUID.class),
-                anyList()
+                anyList(),
+                any(ErpAiExecutionContext.class)
         )).thenThrow(
                 new IllegalStateException(
                         "AI provider unavailable"
@@ -148,7 +154,7 @@ class AiAssistantServiceTest {
         // Verify exception.
         assertThrows(
                 IllegalStateException.class,
-                () -> aiAssistantService.chat(
+                () -> chatWithTrustedContext(
                         conversationId,
                         message,
                         userSubject
@@ -197,7 +203,12 @@ class AiAssistantServiceTest {
                 Map.of("role", "USER", "content", "Find product GAP-000001")
         ));
         when(aiRepository.createAgentRun(conversationId, "admin")).thenReturn(runId);
-        when(erpAiAgentService.chat(eq(conversationId), any(UUID.class), anyList()))
+        when(erpAiAgentService.chat(
+                eq(conversationId),
+                any(UUID.class),
+                anyList(),
+                any(ErpAiExecutionContext.class)
+        ))
                 .thenThrow(providerFailure);
         doThrow(statusFailure).when(aiRepository).updateAgentRunStatus(
                 runId,
@@ -207,7 +218,7 @@ class AiAssistantServiceTest {
 
         RuntimeException thrown = assertThrows(
                 RuntimeException.class,
-                () -> aiAssistantService.chat(
+                () -> chatWithTrustedContext(
                         conversationId,
                         "Find product GAP-000001",
                         "admin"
@@ -233,7 +244,12 @@ class AiAssistantServiceTest {
                 Map.of("role", "USER", "content", "Hello")
         ));
         when(aiRepository.createAgentRun(conversationId, "admin")).thenReturn(runId);
-        when(erpAiAgentService.chat(eq(conversationId), any(UUID.class), anyList()))
+        when(erpAiAgentService.chat(
+                eq(conversationId),
+                any(UUID.class),
+                anyList(),
+                any(ErpAiExecutionContext.class)
+        ))
                 .thenThrow(new CompletionException(
                         new IllegalStateException("Graph execution failed", providerFailure)
                 ));
@@ -245,7 +261,7 @@ class AiAssistantServiceTest {
 
         AiProviderResponseException thrown = assertThrows(
                 AiProviderResponseException.class,
-                () -> aiAssistantService.chat(conversationId, "Hello", "admin")
+                () -> chatWithTrustedContext(conversationId, "Hello", "admin")
         );
 
         assertEquals(providerFailure.getMessage(), thrown.getMessage());
@@ -300,7 +316,8 @@ class AiAssistantServiceTest {
         when(erpAiAgentService.chat(
                 eq(conversationId),
                 any(UUID.class),
-                anyList()
+                anyList(),
+                any(ErpAiExecutionContext.class)
         )).thenReturn(assistantResponse);
 
         when(aiRepository.updateAgentRunStatus(
@@ -310,7 +327,7 @@ class AiAssistantServiceTest {
         )).thenReturn(1);
 
         // Execute chat.
-        aiAssistantService.chat(
+        chatWithTrustedContext(
                 conversationId,
                 message,
                 userSubject
@@ -356,7 +373,12 @@ class AiAssistantServiceTest {
                 Map.of("role", "USER", "content", message)
         ));
         when(aiRepository.createAgentRun(conversationId, "admin")).thenReturn(runId);
-        when(erpAiAgentService.chat(eq(conversationId), any(UUID.class), anyList()))
+        when(erpAiAgentService.chat(
+                eq(conversationId),
+                any(UUID.class),
+                anyList(),
+                any(ErpAiExecutionContext.class)
+        ))
                 .thenReturn(response);
         when(aiRepository.updateAgentRunStatus(
                 runId,
@@ -374,7 +396,7 @@ class AiAssistantServiceTest {
                 null
         ));
 
-        aiAssistantService.chat(conversationId, message, "admin");
+        chatWithTrustedContext(conversationId, message, "admin");
 
         verify(aiRepository).getAgentRun(runId);
         verify(aiRepository, never()).saveMessage(
@@ -396,7 +418,12 @@ class AiAssistantServiceTest {
                 Map.of("role", "USER", "content", message)
         ));
         when(aiRepository.createAgentRun(conversationId, "admin")).thenReturn(runId);
-        when(erpAiAgentService.chat(eq(conversationId), any(UUID.class), anyList()))
+        when(erpAiAgentService.chat(
+                eq(conversationId),
+                any(UUID.class),
+                anyList(),
+                any(ErpAiExecutionContext.class)
+        ))
                 .thenReturn(response);
         when(aiRepository.updateAgentRunStatus(
                 runId,
@@ -415,7 +442,7 @@ class AiAssistantServiceTest {
         ));
         assertThrows(
                 IllegalStateException.class,
-                () -> aiAssistantService.chat(conversationId, message, "admin")
+                () -> chatWithTrustedContext(conversationId, message, "admin")
         );
 
         verify(aiRepository).getAgentRun(runId);
@@ -443,7 +470,12 @@ class AiAssistantServiceTest {
                 Map.of("role", "USER", "content", message)
         ));
         when(aiRepository.createAgentRun(conversationId, "admin")).thenReturn(runId);
-        when(erpAiAgentService.chat(eq(conversationId), any(UUID.class), anyList()))
+        when(erpAiAgentService.chat(
+                eq(conversationId),
+                any(UUID.class),
+                anyList(),
+                any(ErpAiExecutionContext.class)
+        ))
                 .thenReturn("Product found successfully.");
         when(aiRepository.updateAgentRunStatus(
                 runId,
@@ -463,7 +495,7 @@ class AiAssistantServiceTest {
 
         RuntimeException thrown = assertThrows(
                 RuntimeException.class,
-                () -> aiAssistantService.chat(conversationId, message, "admin")
+                () -> chatWithTrustedContext(conversationId, message, "admin")
         );
 
         assertEquals(persistenceFailure, thrown);
@@ -491,7 +523,7 @@ class AiAssistantServiceTest {
 
         assertThrows(
                 AccessDeniedException.class,
-                () -> aiAssistantService.chat(
+                () -> chatWithTrustedContext(
                         conversationId,
                         "Find product GAP-000001",
                         "admin"
@@ -543,7 +575,8 @@ class AiAssistantServiceTest {
         when(erpAiAgentService.chat(
                 eq(conversationId),
                 any(UUID.class),
-                anyList()
+                anyList(),
+                any(ErpAiExecutionContext.class)
         )).thenReturn(" ");
 
         when(aiRepository.updateAgentRunStatus(
@@ -554,7 +587,7 @@ class AiAssistantServiceTest {
 
         assertThrows(
                 IllegalStateException.class,
-                () -> aiAssistantService.chat(
+                () -> chatWithTrustedContext(
                         conversationId,
                         message,
                         "admin"
@@ -594,7 +627,8 @@ class AiAssistantServiceTest {
         when(erpAiAgentService.chat(
                 eq(conversationId),
                 eq(runId),
-                anyList()
+                anyList(),
+                any(ErpAiExecutionContext.class)
         )).thenThrow(new IllegalStateException(
                 "AI agent execution was interrupted by application shutdown"
         ));
@@ -606,7 +640,7 @@ class AiAssistantServiceTest {
 
         assertThrows(
                 IllegalStateException.class,
-                () -> aiAssistantService.chat(conversationId, message, "admin")
+                () -> chatWithTrustedContext(conversationId, message, "admin")
         );
 
         verify(aiRepository).updateAgentRunStatus(
@@ -644,7 +678,8 @@ class AiAssistantServiceTest {
         when(erpAiAgentService.chat(
                 eq(conversationId),
                 eq(runId),
-                anyList()
+                anyList(),
+                any(ErpAiExecutionContext.class)
         )).thenThrow(new AiAgentExecutionTimeoutException("timed out"));
         when(aiRepository.updateAgentRunStatus(
                 eq(runId),
@@ -654,7 +689,7 @@ class AiAssistantServiceTest {
 
         assertThrows(
                 AiProviderTimeoutException.class,
-                () -> aiAssistantService.chat(conversationId, message, "admin")
+                () -> chatWithTrustedContext(conversationId, message, "admin")
         );
 
         verify(aiRepository).updateAgentRunStatus(
@@ -752,12 +787,6 @@ class AiAssistantServiceTest {
         String spoofedUser = "admin";
         String message = "Find product GAP-000001";
 
-        when(aiRepository.conversationExists(conversationId, authenticatedUser)).thenReturn(true);
-        when(aiRepository.getMessages(conversationId)).thenReturn(List.of(
-                Map.of("role", "USER", "content", message)
-        ));
-        when(aiRepository.createAgentRun(conversationId, authenticatedUser)).thenReturn(UUID.randomUUID());
-
         // Context contains spoofed "admin" subject while caller is authenticated as "john_doe"
         ErpAiExecutionContext spoofedContext = ErpAiExecutionContext.create(
                 conversationId, spoofedUser, List.of("ROLE_ADMIN"));
@@ -802,5 +831,23 @@ class AiAssistantServiceTest {
 
         assertEquals("Product found", response.response());
         verify(erpAiAgentService).chat(eq(conversationId), eq(runId), anyList(), eq(validContext));
+    }
+
+    private com.autoparts.erp.ai.dto.AiChatResponse chatWithTrustedContext(
+            UUID conversationId,
+            String message,
+            String userSubject
+    ) {
+        ErpAiExecutionContext context = ErpAiExecutionContext.create(
+                conversationId,
+                userSubject,
+                List.of("ROLE_USER")
+        );
+        return aiAssistantService.chat(
+                conversationId,
+                message,
+                userSubject,
+                context
+        );
     }
 }

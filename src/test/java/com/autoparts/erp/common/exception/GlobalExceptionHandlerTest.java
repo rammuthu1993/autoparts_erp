@@ -37,7 +37,7 @@ class GlobalExceptionHandlerTest {
         assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
 
         assertEquals(
-                "An AI execution is already active for this conversation",
+                "An AI request is already running for this conversation.",
                 response.getBody().message()
         );
     }
@@ -54,7 +54,7 @@ class GlobalExceptionHandlerTest {
         assertEquals(HttpStatus.BAD_GATEWAY, response.getStatusCode());
 
         assertEquals(
-                "AI provider returned an empty response. Please try again.",
+                "The AI provider could not complete the request.",
                 response.getBody().message()
         );
     }
@@ -75,7 +75,7 @@ class GlobalExceptionHandlerTest {
         );
 
         assertEquals(
-                "AI provider request timed out.",
+                "The AI provider did not respond within the allowed time.",
                 response.getBody().message()
         );
     }
@@ -95,5 +95,19 @@ class GlobalExceptionHandlerTest {
                 "The AI agent execution was cancelled.",
                 response.getBody().message()
         );
+    }
+
+    @Test
+    void unexpectedExceptionDoesNotExposeInternalMessage() {
+        var response = handler.handleUnexpectedException(
+                new IllegalStateException("database password=secret-value"),
+                request()
+        );
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        org.junit.jupiter.api.Assertions.assertFalse(
+                response.getBody().message().contains("secret-value"));
+        org.junit.jupiter.api.Assertions.assertTrue(
+                response.getBody().message().contains("Reference:"));
     }
 }

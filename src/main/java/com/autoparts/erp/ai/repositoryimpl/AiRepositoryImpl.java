@@ -271,6 +271,22 @@ public class AiRepositoryImpl implements AiRepository {
             String status,
             String errorMessage
     ) {
+        saveToolRun(conversationId, userSubject, toolName, arguments, result,
+                status, errorMessage, 0L, 0);
+    }
+
+    @Override
+    public void saveToolRun(
+            UUID conversationId,
+            String userSubject,
+            String toolName,
+            String arguments,
+            String result,
+            String status,
+            String errorMessage,
+            long executionDurationMs,
+            int rowsReturned
+    ) {
         String sql = """
                 INSERT INTO ai_tool_runs (
                     conversation_id,
@@ -279,7 +295,9 @@ public class AiRepositoryImpl implements AiRepository {
                     arguments,
                     result,
                     status,
-                    error_message
+                    error_message,
+                    execution_duration_ms,
+                    rows_returned
                 )
                 VALUES (
                     :conversationId,
@@ -288,7 +306,9 @@ public class AiRepositoryImpl implements AiRepository {
                     CAST(:arguments AS jsonb),
                     CAST(:result AS jsonb),
                     :status,
-                    :errorMessage
+                    :errorMessage,
+                    :executionDurationMs,
+                    :rowsReturned
                 )
                 """;
 
@@ -302,6 +322,8 @@ public class AiRepositoryImpl implements AiRepository {
                         .addValue("result", result)
                         .addValue("status", status)
                         .addValue("errorMessage", errorMessage)
+                        .addValue("executionDurationMs", Math.max(0L, executionDurationMs))
+                        .addValue("rowsReturned", Math.max(0, rowsReturned))
         );
     }
 
