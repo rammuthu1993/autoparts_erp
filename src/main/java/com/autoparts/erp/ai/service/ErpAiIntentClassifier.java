@@ -87,6 +87,10 @@ public class ErpAiIntentClassifier {
             Pattern.compile("\\b(?:find|search|look\\s*up|lookup|show|display|list|get|tell\\s+me\\s+about)\\b",
                     Pattern.CASE_INSENSITIVE);
 
+    private static final Pattern GENERIC_STOCK_REQUEST =
+            Pattern.compile("^(?:current\\s+)?(?:stock|inventory|quantity|availability)$",
+                    Pattern.CASE_INSENSITIVE);
+
     // Stage 2C Regex Patterns: Purchase
     private static final Pattern PURCHASE_SUMMARY_REQUEST = Pattern.compile(
             "\\b(?:purchase\\s+summary|purchase\\s+totals?|total\\s+purchases?|procurement\\s+summary|how\\s+much\\s+(?:did\\s+we\\s+)?purchase)\\b",
@@ -240,7 +244,6 @@ public class ErpAiIntentClassifier {
             Pattern.compile("^(?:(?:can|could|would)\\s+you\\s+)+", Pattern.CASE_INSENSITIVE),
             Pattern.compile("^(?:find|search(?:\\s+for)?|look\\s*up|lookup|show(?:\\s+me)?|display|list|get|check|tell\\s+me\\s+about|give\\s+me)\\s+",
                     Pattern.CASE_INSENSITIVE),
-            Pattern.compile("^(?:matching|containing|with)\\s+", Pattern.CASE_INSENSITIVE),
             Pattern.compile("^(?:what(?:\\s+is|\\s+are|'s)|how\\s+much(?:\\s+stock)?|where\\s+can\\s+i\\s+find)\\s+",
                     Pattern.CASE_INSENSITIVE),
             Pattern.compile("^(?:the\\s+)?(?:stock(?:\\s+level|\\s+quantity)?|inventory|(?:available\\s+)?quantity|details?|information|price|description|specifications?)\\b(?:\\s+(?:of|for|on|about))?\\s*",
@@ -667,6 +670,12 @@ public class ErpAiIntentClassifier {
             String query = hasSearchText ? searchText : message.trim();
             return new ErpAiIntentResult("KNOWLEDGE", query);
         }
+//        if (PRODUCT_STOCK_REQUEST.matcher(normalized).find()) {
+//            return hasSearchText && !GENERIC_STOCK_REQUEST.matcher(searchText).matches()
+//                    ? new ErpAiIntentResult("PRODUCT_STOCK", searchText)
+//                    : ErpAiIntentResult.clarification(
+//                            "Please provide the product code or part number to check current stock.");
+//        }
         if (PRODUCT_STOCK_REQUEST.matcher(normalized).find()) {
 
             if (!identifier.isEmpty()) {
@@ -732,7 +741,7 @@ public class ErpAiIntentClassifier {
         if (CASH_REGISTER_STATUS_REQUEST.matcher(message).find()) {
             return false;
         }
-        if (Pattern.compile("\\b(?:named|called|create|make|record|add|update|delete|generate|register|process|open|close|post)\\s+(?:a\\s+)?(?:new\\s+)?(?:purchase|sale|sales|invoice|customer|supplier|vendor|return|refund|credit|expense|register|session|closing)\\b", Pattern.CASE_INSENSITIVE).matcher(message).find()) {
+        if (Pattern.compile("\\b(?:named|called|create|make|record|add|update|delete|generate|register|process|open|close|post)\\s+(?:a\\s+)?(?:new\\s+)?(?:purchase|sale|sales|invoice|customer|supplier|vendor|return|refund|credit|expense|register|session|closingmatching|containing|with)\\b", Pattern.CASE_INSENSITIVE).matcher(message).find()) {
             return true;
         }
         return containsAny(message,
