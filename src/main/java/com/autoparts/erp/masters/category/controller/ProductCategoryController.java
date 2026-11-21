@@ -1,5 +1,6 @@
 package com.autoparts.erp.masters.category.controller;
 
+import com.autoparts.erp.auth.security.annotation.AdminOrManager;
 import com.autoparts.erp.masters.category.dto.CategoryCreateRequest;
 import com.autoparts.erp.masters.category.dto.CategoryResponse;
 import com.autoparts.erp.masters.category.dto.CategoryUpdateRequest;
@@ -24,6 +25,7 @@ public class ProductCategoryController {
         this.service = service;
     }
 
+    @AdminOrManager
     @PostMapping
     public ResponseEntity<CategoryResponse> create(
             @Valid @RequestBody CategoryCreateRequest request
@@ -43,6 +45,7 @@ public class ProductCategoryController {
         return ResponseEntity.ok(service.findByUuid(uuid));
     }
 
+    @AdminOrManager
     @PutMapping("/{uuid}")
     public ResponseEntity<CategoryResponse> update(
             @PathVariable UUID uuid,
@@ -51,6 +54,7 @@ public class ProductCategoryController {
         return ResponseEntity.ok(service.update(uuid, request));
     }
 
+    @AdminOrManager
     @PatchMapping("/{uuid}/deactivate")
     public ResponseEntity<Void> deactivate(
             @PathVariable UUID uuid

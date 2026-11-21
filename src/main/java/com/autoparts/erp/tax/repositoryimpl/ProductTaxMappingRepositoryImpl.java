@@ -1,11 +1,10 @@
-
 package com.autoparts.erp.tax.repositoryimpl;
 
 import com.autoparts.erp.tax.model.ProductTaxMapping;
-
 import com.autoparts.erp.tax.repository.ProductTaxMappingRepository;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.sql.ResultSet;
@@ -17,25 +16,20 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public class ProductTaxMappingRepositoryImpl
-        implements ProductTaxMappingRepository {
+public class ProductTaxMappingRepositoryImpl implements ProductTaxMappingRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public ProductTaxMappingRepositoryImpl(
-        JdbcTemplate jdbcTemplate
-    ) {
+    public ProductTaxMappingRepositoryImpl(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    private final RowMapper<ProductTaxMapping> rowMapper =
-        this::mapProductTaxMapping;
+    private final RowMapper<ProductTaxMapping> rowMapper = this::mapProductTaxMapping;
 
     private ProductTaxMapping mapProductTaxMapping(
         ResultSet rs,
         int rowNum
     ) throws SQLException {
-
         return new ProductTaxMapping(
             rs.getLong("id"),
             rs.getObject("uuid", UUID.class),
@@ -73,58 +67,57 @@ public class ProductTaxMappingRepositoryImpl
 
     @Override
     public Optional<Long> lockActiveProduct(UUID productUuid) {
-
         String sql = """
             SELECT id
             FROM products
-            WHERE uuid = ?
+            WHERE uuid = :productUuid
               AND active = TRUE
             FOR UPDATE
             """;
 
+        MapSqlParameterSource params = new MapSqlParameterSource("productUuid", productUuid);
         return jdbcTemplate.query(
             sql,
-            (rs, rowNum) -> rs.getLong("id"),
-            productUuid
+            params,
+            (rs, rowNum) -> rs.getLong("id")
         ).stream().findFirst();
     }
 
+    @Override
+    public boolean existsOverlappingMapping(
+        Long productId,
+        LocalDate effectiveFrom,
+        LocalDate effectiveTo
+    ) {
+        String sql = """
+            SELECT EXISTS (
+                SELECT 1
+                FROM product_tax_mapping
+                WHERE product_id = :productId
+                  AND (
+                      effective_to IS NULL
+                      OR effective_to > CAST(:effectiveFrom AS DATE)
+                  )
+                  AND (
+                      CAST(:effectiveTo AS DATE) IS NULL
+                      OR effective_from < CAST(:effectiveTo AS DATE)
+                  )
+            )
+            """;
 
-	@Override
-	public boolean existsOverlappingMapping(
-	    Long productId,
-	    LocalDate effectiveFrom,
-	    LocalDate effectiveTo
-	) {
-	
-	    String sql = """
-	        SELECT EXISTS (
-	            SELECT 1
-	            FROM product_tax_mapping
-	            WHERE product_id = ?
-	              AND (
-	                  effective_to IS NULL
-	                  OR effective_to > CAST(? AS DATE)
-	              )
-	              AND (
-	                  CAST(? AS DATE) IS NULL
-	                  OR effective_from < CAST(? AS DATE)
-	              )
-	        )
-	        """;
-	
-	    Boolean exists = jdbcTemplate.queryForObject(
-	        sql,
-	        Boolean.class,
-	        productId,
-	        effectiveFrom,
-	        effectiveTo,
-	        effectiveTo
-	    );
-	
-	    return Boolean.TRUE.equals(exists);
-	}
+        MapSqlParameterSource params = new MapSqlParameterSource()
+            .addValue("productId", productId)
+            .addValue("effectiveFrom", effectiveFrom)
+            .addValue("effectiveTo", effectiveTo);
 
+        Boolean exists = jdbcTemplate.queryForObject(
+            sql,
+            params,
+            Boolean.class
+        );
+
+        return Boolean.TRUE.equals(exists);
+    }
 
     @Override
     public ProductTaxMapping create(
@@ -135,7 +128,6 @@ public class ProductTaxMappingRepositoryImpl
         LocalDate effectiveFrom,
         LocalDate effectiveTo
     ) {
-
         String sql = """
             INSERT INTO product_tax_mapping (
                 uuid,
@@ -145,19 +137,29 @@ public class ProductTaxMappingRepositoryImpl
                 effective_from,
                 effective_to
             )
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (
+                :uuid,
+                :productId,
+                :taxRateId,
+                :hsnCode,
+                :effectiveFrom,
+                :effectiveTo
+            )
             RETURNING uuid
             """;
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+            .addValue("uuid", uuid)
+            .addValue("productId", productId)
+            .addValue("taxRateId", taxRateId)
+            .addValue("hsnCode", hsnCode.trim())
+            .addValue("effectiveFrom", effectiveFrom)
+            .addValue("effectiveTo", effectiveTo);
+
         UUID createdUuid = jdbcTemplate.queryForObject(
             sql,
-            UUID.class,
-            uuid,
-            productId,
-            taxRateId,
-            hsnCode.trim(),
-            effectiveFrom,
-            effectiveTo
+            params,
+            UUID.class
         );
 
         return findByUuid(createdUuid)
@@ -170,15 +172,14 @@ public class ProductTaxMappingRepositoryImpl
 
     @Override
     public Optional<ProductTaxMapping> findByUuid(UUID uuid) {
-
         String sql = SELECT_COLUMNS + """
-            WHERE ptm.uuid = ?
+            WHERE ptm.uuid = :uuid
             """;
 
         return jdbcTemplate.query(
             sql,
-            rowMapper,
-            uuid
+            new MapSqlParameterSource("uuid", uuid),
+            rowMapper
         ).stream().findFirst();
     }
 
@@ -186,22 +187,20 @@ public class ProductTaxMappingRepositoryImpl
     public List<ProductTaxMapping> findByProductUuid(
         UUID productUuid
     ) {
-
         String sql = SELECT_COLUMNS + """
-            WHERE p.uuid = ?
+            WHERE p.uuid = :productUuid
             ORDER BY ptm.effective_from DESC
             """;
 
         return jdbcTemplate.query(
             sql,
-            rowMapper,
-            productUuid
+            new MapSqlParameterSource("productUuid", productUuid),
+            rowMapper
         );
     }
 
     @Override
     public Optional<ProductTaxMapping> findCurrentByProductUuid(UUID productUuid) {
-
         String sql = """
             SELECT
                 ptm.id,
@@ -220,7 +219,7 @@ public class ProductTaxMappingRepositoryImpl
                 ON p.id = ptm.product_id
             INNER JOIN tax_rates tr
                 ON tr.id = ptm.tax_rate_id
-            WHERE p.uuid = ?
+            WHERE p.uuid = :productUuid
               AND ptm.effective_from <= CURRENT_DATE
               AND (
                   ptm.effective_to IS NULL
@@ -238,8 +237,8 @@ public class ProductTaxMappingRepositoryImpl
 
         List<ProductTaxMapping> results = jdbcTemplate.query(
             sql,
-            productTaxMappingRowMapper,
-            productUuid
+            new MapSqlParameterSource("productUuid", productUuid),
+            rowMapper
         );
 
         return results.stream().findFirst();
@@ -250,7 +249,6 @@ public class ProductTaxMappingRepositoryImpl
         UUID productUuid,
         LocalDate saleDate
     ) {
-
         String sql = """
             SELECT
                 ptm.id,
@@ -269,63 +267,47 @@ public class ProductTaxMappingRepositoryImpl
                 ON p.id = ptm.product_id
             INNER JOIN tax_rates tr
                 ON tr.id = ptm.tax_rate_id
-            WHERE p.uuid = ?
-              AND ptm.effective_from <= CAST(? AS DATE)
+            WHERE p.uuid = :productUuid
+              AND ptm.effective_from <= CAST(:saleDate AS DATE)
               AND (
                   ptm.effective_to IS NULL
-                  OR ptm.effective_to > CAST(? AS DATE)
+                  OR ptm.effective_to > CAST(:saleDate AS DATE)
               )
               AND tr.active = TRUE
-              AND tr.effective_from <= CAST(? AS DATE)
+              AND tr.effective_from <= CAST(:saleDate AS DATE)
               AND (
                   tr.effective_to IS NULL
-                  OR tr.effective_to > CAST(? AS DATE)
+                  OR tr.effective_to > CAST(:saleDate AS DATE)
               )
             ORDER BY ptm.effective_from DESC
             LIMIT 1
             """;
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+            .addValue("productUuid", productUuid)
+            .addValue("saleDate", saleDate);
+
         List<ProductTaxMapping> results = jdbcTemplate.query(
             sql,
-            productTaxMappingRowMapper,
-            productUuid,
-            saleDate,
-            saleDate,
-            saleDate,
-            saleDate
+            params,
+            rowMapper
         );
 
         return results.stream().findFirst();
     }
-    
-    private final RowMapper<ProductTaxMapping> productTaxMappingRowMapper =
-            (rs, rowNum) -> new ProductTaxMapping(
-                    rs.getLong("id"),
-                    rs.getObject("uuid", UUID.class),
-                    rs.getLong("product_id"),
-                    rs.getString("product_code"),
-                    rs.getString("product_name"),
-                    rs.getObject("tax_rate_uuid", UUID.class),
-                    rs.getString("tax_name"),
-                    rs.getString("hsn_code"),
-                    rs.getObject("effective_from", LocalDate.class),
-                    rs.getObject("effective_to", LocalDate.class),
-                    rs.getObject("created_at", OffsetDateTime.class)
-            );
-    
+
     @Override
     public Optional<UUID> findProductUuidById(Long productId) {
-
         String sql = """
             SELECT uuid
             FROM products
-            WHERE id = ?
+            WHERE id = :productId
             """;
 
         return jdbcTemplate.query(
             sql,
-            (rs, rowNum) -> rs.getObject("uuid", UUID.class),
-            productId
+            new MapSqlParameterSource("productId", productId),
+            (rs, rowNum) -> rs.getObject("uuid", UUID.class)
         ).stream().findFirst();
     }
 }

@@ -1,9 +1,7 @@
-
 package com.autoparts.erp.auth.repositoryimpl;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -13,8 +11,8 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.autoparts.erp.auth.model.ManagedUser;
@@ -24,9 +22,9 @@ import com.autoparts.erp.auth.repository.UserManagementRepository;
 public class UserManagementRepositoryImpl
         implements UserManagementRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public UserManagementRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public UserManagementRepositoryImpl(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -56,7 +54,7 @@ public class UserManagementRepositoryImpl
 
         List<ManagedUser> users = findUsers(
                 USER_SELECT + """
-                    WHERE u.uuid = ?
+                    WHERE u.uuid = :uuid
                     ORDER BY r.name
                     """,
                 uuid
@@ -69,17 +67,15 @@ public class UserManagementRepositoryImpl
             String sql,
             UUID uuid
     ) {
+        MapSqlParameterSource params = uuid == null
+                ? new MapSqlParameterSource()
+                : new MapSqlParameterSource("uuid", uuid);
 
-        List<Object[]> rows = uuid == null
-                ? jdbcTemplate.query(
-                        sql,
-                        (rs, rowNum) -> mapRow(rs)
-                )
-                : jdbcTemplate.query(
-                        sql,
-                        (rs, rowNum) -> mapRow(rs),
-                        uuid
-                );
+        List<Object[]> rows = jdbcTemplate.query(
+                sql,
+                params,
+                (rs, rowNum) -> mapRow(rs)
+        );
 
         Map<Long, UserBuilder> grouped = new LinkedHashMap<>();
 
@@ -174,17 +170,19 @@ public class UserManagementRepositoryImpl
             SELECT EXISTS (
                 SELECT 1
                 FROM users
-                WHERE LOWER(username) = LOWER(?)
-                  AND (?::UUID IS NULL OR uuid <> ?)
+                WHERE LOWER(username) = LOWER(:username)
+                  AND (CAST(:excludeUuid AS UUID) IS NULL OR uuid <> :excludeUuid)
             )
             """;
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("username", username)
+                .addValue("excludeUuid", excludeUuid);
+
         Boolean exists = jdbcTemplate.queryForObject(
                 sql,
-                Boolean.class,
-                username,
-                excludeUuid,
-                excludeUuid
+                params,
+                Boolean.class
         );
 
         return Boolean.TRUE.equals(exists);
@@ -196,6 +194,10 @@ public class UserManagementRepositoryImpl
             String passwordHash,
             UUID uuid
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", uuid)
+                .addValue("username", username)
+                .addValue("passwordHash", passwordHash);
 
         return jdbcTemplate.queryForObject(
                 """
@@ -205,58 +207,62 @@ public class UserManagementRepositoryImpl
                     password_hash,
                     enabled
                 )
-                VALUES (?, ?, ?, TRUE)
+                VALUES (:uuid, :username, :passwordHash, TRUE)
                 RETURNING id
                 """,
-                Long.class,
-                uuid,
-                username,
-                passwordHash
+                params,
+                Long.class
         );
     }
 
     @Override
     public void updateUsername(UUID uuid, String username) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("username", username)
+                .addValue("uuid", uuid);
 
         jdbcTemplate.update(
                 """
                 UPDATE users
-                SET username = ?,
+                SET username = :username,
                     updated_at = CURRENT_TIMESTAMP
-                WHERE uuid = ?
+                WHERE uuid = :uuid
                 """,
-                username,
-                uuid
+                params
         );
     }
 
     @Override
     public void updatePassword(UUID uuid, String passwordHash) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("passwordHash", passwordHash)
+                .addValue("uuid", uuid);
 
         jdbcTemplate.update(
                 """
                 UPDATE users
-                SET password_hash = ?,
+                SET password_hash = :passwordHash,
                     updated_at = CURRENT_TIMESTAMP
-                WHERE uuid = ?
+                WHERE uuid = :uuid
                 """,
-                passwordHash,
-                uuid
+                params
         );
     }
 
     @Override
     public void updateEnabled(UUID uuid, boolean enabled) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("enabled", enabled)
+                .addValue("uuid", uuid);
 
         jdbcTemplate.update(
                 """
                 UPDATE users
-                SET enabled = ?,
+                SET enabled = :enabled,
                     updated_at = CURRENT_TIMESTAMP
-                WHERE uuid = ?
+                WHERE uuid = :uuid
                 """,
-                enabled,
-                uuid
+                params
         );
     }
 
@@ -272,10 +278,10 @@ public class UserManagementRepositoryImpl
                         """
                         SELECT id
                         FROM roles
-                        WHERE name = ?
+                        WHERE name = :roleName
                         """,
-                        Long.class,
-                        roleName
+                        new MapSqlParameterSource("roleName", roleName),
+                        Long.class
                 );
 
                 roleIds.put(roleName, roleId);
@@ -289,19 +295,22 @@ public class UserManagementRepositoryImpl
 
         // Replace role assignments only after validating all roles.
         jdbcTemplate.update(
-                "DELETE FROM user_roles WHERE user_id = ?",
-                userId
+                "DELETE FROM user_roles WHERE user_id = :userId",
+                new MapSqlParameterSource("userId", userId)
         );
 
         for (Long roleId : roleIds.values()) {
 
+            MapSqlParameterSource insertParams = new MapSqlParameterSource()
+                    .addValue("userId", userId)
+                    .addValue("roleId", roleId);
+
             jdbcTemplate.update(
                     """
                     INSERT INTO user_roles (user_id, role_id)
-                    VALUES (?, ?)
+                    VALUES (:userId, :roleId)
                     """,
-                    userId,
-                    roleId
+                    insertParams
             );
         }
     }
@@ -320,6 +329,7 @@ public class UserManagementRepositoryImpl
                 ORDER BY u.id
                 FOR UPDATE OF u
                 """,
+                new MapSqlParameterSource(),
                 Long.class
         );
     }
@@ -336,6 +346,7 @@ public class UserManagementRepositoryImpl
                 WHERE u.enabled = TRUE
                   AND r.name = 'ADMIN'
                 """,
+                new MapSqlParameterSource(),
                 Long.class
         );
 
@@ -351,12 +362,12 @@ public class UserManagementRepositoryImpl
                     SELECT 1
                     FROM user_roles ur
                     JOIN roles r ON r.id = ur.role_id
-                    WHERE ur.user_id = ?
+                    WHERE ur.user_id = :userId
                       AND r.name = 'ADMIN'
                 )
                 """,
-                Boolean.class,
-                userId
+                new MapSqlParameterSource("userId", userId),
+                Boolean.class
         );
 
         return Boolean.TRUE.equals(result);

@@ -5,11 +5,11 @@ import com.autoparts.erp.expense.ledger.dto.ExpenseLedgerSummary;
 import com.autoparts.erp.expense.ledger.repository.ExpenseLedgerRepository;
 import com.autoparts.erp.expense.management.model.ExpensePaymentMethod;
 
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -18,9 +18,9 @@ import java.util.UUID;
 public class ExpenseLedgerRepositoryImpl
     implements ExpenseLedgerRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public ExpenseLedgerRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public ExpenseLedgerRepositoryImpl(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -29,19 +29,19 @@ public class ExpenseLedgerRepositoryImpl
         INNER JOIN expense_categories ec
             ON ec.id = e.category_id
         WHERE e.status = 'ACTIVE'
-          AND (CAST(? AS DATE) IS NULL OR e.expense_date >= CAST(? AS DATE))
-          AND (CAST(? AS DATE) IS NULL OR e.expense_date <= CAST(? AS DATE))
-          AND (CAST(? AS UUID) IS NULL OR ec.uuid = CAST(? AS UUID))
+          AND (CAST(:fromDate AS DATE) IS NULL OR e.expense_date >= CAST(:fromDate AS DATE))
+          AND (CAST(:toDate AS DATE) IS NULL OR e.expense_date <= CAST(:toDate AS DATE))
+          AND (CAST(:categoryUuid AS UUID) IS NULL OR ec.uuid = CAST(:categoryUuid AS UUID))
           AND (
-              CAST(? AS VARCHAR) IS NULL
-              OR e.payment_method = CAST(? AS VARCHAR)
+              CAST(:paymentMethod AS VARCHAR) IS NULL
+              OR e.payment_method = CAST(:paymentMethod AS VARCHAR)
           )
           AND (
-              CAST(? AS VARCHAR) IS NULL
-              OR e.title ILIKE '%' || CAST(? AS VARCHAR) || '%'
-              OR COALESCE(e.description, '') ILIKE '%' || CAST(? AS VARCHAR) || '%'
-              OR COALESCE(e.reference_number, '') ILIKE '%' || CAST(? AS VARCHAR) || '%'
-              OR ec.name ILIKE '%' || CAST(? AS VARCHAR) || '%'
+              CAST(:searchPattern AS VARCHAR) IS NULL
+              OR e.title ILIKE :searchPattern
+              OR COALESCE(e.description, '') ILIKE :searchPattern
+              OR COALESCE(e.reference_number, '') ILIKE :searchPattern
+              OR ec.name ILIKE :searchPattern
           )
         """;
 
@@ -57,33 +57,28 @@ public class ExpenseLedgerRepositoryImpl
             rs.getString("status")
         );
 
-        private Object[] filterParams(
-        	    LocalDate fromDate,
-        	    LocalDate toDate,
-        	    UUID categoryUuid,
-        	    ExpensePaymentMethod paymentMethod,
-        	    String search
-        	) {
-        	    String method = paymentMethod == null
-        	        ? null
-        	        : paymentMethod.name();
+    private MapSqlParameterSource filterParams(
+            LocalDate fromDate,
+            LocalDate toDate,
+            UUID categoryUuid,
+            ExpensePaymentMethod paymentMethod,
+            String search
+    ) {
+        String method = paymentMethod == null
+            ? null
+            : paymentMethod.name();
 
-        	    String searchValue = search == null || search.isBlank()
-        	        ? null
-        	        : search.trim();
+        String searchPattern = (search == null || search.isBlank())
+            ? null
+            : "%" + search.trim() + "%";
 
-        	    return new Object[] {
-        	        fromDate, fromDate,
-        	        toDate, toDate,
-        	        categoryUuid, categoryUuid,
-        	        method, method,
-        	        searchValue,
-        	        searchValue,
-        	        searchValue,
-        	        searchValue,
-        	        searchValue
-        	    };
-        	}
+        return new MapSqlParameterSource()
+            .addValue("fromDate", fromDate)
+            .addValue("toDate", toDate)
+            .addValue("categoryUuid", categoryUuid)
+            .addValue("paymentMethod", method)
+            .addValue("searchPattern", searchPattern);
+    }
 
     @Override
     public List<ExpenseLedgerEntry> findEntries(
@@ -108,21 +103,16 @@ public class ExpenseLedgerRepositoryImpl
                 e.status
             """ + FILTER_SQL + """
             ORDER BY e.expense_date DESC, e.created_at DESC, e.id DESC
-            LIMIT ? OFFSET ?
+            LIMIT :limit OFFSET :offset
             """;
 
-        Object[] filters = filterParams(
+        MapSqlParameterSource params = filterParams(
             fromDate, toDate, categoryUuid, paymentMethod, search
-        );
+        )
+        .addValue("limit", limit)
+        .addValue("offset", offset);
 
-        Object[] params = new Object[filters.length + 2];
-
-        System.arraycopy(filters, 0, params, 0, filters.length);
-
-        params[filters.length] = limit;
-        params[filters.length + 1] = offset;
-
-        return jdbcTemplate.query(sql, entryRowMapper, params);
+        return jdbcTemplate.query(sql, params, entryRowMapper);
     }
 
     @Override
@@ -140,17 +130,17 @@ public class ExpenseLedgerRepositoryImpl
                 COALESCE(SUM(e.amount), 0) AS total_amount
             """ + FILTER_SQL;
 
-        Object[] params = filterParams(
+        MapSqlParameterSource params = filterParams(
             fromDate, toDate, categoryUuid, paymentMethod, search
         );
 
         return jdbcTemplate.queryForObject(
             sql,
+            params,
             (rs, rowNum) -> new ExpenseLedgerSummary(
                 rs.getLong("total_expenses"),
                 rs.getBigDecimal("total_amount")
-            ),
-            params
+            )
         );
     }
 
@@ -165,14 +155,14 @@ public class ExpenseLedgerRepositoryImpl
 
         String sql = "SELECT COUNT(*) " + FILTER_SQL;
 
-        Object[] params = filterParams(
+        MapSqlParameterSource params = filterParams(
             fromDate, toDate, categoryUuid, paymentMethod, search
         );
 
         Long count = jdbcTemplate.queryForObject(
             sql,
-            Long.class,
-            params
+            params,
+            Long.class
         );
 
         return count == null ? 0 : count;

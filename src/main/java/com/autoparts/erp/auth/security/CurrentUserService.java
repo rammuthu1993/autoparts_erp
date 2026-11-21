@@ -40,6 +40,25 @@ public class CurrentUserService {
             );
         }
 
+        // Fast path 1: extract user_id claim directly from validated Jwt token
+        if (authentication.getPrincipal() instanceof org.springframework.security.oauth2.jwt.Jwt jwt) {
+            Object userIdClaim = jwt.getClaim("user_id");
+            if (userIdClaim instanceof Number number) {
+                return number.longValue();
+            } else if (userIdClaim instanceof String str && !str.isBlank()) {
+                try {
+                    return Long.parseLong(str);
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+
+        // Fast path 2: extract from AuthenticatedUserDetails when available
+        if (authentication.getPrincipal() instanceof com.autoparts.erp.security.AuthenticatedUserDetails userDetails
+                && userDetails.getUserId() != null) {
+            return userDetails.getUserId();
+        }
+
         String username = authentication.getName();
 
         UserAccount account = userRepository.findByUsername(username)

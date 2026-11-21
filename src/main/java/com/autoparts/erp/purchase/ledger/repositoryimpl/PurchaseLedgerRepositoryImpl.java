@@ -5,8 +5,9 @@ import com.autoparts.erp.purchase.ledger.dto.PurchaseLedgerSummary;
 import com.autoparts.erp.purchase.ledger.repository.PurchaseLedgerRepository;
 import com.autoparts.erp.purchase.model.PurchaseStatus;
 
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -18,9 +19,9 @@ import java.util.UUID;
 public class PurchaseLedgerRepositoryImpl
     implements PurchaseLedgerRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public PurchaseLedgerRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public PurchaseLedgerRepositoryImpl(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -30,25 +31,22 @@ public class PurchaseLedgerRepositoryImpl
             ON s.id = p.supplier_id
         WHERE p.status = 'RECEIVED'
           AND (
-              CAST(? AS DATE) IS NULL
-              OR p.purchase_date >= CAST(? AS DATE)
+              CAST(:fromDate AS DATE) IS NULL
+              OR p.purchase_date >= CAST(:fromDate AS DATE)
           )
           AND (
-              CAST(? AS DATE) IS NULL
-              OR p.purchase_date <= CAST(? AS DATE)
+              CAST(:toDate AS DATE) IS NULL
+              OR p.purchase_date <= CAST(:toDate AS DATE)
           )
           AND (
-              CAST(? AS UUID) IS NULL
-              OR s.uuid = CAST(? AS UUID)
+              CAST(:supplierUuid AS UUID) IS NULL
+              OR s.uuid = CAST(:supplierUuid AS UUID)
           )
           AND (
-              CAST(? AS VARCHAR) IS NULL
-              OR p.purchase_number ILIKE
-                    '%' || CAST(? AS VARCHAR) || '%'
-              OR p.supplier_invoice_no ILIKE
-                    '%' || CAST(? AS VARCHAR) || '%'
-              OR s.supplier_name ILIKE
-                    '%' || CAST(? AS VARCHAR) || '%'
+              :searchPattern IS NULL
+              OR p.purchase_number ILIKE :searchPattern
+              OR p.supplier_invoice_no ILIKE :searchPattern
+              OR s.supplier_name ILIKE :searchPattern
           )
         """;
 
@@ -67,26 +65,22 @@ public class PurchaseLedgerRepositoryImpl
             rs.getObject("received_at", OffsetDateTime.class)
         );
 
-    private Object[] filterParams(
+    private MapSqlParameterSource filterParams(
         LocalDate fromDate,
         LocalDate toDate,
         UUID supplierUuid,
         String search
     ) {
 
-        String searchValue = search == null || search.isBlank()
+        String searchPattern = (search == null || search.isBlank())
             ? null
-            : search.trim();
+            : "%" + search.trim() + "%";
 
-        return new Object[] {
-            fromDate, fromDate,
-            toDate, toDate,
-            supplierUuid, supplierUuid,
-            searchValue,
-            searchValue,
-            searchValue,
-            searchValue
-        };
+        return new MapSqlParameterSource()
+            .addValue("fromDate", fromDate)
+            .addValue("toDate", toDate)
+            .addValue("supplierUuid", supplierUuid)
+            .addValue("searchPattern", searchPattern);
     }
 
     @Override
@@ -117,24 +111,19 @@ public class PurchaseLedgerRepositoryImpl
                 p.purchase_date DESC,
                 p.received_at DESC,
                 p.id DESC
-            LIMIT ? OFFSET ?
+            LIMIT :limit OFFSET :offset
             """;
 
-        Object[] filters = filterParams(
+        MapSqlParameterSource params = filterParams(
             fromDate,
             toDate,
             supplierUuid,
             search
-        );
+        )
+        .addValue("limit", limit)
+        .addValue("offset", offset);
 
-        Object[] params = new Object[filters.length + 2];
-
-        System.arraycopy(filters, 0, params, 0, filters.length);
-
-        params[filters.length] = limit;
-        params[filters.length + 1] = offset;
-
-        return jdbcTemplate.query(sql, entryRowMapper, params);
+        return jdbcTemplate.query(sql, params, entryRowMapper);
     }
 
     @Override
@@ -154,16 +143,18 @@ public class PurchaseLedgerRepositoryImpl
                 COALESCE(SUM(p.grand_total), 0) AS total_purchase_amount
             """ + FILTER_SQL;
 
+        MapSqlParameterSource params = filterParams(fromDate, toDate, supplierUuid, search);
+
         return jdbcTemplate.queryForObject(
             sql,
+            params,
             (rs, rowNum) -> new PurchaseLedgerSummary(
                 rs.getLong("total_purchases"),
                 rs.getBigDecimal("total_subtotal"),
                 rs.getBigDecimal("total_discount"),
                 rs.getBigDecimal("total_tax"),
                 rs.getBigDecimal("total_purchase_amount")
-            ),
-            filterParams(fromDate, toDate, supplierUuid, search)
+            )
         );
     }
 
@@ -177,10 +168,12 @@ public class PurchaseLedgerRepositoryImpl
 
         String sql = "SELECT COUNT(*) " + FILTER_SQL;
 
+        MapSqlParameterSource params = filterParams(fromDate, toDate, supplierUuid, search);
+
         Long count = jdbcTemplate.queryForObject(
             sql,
-            Long.class,
-            filterParams(fromDate, toDate, supplierUuid, search)
+            params,
+            Long.class
         );
 
         return count == null ? 0 : count;

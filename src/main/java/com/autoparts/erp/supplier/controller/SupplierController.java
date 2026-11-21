@@ -1,6 +1,7 @@
 
 package com.autoparts.erp.supplier.controller;
 
+import com.autoparts.erp.auth.security.annotation.AdminOrManager;
 import com.autoparts.erp.supplier.dto.SupplierCreateRequest;
 import com.autoparts.erp.supplier.dto.SupplierResponse;
 import com.autoparts.erp.supplier.dto.SupplierUpdateRequest;
@@ -23,6 +24,7 @@ public class SupplierController {
         this.supplierService = supplierService;
     }
 
+    @AdminOrManager
     @PostMapping
     public ResponseEntity<SupplierResponse> create(
         @Valid @RequestBody SupplierCreateRequest request
@@ -43,6 +45,7 @@ public class SupplierController {
         return ResponseEntity.ok(supplierService.findByUuid(uuid));
     }
 
+    @AdminOrManager
     @PutMapping("/{uuid}")
     public ResponseEntity<SupplierResponse> update(
         @PathVariable UUID uuid,
@@ -51,6 +54,7 @@ public class SupplierController {
         return ResponseEntity.ok(supplierService.update(uuid, request));
     }
 
+    @AdminOrManager
     @PatchMapping("/{uuid}/deactivate")
     public ResponseEntity<Void> deactivate(
         @PathVariable UUID uuid

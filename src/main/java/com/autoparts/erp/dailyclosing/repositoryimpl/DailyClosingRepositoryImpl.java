@@ -1,4 +1,3 @@
-
 package com.autoparts.erp.dailyclosing.repositoryimpl;
 
 import java.math.BigDecimal;
@@ -11,8 +10,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.autoparts.erp.dailyclosing.dto.CashRegisterClosingResponse;
@@ -24,9 +24,9 @@ import com.autoparts.erp.dailyclosing.repository.DailyClosingRepository;
 public class DailyClosingRepositoryImpl
         implements DailyClosingRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public DailyClosingRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public DailyClosingRepositoryImpl(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -37,17 +37,18 @@ public class DailyClosingRepositoryImpl
 
     @Override
     public boolean existsByBusinessDate(LocalDate businessDate) {
+        MapSqlParameterSource params = new MapSqlParameterSource("businessDate", businessDate);
 
         Boolean exists = jdbcTemplate.queryForObject(
             """
             SELECT EXISTS (
                 SELECT 1
                 FROM daily_closings
-                WHERE business_date = ?
+                WHERE business_date = :businessDate
             )
             """,
-            Boolean.class,
-            businessDate
+            params,
+            Boolean.class
         );
 
         return Boolean.TRUE.equals(exists);
@@ -58,20 +59,22 @@ public class DailyClosingRepositoryImpl
         OffsetDateTime start,
         OffsetDateTime end
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("start", start)
+                .addValue("end", end);
 
         Boolean exists = jdbcTemplate.queryForObject(
             """
             SELECT EXISTS (
                 SELECT 1
                 FROM cash_register_sessions
-                WHERE opened_at >= ?
-                  AND opened_at < ?
+                WHERE opened_at >= :start
+                  AND opened_at < :end
                   AND status = 'OPEN'
             )
             """,
-            Boolean.class,
-            start,
-            end
+            params,
+            Boolean.class
         );
 
         return Boolean.TRUE.equals(exists);
@@ -93,6 +96,48 @@ public class DailyClosingRepositoryImpl
             start,
             end
         );
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("closingUuid", closingUuid)
+                .addValue("businessDate", businessDate)
+                .addValue("closedBy", closedBy)
+                .addValue("notes", notes)
+                .addValue("salesCount", summary.salesCount())
+                .addValue("salesTotal", summary.salesTotal())
+                .addValue("salesPaidTotal", summary.salesPaidTotal())
+                .addValue("salesBalanceTotal", summary.salesBalanceTotal())
+                .addValue("salesCashTotal", summary.salesCashTotal())
+                .addValue("salesUpiTotal", summary.salesUpiTotal())
+                .addValue("salesCardTotal", summary.salesCardTotal())
+                .addValue("salesBankTotal", summary.salesBankTotal())
+                .addValue("salesCreditTotal", summary.salesCreditTotal())
+                .addValue("salesReturnCount", summary.salesReturnCount())
+                .addValue("salesReturnTotal", summary.salesReturnTotal())
+                .addValue("salesRefundTotal", summary.salesRefundTotal())
+                .addValue("salesRefundCashTotal", summary.salesRefundCashTotal())
+                .addValue("salesRefundUpiTotal", summary.salesRefundUpiTotal())
+                .addValue("salesRefundCardTotal", summary.salesRefundCardTotal())
+                .addValue("salesRefundBankTotal", summary.salesRefundBankTotal())
+                .addValue("salesRefundCreditTotal", summary.salesRefundCreditTotal())
+                .addValue("purchaseCount", summary.purchaseCount())
+                .addValue("purchaseTotal", summary.purchaseTotal())
+                .addValue("purchaseCashTotal", summary.purchaseCashTotal())
+                .addValue("purchaseUpiTotal", summary.purchaseUpiTotal())
+                .addValue("purchaseCardTotal", summary.purchaseCardTotal())
+                .addValue("purchaseBankTotal", summary.purchaseBankTotal())
+                .addValue("expenseCount", summary.expenseCount())
+                .addValue("expenseTotal", summary.expenseTotal())
+                .addValue("expenseCashTotal", summary.expenseCashTotal())
+                .addValue("expenseUpiTotal", summary.expenseUpiTotal())
+                .addValue("expenseCardTotal", summary.expenseCardTotal())
+                .addValue("expenseBankTotal", summary.expenseBankTotal())
+                .addValue("registerCount", summary.registerCount())
+                .addValue("cashOpeningTotal", summary.cashOpeningTotal())
+                .addValue("cashInTotal", summary.cashInTotal())
+                .addValue("cashOutTotal", summary.cashOutTotal())
+                .addValue("cashExpectedTotal", summary.cashExpectedTotal())
+                .addValue("cashActualTotal", summary.cashActualTotal())
+                .addValue("cashDifferenceTotal", summary.cashDifferenceTotal());
 
         Long closingId = jdbcTemplate.queryForObject(
             """
@@ -148,70 +193,21 @@ public class DailyClosingRepositoryImpl
                 cash_difference_total
             )
             VALUES (
-                ?, ?, ?, ?,
-                ?, ?, ?, ?,
-                ?, ?, ?, ?, ?,
-                ?, ?,
-                ?, ?, ?, ?, ?, ?,
-                ?, ?,
-                ?, ?, ?, ?,
-                ?, ?,
-                ?, ?, ?, ?,
-                ?, ?, ?, ?, ?, ?, ?
+                :closingUuid, :businessDate, :closedBy, :notes,
+                :salesCount, :salesTotal, :salesPaidTotal, :salesBalanceTotal,
+                :salesCashTotal, :salesUpiTotal, :salesCardTotal, :salesBankTotal, :salesCreditTotal,
+                :salesReturnCount, :salesReturnTotal,
+                :salesRefundTotal, :salesRefundCashTotal, :salesRefundUpiTotal, :salesRefundCardTotal, :salesRefundBankTotal, :salesRefundCreditTotal,
+                :purchaseCount, :purchaseTotal,
+                :purchaseCashTotal, :purchaseUpiTotal, :purchaseCardTotal, :purchaseBankTotal,
+                :expenseCount, :expenseTotal,
+                :expenseCashTotal, :expenseUpiTotal, :expenseCardTotal, :expenseBankTotal,
+                :registerCount, :cashOpeningTotal, :cashInTotal, :cashOutTotal, :cashExpectedTotal, :cashActualTotal, :cashDifferenceTotal
             )
             RETURNING id
             """,
-            Long.class,
-
-            closingUuid,
-            businessDate,
-            closedBy,
-            notes,
-
-            summary.salesCount(),
-            summary.salesTotal(),
-            summary.salesPaidTotal(),
-            summary.salesBalanceTotal(),
-
-            summary.salesCashTotal(),
-            summary.salesUpiTotal(),
-            summary.salesCardTotal(),
-            summary.salesBankTotal(),
-            summary.salesCreditTotal(),
-
-            summary.salesReturnCount(),
-            summary.salesReturnTotal(),
-
-            summary.salesRefundTotal(),
-            summary.salesRefundCashTotal(),
-            summary.salesRefundUpiTotal(),
-            summary.salesRefundCardTotal(),
-            summary.salesRefundBankTotal(),
-            summary.salesRefundCreditTotal(),
-
-            summary.purchaseCount(),
-            summary.purchaseTotal(),
-
-            summary.purchaseCashTotal(),
-            summary.purchaseUpiTotal(),
-            summary.purchaseCardTotal(),
-            summary.purchaseBankTotal(),
-
-            summary.expenseCount(),
-            summary.expenseTotal(),
-
-            summary.expenseCashTotal(),
-            summary.expenseUpiTotal(),
-            summary.expenseCardTotal(),
-            summary.expenseBankTotal(),
-
-            summary.registerCount(),
-            summary.cashOpeningTotal(),
-            summary.cashInTotal(),
-            summary.cashOutTotal(),
-            summary.cashExpectedTotal(),
-            summary.cashActualTotal(),
-            summary.cashDifferenceTotal()
+            params,
+            Long.class
         );
 
         saveRegisterDetails(closingId, start, end);
@@ -242,9 +238,10 @@ public class DailyClosingRepositoryImpl
                 COALESCE(SUM(paid_amount), 0) AS sales_paid_total,
                 COALESCE(SUM(balance_amount), 0) AS sales_balance_total
             FROM sales
-            WHERE sale_date = ?
+            WHERE sale_date = :businessDate
               AND status = 'COMPLETED'
             """,
+            new MapSqlParameterSource("businessDate", businessDate),
             (rs, rowNum) -> new DailyClosingSummary(
                 rs.getLong("sales_count"),
                 money(rs, "sales_total"),
@@ -266,13 +263,16 @@ public class DailyClosingRepositoryImpl
                 zero(), zero(), zero(), zero(),
 
                 0L, zero(), zero(), zero(), zero(), zero(), zero()
-            ),
-            businessDate
+            )
         );
 
         // -------------------------------------------------
         // SALES PAYMENTS
         // -------------------------------------------------
+
+        MapSqlParameterSource windowParams = new MapSqlParameterSource()
+                .addValue("start", start)
+                .addValue("end", end);
 
         PaymentTotals salesPayments = jdbcTemplate.queryForObject(
             """
@@ -294,21 +294,16 @@ public class DailyClosingRepositoryImpl
                 ), 0) AS bank_total,
                 
                 COALESCE(SUM(amount), 0) AS total_amount,
-                
-				COALESCE(SUM(amount) FILTER (
-				    WHERE payment_method = 'CREDIT'
-				), 0) AS credit_total,
 
                 COALESCE(SUM(amount) FILTER (
                     WHERE payment_method = 'CREDIT'
                 ), 0) AS credit_total
             FROM sales_payments
-            WHERE payment_date >= ?
-              AND payment_date < ?
+            WHERE payment_date >= :start
+              AND payment_date < :end
             """,
-            paymentTotalsMapper,
-            start,
-            end
+            windowParams,
+            paymentTotalsMapper
         );
 
         // -------------------------------------------------
@@ -321,15 +316,14 @@ public class DailyClosingRepositoryImpl
                 COUNT(*) AS return_count,
                 COALESCE(SUM(total_return_amount), 0) AS return_total
             FROM sales_returns
-            WHERE return_date >= ?
-              AND return_date < ?
+            WHERE return_date >= :start
+              AND return_date < :end
             """,
+            windowParams,
             (rs, rowNum) -> new ReturnTotals(
                 rs.getLong("return_count"),
                 money(rs, "return_total")
-            ),
-            start,
-            end
+            )
         );
 
         // -------------------------------------------------
@@ -361,9 +355,10 @@ public class DailyClosingRepositoryImpl
                     WHERE payment_method = 'CREDIT'
                 ), 0) AS credit_total
             FROM sales_refunds
-            WHERE refund_date >= ?
-              AND refund_date < ?
+            WHERE refund_date >= :start
+              AND refund_date < :end
             """,
+            windowParams,
             (rs, rowNum) -> new PaymentTotals(
                 money(rs, "total_amount"),
                 money(rs, "cash_total"),
@@ -371,9 +366,7 @@ public class DailyClosingRepositoryImpl
                 money(rs, "card_total"),
                 money(rs, "bank_total"),
                 money(rs, "credit_total")
-            ),
-            start,
-            end
+            )
         );
 
         // -------------------------------------------------
@@ -386,14 +379,14 @@ public class DailyClosingRepositoryImpl
                 COUNT(*) AS purchase_count,
                 COALESCE(SUM(grand_total), 0) AS purchase_total
             FROM purchases
-            WHERE purchase_date = ?
+            WHERE purchase_date = :businessDate
               AND status = 'RECEIVED'
             """,
+            new MapSqlParameterSource("businessDate", businessDate),
             (rs, rowNum) -> new PurchaseTotals(
                 rs.getLong("purchase_count"),
                 money(rs, "purchase_total")
-            ),
-            businessDate
+            )
         );
 
         // -------------------------------------------------
@@ -416,18 +409,17 @@ public class DailyClosingRepositoryImpl
                 ), 0) AS card_total,
                 
                 COALESCE(SUM(amount), 0) AS total_amount,
-        		0::NUMERIC AS credit_total,
+                0::NUMERIC AS credit_total,
 
                 COALESCE(SUM(amount) FILTER (
                     WHERE payment_method = 'BANK'
                 ), 0) AS bank_total
             FROM purchase_payments
-            WHERE payment_date >= ?
-              AND payment_date < ?
+            WHERE payment_date >= :start
+              AND payment_date < :end
             """,
-            paymentTotalsMapper,
-            start,
-            end
+            windowParams,
+            paymentTotalsMapper
         );
 
         // -------------------------------------------------
@@ -456,9 +448,10 @@ public class DailyClosingRepositoryImpl
                     WHERE payment_method = 'BANK'
                 ), 0) AS bank_total
             FROM expenses
-            WHERE expense_date = ?
+            WHERE expense_date = :businessDate
               AND status = 'ACTIVE'
             """,
+            new MapSqlParameterSource("businessDate", businessDate),
             (rs, rowNum) -> new ExpenseTotals(
                 rs.getLong("expense_count"),
                 money(rs, "expense_total"),
@@ -466,8 +459,7 @@ public class DailyClosingRepositoryImpl
                 money(rs, "upi_total"),
                 money(rs, "card_total"),
                 money(rs, "bank_total")
-            ),
-            businessDate
+            )
         );
 
         // -------------------------------------------------
@@ -515,10 +507,11 @@ public class DailyClosingRepositoryImpl
                 GROUP BY session_id
             ) m ON m.session_id = s.id
 
-            WHERE s.opened_at >= ?
-              AND s.opened_at < ?
+            WHERE s.opened_at >= :start
+              AND s.opened_at < :end
               AND s.status = 'CLOSED'
             """,
+            windowParams,
             (rs, rowNum) -> new CashTotals(
                 rs.getLong("register_count"),
                 money(rs, "opening_total"),
@@ -527,9 +520,7 @@ public class DailyClosingRepositoryImpl
                 money(rs, "expected_total"),
                 money(rs, "actual_total"),
                 money(rs, "difference_total")
-            ),
-            start,
-            end
+            )
         );
 
         return new DailyClosingSummary(
@@ -589,6 +580,11 @@ public class DailyClosingRepositoryImpl
             findRegisterSessions(start, end);
 
         for (CashRegisterClosingResponse session : sessions) {
+            MapSqlParameterSource params = new MapSqlParameterSource()
+                    .addValue("closingId", closingId)
+                    .addValue("totalCashIn", session.totalCashIn())
+                    .addValue("totalCashOut", session.totalCashOut())
+                    .addValue("sessionUuid", session.sessionUuid());
 
             jdbcTemplate.update(
                 """
@@ -604,24 +600,21 @@ public class DailyClosingRepositoryImpl
                     difference_amount
                 )
                 SELECT
-                    ?,
+                    :closingId,
                     s.id,
                     r.name,
                     s.opening_balance,
-                    ?,
-                    ?,
+                    :totalCashIn,
+                    :totalCashOut,
                     s.expected_closing_balance,
                     s.actual_closing_balance,
                     s.difference_amount
                 FROM cash_register_sessions s
                 JOIN cash_registers r
                     ON r.id = s.cash_register_id
-                WHERE s.uuid = ?
+                WHERE s.uuid = :sessionUuid
                 """,
-                closingId,
-                session.totalCashIn(),
-                session.totalCashOut(),
-                session.sessionUuid()
+                params
             );
         }
     }
@@ -630,6 +623,9 @@ public class DailyClosingRepositoryImpl
         OffsetDateTime start,
         OffsetDateTime end
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("start", start)
+                .addValue("end", end);
 
         return jdbcTemplate.query(
             """
@@ -665,12 +661,13 @@ public class DailyClosingRepositoryImpl
                 GROUP BY session_id
             ) m ON m.session_id = s.id
 
-            WHERE s.opened_at >= ?
-              AND s.opened_at < ?
+            WHERE s.opened_at >= :start
+              AND s.opened_at < :end
               AND s.status = 'CLOSED'
 
             ORDER BY r.name, s.opened_at
             """,
+            params,
             (rs, rowNum) -> new CashRegisterClosingResponse(
                 rs.getObject("session_uuid", UUID.class),
                 rs.getString("register_name"),
@@ -680,9 +677,7 @@ public class DailyClosingRepositoryImpl
                 rs.getBigDecimal("expected_closing_balance"),
                 rs.getBigDecimal("actual_closing_balance"),
                 rs.getBigDecimal("difference_amount")
-            ),
-            start,
-            end
+            )
         );
     }
 
@@ -690,39 +685,40 @@ public class DailyClosingRepositoryImpl
     public Optional<DailyClosingResponse> findByBusinessDate(
         LocalDate businessDate
     ) {
-
         return findOne(
-            "WHERE business_date = ?",
+            "WHERE business_date = :paramValue",
+            "paramValue",
             businessDate
         );
     }
 
     @Override
     public Optional<DailyClosingResponse> findByUuid(UUID uuid) {
-
         return findOne(
-            "WHERE uuid = ?",
+            "WHERE uuid = :paramValue",
+            "paramValue",
             uuid
         );
     }
 
     private Optional<DailyClosingResponse> findOne(
         String condition,
+        String paramName,
         Object value
     ) {
-
         try {
+            MapSqlParameterSource params = new MapSqlParameterSource(paramName, value);
 
             return jdbcTemplate.query(
                 SUMMARY_SELECT + " " + condition,
+                params,
                 rs -> {
                     if (!rs.next()) {
                         return Optional.empty();
                     }
 
                     return Optional.of(mapResponse(rs));
-                },
-                value
+                }
             );
 
         } catch (EmptyResultDataAccessException ex) {
@@ -798,9 +794,10 @@ public class DailyClosingRepositoryImpl
                 FROM daily_closing_cash_registers d
                 JOIN cash_register_sessions s
                     ON s.id = d.cash_register_session_id
-                WHERE d.daily_closing_id = ?
+                WHERE d.daily_closing_id = :closingId
                 ORDER BY d.register_name
                 """,
+                new MapSqlParameterSource("closingId", closingId),
                 (detailRs, rowNum) ->
                     new CashRegisterClosingResponse(
                         detailRs.getObject("session_uuid", UUID.class),
@@ -811,8 +808,7 @@ public class DailyClosingRepositoryImpl
                         detailRs.getBigDecimal("expected_closing_balance"),
                         detailRs.getBigDecimal("actual_closing_balance"),
                         detailRs.getBigDecimal("difference_amount")
-                    ),
-                closingId
+                    )
             );
 
         return new DailyClosingResponse(
@@ -838,23 +834,23 @@ public class DailyClosingRepositoryImpl
     }
 
     private record PaymentTotals(
-    	    BigDecimal total,
-    	    BigDecimal cash,
-    	    BigDecimal upi,
-    	    BigDecimal card,
-    	    BigDecimal bank,
-    	    BigDecimal credit
-    	) {}
+            BigDecimal total,
+            BigDecimal cash,
+            BigDecimal upi,
+            BigDecimal card,
+            BigDecimal bank,
+            BigDecimal credit
+        ) {}
 
-    	private final RowMapper<PaymentTotals> paymentTotalsMapper =
-    	    (rs, rowNum) -> new PaymentTotals(
-    	        money(rs, "total_amount"),
-    	        money(rs, "cash_total"),
-    	        money(rs, "upi_total"),
-    	        money(rs, "card_total"),
-    	        money(rs, "bank_total"),
-    	        money(rs, "credit_total")
-    	    );
+    private final RowMapper<PaymentTotals> paymentTotalsMapper =
+        (rs, rowNum) -> new PaymentTotals(
+            money(rs, "total_amount"),
+            money(rs, "cash_total"),
+            money(rs, "upi_total"),
+            money(rs, "card_total"),
+            money(rs, "bank_total"),
+            money(rs, "credit_total")
+        );
 
     private record ReturnTotals(
         Long count,

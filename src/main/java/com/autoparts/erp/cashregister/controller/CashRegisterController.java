@@ -1,5 +1,7 @@
 package com.autoparts.erp.cashregister.controller;
 
+import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,6 +25,7 @@ public class CashRegisterController {
         this.cashRegisterService = cashRegisterService;
     }
 
+    @AdminOrManager
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public CashRegisterResponse createRegister(
@@ -36,6 +39,7 @@ public class CashRegisterController {
         return cashRegisterService.findAllRegisters();
     }
 
+    @SalesAccess
     @PostMapping("/{registerUuid}/sessions")
     @ResponseStatus(HttpStatus.CREATED)
     public CashSessionResponse openSession(
@@ -45,6 +49,7 @@ public class CashRegisterController {
         return cashRegisterService.openSession(registerUuid, request);
     }
 
+    @SalesAccess
     @PostMapping("/sessions/{sessionUuid}/close")
     public CashSessionResponse closeSession(
         @PathVariable UUID sessionUuid,

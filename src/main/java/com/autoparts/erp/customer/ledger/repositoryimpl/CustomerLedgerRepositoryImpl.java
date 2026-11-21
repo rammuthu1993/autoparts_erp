@@ -4,12 +4,12 @@ import com.autoparts.erp.customer.ledger.dto.CustomerLedgerEntry;
 import com.autoparts.erp.customer.ledger.dto.CustomerLedgerSummary;
 import com.autoparts.erp.customer.ledger.repository.CustomerLedgerRepository;
 
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -19,9 +19,9 @@ import java.util.UUID;
 public class CustomerLedgerRepositoryImpl
         implements CustomerLedgerRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public CustomerLedgerRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public CustomerLedgerRepositoryImpl(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -43,17 +43,17 @@ public class CustomerLedgerRepositoryImpl
         String sql = """
                 SELECT id, uuid, customer_name
                 FROM customers
-                WHERE uuid = ?
+                WHERE uuid = :customerUuid
                 """;
 
         return jdbcTemplate.query(
                 sql,
+                new MapSqlParameterSource("customerUuid", customerUuid),
                 (rs, rowNum) -> new CustomerInfo(
                         rs.getLong("id"),
                         rs.getObject("uuid", UUID.class),
                         rs.getString("customer_name")
-                ),
-                customerUuid
+                )
         ).stream().findFirst();
     }
 
@@ -80,9 +80,9 @@ public class CustomerLedgerRepositoryImpl
                     -- Sales
                     SELECT s.grand_total AS transaction_amount
                     FROM sales s
-                    WHERE s.customer_id = ?
+                    WHERE s.customer_id = :customerId
                       AND s.status = 'COMPLETED'
-                      AND s.sale_date < ?
+                      AND s.sale_date < :fromDate
 
                     UNION ALL
 
@@ -90,9 +90,9 @@ public class CustomerLedgerRepositoryImpl
                     SELECT -sp.amount AS transaction_amount
                     FROM sales_payments sp
                     JOIN sales s ON s.id = sp.sale_id
-                    WHERE s.customer_id = ?
+                    WHERE s.customer_id = :customerId
                       AND s.status = 'COMPLETED'
-                      AND sp.payment_date::date < ?
+                      AND CAST(sp.payment_date AS DATE) < :fromDate
 
                     UNION ALL
 
@@ -100,27 +100,26 @@ public class CustomerLedgerRepositoryImpl
                     SELECT -sr.total_return_amount AS transaction_amount
                     FROM sales_returns sr
                     JOIN sales s ON s.id = sr.sale_id
-                    WHERE s.customer_id = ?
+                    WHERE s.customer_id = :customerId
                       AND s.status = 'COMPLETED'
                       AND sr.status IN (
                           'ACCEPTED',
                           'PARTIALLY_REFUNDED',
                           'REFUNDED'
                       )
-                      AND sr.return_date::date < ?
+                      AND CAST(sr.return_date AS DATE) < :fromDate
 
                 ) transactions
                 """;
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("customerId", customerId)
+                .addValue("fromDate", fromDate);
+
         BigDecimal result = jdbcTemplate.queryForObject(
                 sql,
-                BigDecimal.class,
-                customerId,
-                Date.valueOf(fromDate),
-                customerId,
-                Date.valueOf(fromDate),
-                customerId,
-                Date.valueOf(fromDate)
+                params,
+                BigDecimal.class
         );
 
         return result != null ? result : BigDecimal.ZERO;
@@ -153,10 +152,10 @@ public class CustomerLedgerRepositoryImpl
                         0::numeric AS payment_amount,
                         0::numeric AS sales_return_amount
                     FROM sales s
-                    WHERE s.customer_id = ?
+                    WHERE s.customer_id = :customerId
                       AND s.status = 'COMPLETED'
-                      AND (?::date IS NULL OR s.sale_date >= ?::date)
-                      AND (?::date IS NULL OR s.sale_date <= ?::date)
+                      AND (CAST(:fromDate AS DATE) IS NULL OR s.sale_date >= CAST(:fromDate AS DATE))
+                      AND (CAST(:toDate AS DATE) IS NULL OR s.sale_date <= CAST(:toDate AS DATE))
 
                     UNION ALL
 
@@ -167,10 +166,10 @@ public class CustomerLedgerRepositoryImpl
                         0::numeric AS sales_return_amount
                     FROM sales_payments sp
                     JOIN sales s ON s.id = sp.sale_id
-                    WHERE s.customer_id = ?
+                    WHERE s.customer_id = :customerId
                       AND s.status = 'COMPLETED'
-                      AND (?::date IS NULL OR sp.payment_date::date >= ?::date)
-                      AND (?::date IS NULL OR sp.payment_date::date <= ?::date)
+                      AND (CAST(:fromDate AS DATE) IS NULL OR CAST(sp.payment_date AS DATE) >= CAST(:fromDate AS DATE))
+                      AND (CAST(:toDate AS DATE) IS NULL OR CAST(sp.payment_date AS DATE) <= CAST(:toDate AS DATE))
 
                     UNION ALL
 
@@ -181,21 +180,27 @@ public class CustomerLedgerRepositoryImpl
                         sr.total_return_amount AS sales_return_amount
                     FROM sales_returns sr
                     JOIN sales s ON s.id = sr.sale_id
-                    WHERE s.customer_id = ?
+                    WHERE s.customer_id = :customerId
                       AND s.status = 'COMPLETED'
                       AND sr.status IN (
                           'ACCEPTED',
                           'PARTIALLY_REFUNDED',
                           'REFUNDED'
                       )
-                      AND (?::date IS NULL OR sr.return_date::date >= ?::date)
-                      AND (?::date IS NULL OR sr.return_date::date <= ?::date)
+                      AND (CAST(:fromDate AS DATE) IS NULL OR CAST(sr.return_date AS DATE) >= CAST(:fromDate AS DATE))
+                      AND (CAST(:toDate AS DATE) IS NULL OR CAST(sr.return_date AS DATE) <= CAST(:toDate AS DATE))
 
                 ) transactions
                 """;
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("customerId", customer.id())
+                .addValue("fromDate", fromDate)
+                .addValue("toDate", toDate);
+
         return jdbcTemplate.queryForObject(
                 sql,
+                params,
                 (rs, rowNum) -> {
 
                     BigDecimal sales =
@@ -223,22 +228,7 @@ public class CustomerLedgerRepositoryImpl
                             salesReturns,
                             closingBalance
                     );
-                },
-
-                // Sales
-                customer.id(),
-                fromDate, fromDate,
-                toDate, toDate,
-
-                // Payments
-                customer.id(),
-                fromDate, fromDate,
-                toDate, toDate,
-
-                // Sales returns
-                customer.id(),
-                fromDate, fromDate,
-                toDate, toDate
+                }
         );
     }
 
@@ -268,7 +258,7 @@ public class CustomerLedgerRepositoryImpl
                         1 AS sort_order,
                         s.id AS sort_id
                     FROM sales s
-                    WHERE s.customer_id = ?
+                    WHERE s.customer_id = :customerId
                       AND s.status = 'COMPLETED'
 
                     UNION ALL
@@ -281,7 +271,7 @@ public class CustomerLedgerRepositoryImpl
                             sp.reference_number,
                             s.invoice_number
                         ) AS reference_number,
-                        sp.payment_date::date AS transaction_date,
+                        CAST(sp.payment_date AS DATE) AS transaction_date,
                         0::numeric AS sales_amount,
                         sp.amount AS payment_amount,
                         0::numeric AS sales_return_amount,
@@ -290,7 +280,7 @@ public class CustomerLedgerRepositoryImpl
                         sp.id AS sort_id
                     FROM sales_payments sp
                     JOIN sales s ON s.id = sp.sale_id
-                    WHERE s.customer_id = ?
+                    WHERE s.customer_id = :customerId
                       AND s.status = 'COMPLETED'
 
                     UNION ALL
@@ -300,7 +290,7 @@ public class CustomerLedgerRepositoryImpl
                         sr.uuid AS transaction_uuid,
                         'SALES_RETURN' AS transaction_type,
                         s.invoice_number AS reference_number,
-                        sr.return_date::date AS transaction_date,
+                        CAST(sr.return_date AS DATE) AS transaction_date,
                         0::numeric AS sales_amount,
                         0::numeric AS payment_amount,
                         sr.total_return_amount AS sales_return_amount,
@@ -309,7 +299,7 @@ public class CustomerLedgerRepositoryImpl
                         sr.id AS sort_id
                     FROM sales_returns sr
                     JOIN sales s ON s.id = sr.sale_id
-                    WHERE s.customer_id = ?
+                    WHERE s.customer_id = :customerId
                       AND s.status = 'COMPLETED'
                       AND sr.status IN (
                           'ACCEPTED',
@@ -322,19 +312,19 @@ public class CustomerLedgerRepositoryImpl
                     SELECT *
                     FROM transactions
                     WHERE (
-                        ?::date IS NULL
-                        OR transaction_date >= ?::date
+                        CAST(:fromDate AS DATE) IS NULL
+                        OR transaction_date >= CAST(:fromDate AS DATE)
                     )
                     AND (
-                        ?::date IS NULL
-                        OR transaction_date <= ?::date
+                        CAST(:toDate AS DATE) IS NULL
+                        OR transaction_date <= CAST(:toDate AS DATE)
                     )
                 ),
 
                 running AS (
                     SELECT
                         *,
-                        ?::numeric + SUM(signed_amount) OVER (
+                        CAST(:openingBalance AS NUMERIC) + SUM(signed_amount) OVER (
                             ORDER BY
                                 transaction_date,
                                 sort_order,
@@ -359,20 +349,21 @@ public class CustomerLedgerRepositoryImpl
                     transaction_date DESC,
                     sort_order DESC,
                     sort_id DESC
-                LIMIT ? OFFSET ?
+                LIMIT :limit OFFSET :offset
                 """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("customerId", customerId)
+                .addValue("fromDate", fromDate)
+                .addValue("toDate", toDate)
+                .addValue("openingBalance", openingBalance)
+                .addValue("limit", limit)
+                .addValue("offset", offset);
 
         return jdbcTemplate.query(
                 sql,
-                entryRowMapper,
-                customerId,
-                customerId,
-                customerId,
-                fromDate, fromDate,
-                toDate, toDate,
-                openingBalance,
-                limit,
-                offset
+                params,
+                entryRowMapper
         );
     }
 
@@ -390,10 +381,10 @@ public class CustomerLedgerRepositoryImpl
                     -- Sales
                     SELECT s.id
                     FROM sales s
-                    WHERE s.customer_id = ?
+                    WHERE s.customer_id = :customerId
                       AND s.status = 'COMPLETED'
-                      AND (?::date IS NULL OR s.sale_date >= ?::date)
-                      AND (?::date IS NULL OR s.sale_date <= ?::date)
+                      AND (CAST(:fromDate AS DATE) IS NULL OR s.sale_date >= CAST(:fromDate AS DATE))
+                      AND (CAST(:toDate AS DATE) IS NULL OR s.sale_date <= CAST(:toDate AS DATE))
 
                     UNION ALL
 
@@ -401,10 +392,10 @@ public class CustomerLedgerRepositoryImpl
                     SELECT sp.id
                     FROM sales_payments sp
                     JOIN sales s ON s.id = sp.sale_id
-                    WHERE s.customer_id = ?
+                    WHERE s.customer_id = :customerId
                       AND s.status = 'COMPLETED'
-                      AND (?::date IS NULL OR sp.payment_date::date >= ?::date)
-                      AND (?::date IS NULL OR sp.payment_date::date <= ?::date)
+                      AND (CAST(:fromDate AS DATE) IS NULL OR CAST(sp.payment_date AS DATE) >= CAST(:fromDate AS DATE))
+                      AND (CAST(:toDate AS DATE) IS NULL OR CAST(sp.payment_date AS DATE) <= CAST(:toDate AS DATE))
 
                     UNION ALL
 
@@ -412,37 +403,28 @@ public class CustomerLedgerRepositoryImpl
                     SELECT sr.id
                     FROM sales_returns sr
                     JOIN sales s ON s.id = sr.sale_id
-                    WHERE s.customer_id = ?
+                    WHERE s.customer_id = :customerId
                       AND s.status = 'COMPLETED'
                       AND sr.status IN (
                           'ACCEPTED',
                           'PARTIALLY_REFUNDED',
                           'REFUNDED'
                       )
-                      AND (?::date IS NULL OR sr.return_date::date >= ?::date)
-                      AND (?::date IS NULL OR sr.return_date::date <= ?::date)
+                      AND (CAST(:fromDate AS DATE) IS NULL OR CAST(sr.return_date AS DATE) >= CAST(:fromDate AS DATE))
+                      AND (CAST(:toDate AS DATE) IS NULL OR CAST(sr.return_date AS DATE) <= CAST(:toDate AS DATE))
 
                 ) transactions
                 """;
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("customerId", customerId)
+                .addValue("fromDate", fromDate)
+                .addValue("toDate", toDate);
+
         Long count = jdbcTemplate.queryForObject(
                 sql,
-                Long.class,
-
-                // Sales
-                customerId,
-                fromDate, fromDate,
-                toDate, toDate,
-
-                // Payments
-                customerId,
-                fromDate, fromDate,
-                toDate, toDate,
-
-                // Sales returns
-                customerId,
-                fromDate, fromDate,
-                toDate, toDate
+                params,
+                Long.class
         );
 
         return count != null ? count : 0L;

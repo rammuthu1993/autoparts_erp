@@ -1,10 +1,10 @@
-
 package com.autoparts.erp.supplier.repositoryimpl;
 
 import com.autoparts.erp.supplier.model.Supplier;
 import com.autoparts.erp.supplier.repository.SupplierRepository;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -14,9 +14,9 @@ import java.util.UUID;
 @Repository
 public class SupplierRepositoryImpl implements SupplierRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public SupplierRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public SupplierRepositoryImpl(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -54,26 +54,33 @@ public class SupplierRepositoryImpl implements SupplierRepository {
                 email, address, city, state, pincode, gstin,
                 payment_terms_days
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (
+                :uuid, :supplierName, :contactPerson, :phone,
+                :email, :address, :city, :state, :pincode, :gstin,
+                :paymentTermsDays
+            )
             RETURNING id, uuid, supplier_name, contact_person, phone,
                       email, address, city, state, pincode, gstin,
                       payment_terms_days, active, created_at, updated_at
             """;
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", supplier.uuid())
+                .addValue("supplierName", supplier.supplierName())
+                .addValue("contactPerson", supplier.contactPerson())
+                .addValue("phone", supplier.phone())
+                .addValue("email", supplier.email())
+                .addValue("address", supplier.address())
+                .addValue("city", supplier.city())
+                .addValue("state", supplier.state())
+                .addValue("pincode", supplier.pincode())
+                .addValue("gstin", supplier.gstin())
+                .addValue("paymentTermsDays", supplier.paymentTermsDays());
+
         return jdbcTemplate.queryForObject(
             sql,
-            ROW_MAPPER,
-            supplier.uuid(),
-            supplier.supplierName(),
-            supplier.contactPerson(),
-            supplier.phone(),
-            supplier.email(),
-            supplier.address(),
-            supplier.city(),
-            supplier.state(),
-            supplier.pincode(),
-            supplier.gstin(),
-            supplier.paymentTermsDays()
+            params,
+            ROW_MAPPER
         );
     }
 
@@ -81,6 +88,7 @@ public class SupplierRepositoryImpl implements SupplierRepository {
     public List<Supplier> findAll() {
         return jdbcTemplate.query(
             SELECT_COLUMNS + " ORDER BY supplier_name",
+            new MapSqlParameterSource(),
             ROW_MAPPER
         );
     }
@@ -88,9 +96,9 @@ public class SupplierRepositoryImpl implements SupplierRepository {
     @Override
     public Optional<Supplier> findByUuid(UUID uuid) {
         List<Supplier> results = jdbcTemplate.query(
-            SELECT_COLUMNS + " WHERE uuid = ?",
-            ROW_MAPPER,
-            uuid
+            SELECT_COLUMNS + " WHERE uuid = :uuid",
+            new MapSqlParameterSource("uuid", uuid),
+            ROW_MAPPER
         );
 
         return results.stream().findFirst();
@@ -100,35 +108,35 @@ public class SupplierRepositoryImpl implements SupplierRepository {
     public boolean update(UUID uuid, Supplier supplier) {
         String sql = """
             UPDATE suppliers
-            SET supplier_name = ?,
-                contact_person = ?,
-                phone = ?,
-                email = ?,
-                address = ?,
-                city = ?,
-                state = ?,
-                pincode = ?,
-                gstin = ?,
-                payment_terms_days = ?,
+            SET supplier_name = :supplierName,
+                contact_person = :contactPerson,
+                phone = :phone,
+                email = :email,
+                address = :address,
+                city = :city,
+                state = :state,
+                pincode = :pincode,
+                gstin = :gstin,
+                payment_terms_days = :paymentTermsDays,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE uuid = ?
+            WHERE uuid = :uuid
               AND active = TRUE
             """;
 
-        return jdbcTemplate.update(
-            sql,
-            supplier.supplierName(),
-            supplier.contactPerson(),
-            supplier.phone(),
-            supplier.email(),
-            supplier.address(),
-            supplier.city(),
-            supplier.state(),
-            supplier.pincode(),
-            supplier.gstin(),
-            supplier.paymentTermsDays(),
-            uuid
-        ) > 0;
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("supplierName", supplier.supplierName())
+                .addValue("contactPerson", supplier.contactPerson())
+                .addValue("phone", supplier.phone())
+                .addValue("email", supplier.email())
+                .addValue("address", supplier.address())
+                .addValue("city", supplier.city())
+                .addValue("state", supplier.state())
+                .addValue("pincode", supplier.pincode())
+                .addValue("gstin", supplier.gstin())
+                .addValue("paymentTermsDays", supplier.paymentTermsDays())
+                .addValue("uuid", uuid);
+
+        return jdbcTemplate.update(sql, params) > 0;
     }
 
     @Override
@@ -137,110 +145,105 @@ public class SupplierRepositoryImpl implements SupplierRepository {
             UPDATE suppliers
             SET active = FALSE,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE uuid = ?
+            WHERE uuid = :uuid
               AND active = TRUE
             """;
 
-        return jdbcTemplate.update(sql, uuid) > 0;
+        return jdbcTemplate.update(
+                sql,
+                new MapSqlParameterSource("uuid", uuid)
+        ) > 0;
     }
-    
 
-	@Override
-	public boolean existsBySupplierName(String supplierName) {
-	    String sql = """
-	        SELECT EXISTS (
-	            SELECT 1
-	            FROM suppliers
-	            WHERE LOWER(TRIM(supplier_name)) = LOWER(TRIM(?))
-	        )
-	        """;
-	
-	    return Boolean.TRUE.equals(
-	        jdbcTemplate.queryForObject(sql, Boolean.class, supplierName)
-	    );
-	}
-	
-	@Override
-	public boolean existsByPhone(String phone) {
-	    String sql = """
-	        SELECT EXISTS (
-	            SELECT 1
-	            FROM suppliers
-	            WHERE REGEXP_REPLACE(
-	                TRIM(phone), '[[:space:]]+', '', 'g'
-	            ) = REGEXP_REPLACE(
-	                TRIM(?), '[[:space:]]+', '', 'g'
-	            )
-	        )
-	        """;
-	
-	    return Boolean.TRUE.equals(
-	        jdbcTemplate.queryForObject(sql, Boolean.class, phone)
-	    );
-	}
-	
-	@Override
-	public boolean existsByEmail(String email) {
-	    if (email == null || email.isBlank()) {
-	        return false;
-	    }
-	
-	    String sql = """
-	        SELECT EXISTS (
-	            SELECT 1
-	            FROM suppliers
-	            WHERE email IS NOT NULL
-	              AND TRIM(email) <> ''
-	              AND LOWER(TRIM(email)) = LOWER(TRIM(?))
-	        )
-	        """;
-	
-	    return Boolean.TRUE.equals(
-	        jdbcTemplate.queryForObject(sql, Boolean.class, email)
-	    );
-	}
-	
-	@Override
-	public boolean existsByGstin(String gstin) {
-	    if (gstin == null || gstin.isBlank()) {
-	        return false;
-	    }
-	
-	    String sql = """
-	        SELECT EXISTS (
-	            SELECT 1
-	            FROM suppliers
-	            WHERE gstin IS NOT NULL
-	              AND TRIM(gstin) <> ''
-	              AND UPPER(TRIM(gstin)) = UPPER(TRIM(?))
-	        )
-	        """;
-	
-	    return Boolean.TRUE.equals(
-	        jdbcTemplate.queryForObject(sql, Boolean.class, gstin)
-	    );
-	}
-	
+    @Override
+    public boolean existsBySupplierName(String supplierName) {
+        String sql = """
+            SELECT EXISTS (
+                SELECT 1
+                FROM suppliers
+                WHERE LOWER(TRIM(supplier_name)) = LOWER(TRIM(:supplierName))
+            )
+            """;
 
-//	@Override
-//	public boolean existsBySupplierNameExcludingUuid(
-//	    String supplierName, UUID uuid
-//	) {
-//	    String sql = """
-//	        SELECT EXISTS (
-//	            SELECT 1
-//	            FROM suppliers
-//	            WHERE LOWER(TRIM(supplier_name)) = LOWER(TRIM(?))
-//	              AND uuid <> ?
-//	        )
-//	        """;
-//	
-//	    return Boolean.TRUE.equals(
-//	        jdbcTemplate.queryForObject(
-//	            sql, Boolean.class, supplierName, uuid
-//	        )
-//	    );
-//	}
+        return Boolean.TRUE.equals(
+            jdbcTemplate.queryForObject(
+                sql,
+                new MapSqlParameterSource("supplierName", supplierName),
+                Boolean.class
+            )
+        );
+    }
 
+    @Override
+    public boolean existsByPhone(String phone) {
+        String sql = """
+            SELECT EXISTS (
+                SELECT 1
+                FROM suppliers
+                WHERE REGEXP_REPLACE(
+                    TRIM(phone), '[[:space:]]+', '', 'g'
+                ) = REGEXP_REPLACE(
+                    TRIM(:phone), '[[:space:]]+', '', 'g'
+                )
+            )
+            """;
 
+        return Boolean.TRUE.equals(
+            jdbcTemplate.queryForObject(
+                sql,
+                new MapSqlParameterSource("phone", phone),
+                Boolean.class
+            )
+        );
+    }
+
+    @Override
+    public boolean existsByEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return false;
+        }
+
+        String sql = """
+            SELECT EXISTS (
+                SELECT 1
+                FROM suppliers
+                WHERE email IS NOT NULL
+                  AND TRIM(email) <> ''
+                  AND LOWER(TRIM(email)) = LOWER(TRIM(:email))
+            )
+            """;
+
+        return Boolean.TRUE.equals(
+            jdbcTemplate.queryForObject(
+                sql,
+                new MapSqlParameterSource("email", email),
+                Boolean.class
+            )
+        );
+    }
+
+    @Override
+    public boolean existsByGstin(String gstin) {
+        if (gstin == null || gstin.isBlank()) {
+            return false;
+        }
+
+        String sql = """
+            SELECT EXISTS (
+                SELECT 1
+                FROM suppliers
+                WHERE gstin IS NOT NULL
+                  AND TRIM(gstin) <> ''
+                  AND UPPER(TRIM(gstin)) = UPPER(TRIM(:gstin))
+            )
+            """;
+
+        return Boolean.TRUE.equals(
+            jdbcTemplate.queryForObject(
+                sql,
+                new MapSqlParameterSource("gstin", gstin),
+                Boolean.class
+            )
+        );
+    }
 }

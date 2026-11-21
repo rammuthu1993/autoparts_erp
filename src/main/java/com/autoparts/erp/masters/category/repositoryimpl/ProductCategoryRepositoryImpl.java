@@ -2,8 +2,9 @@ package com.autoparts.erp.masters.category.repositoryimpl;
 
 import com.autoparts.erp.masters.category.model.ProductCategory;
 import com.autoparts.erp.masters.category.repository.ProductCategoryRepository;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -14,9 +15,9 @@ import java.util.UUID;
 public class ProductCategoryRepositoryImpl
         implements ProductCategoryRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public ProductCategoryRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public ProductCategoryRepositoryImpl(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -43,17 +44,20 @@ public class ProductCategoryRepositoryImpl
         String sql = """
                 INSERT INTO product_categories
                     (uuid, name, description)
-                VALUES (?, ?, ?)
+                VALUES (:uuid, :name, :description)
                 RETURNING id, uuid, name, description,
                           active, created_at, updated_at
                 """;
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", category.uuid())
+                .addValue("name", category.name())
+                .addValue("description", category.description());
+
         return jdbcTemplate.queryForObject(
                 sql,
-                rowMapper,
-                category.uuid(),
-                category.name(),
-                category.description()
+                params,
+                rowMapper
         );
     }
 
@@ -67,7 +71,7 @@ public class ProductCategoryRepositoryImpl
                 ORDER BY id DESC
                 """;
 
-        return jdbcTemplate.query(sql, rowMapper);
+        return jdbcTemplate.query(sql, new MapSqlParameterSource(), rowMapper);
     }
 
     @Override
@@ -77,13 +81,13 @@ public class ProductCategoryRepositoryImpl
                 SELECT id, uuid, name, description,
                        active, created_at, updated_at
                 FROM product_categories
-                WHERE uuid = ?
+                WHERE uuid = :uuid
                 """;
 
         return jdbcTemplate.query(
                 sql,
-                rowMapper,
-                uuid
+                new MapSqlParameterSource("uuid", uuid),
+                rowMapper
         ).stream().findFirst();
     }
 
@@ -95,19 +99,19 @@ public class ProductCategoryRepositoryImpl
     ) {
         String sql = """
                 UPDATE product_categories
-                SET name = ?,
-                    description = ?,
+                SET name = :name,
+                    description = :description,
                     updated_at = CURRENT_TIMESTAMP
-                WHERE uuid = ?
+                WHERE uuid = :uuid
                   AND active = TRUE
                 """;
 
-        return jdbcTemplate.update(
-                sql,
-                name,
-                description,
-                uuid
-        ) > 0;
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("name", name)
+                .addValue("description", description)
+                .addValue("uuid", uuid);
+
+        return jdbcTemplate.update(sql, params) > 0;
     }
 
     @Override
@@ -117,10 +121,13 @@ public class ProductCategoryRepositoryImpl
                 UPDATE product_categories
                 SET active = FALSE,
                     updated_at = CURRENT_TIMESTAMP
-                WHERE uuid = ?
+                WHERE uuid = :uuid
                   AND active = TRUE
                 """;
 
-        return jdbcTemplate.update(sql, uuid) > 0;
+        return jdbcTemplate.update(
+                sql,
+                new MapSqlParameterSource("uuid", uuid)
+        ) > 0;
     }
 }

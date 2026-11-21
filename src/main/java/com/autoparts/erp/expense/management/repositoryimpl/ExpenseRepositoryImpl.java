@@ -5,8 +5,9 @@ import com.autoparts.erp.expense.management.model.ExpensePaymentMethod;
 import com.autoparts.erp.expense.management.model.ExpenseStatus;
 import com.autoparts.erp.expense.management.repository.ExpenseRepository;
 
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -16,9 +17,9 @@ import java.util.UUID;
 @Repository
 public class ExpenseRepositoryImpl implements ExpenseRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public ExpenseRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public ExpenseRepositoryImpl(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -81,25 +82,39 @@ public class ExpenseRepositoryImpl implements ExpenseRepository {
                 notes,
                 created_by
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (
+                :uuid,
+                :categoryId,
+                :expenseDate,
+                :title,
+                :description,
+                :amount,
+                :paymentMethod,
+                :referenceNumber,
+                :notes,
+                :createdBy
+            )
             RETURNING id
             """;
 
         UUID uuid = expense.uuid();
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", uuid)
+                .addValue("categoryId", expense.categoryId())
+                .addValue("expenseDate", expense.expenseDate())
+                .addValue("title", expense.title())
+                .addValue("description", expense.description())
+                .addValue("amount", expense.amount())
+                .addValue("paymentMethod", expense.paymentMethod().name())
+                .addValue("referenceNumber", expense.referenceNumber())
+                .addValue("notes", expense.notes())
+                .addValue("createdBy", expense.createdBy());
+
         Long id = jdbcTemplate.queryForObject(
             sql,
-            Long.class,
-            uuid,
-            expense.categoryId(),
-            expense.expenseDate(),
-            expense.title(),
-            expense.description(),
-            expense.amount(),
-            expense.paymentMethod().name(),
-            expense.referenceNumber(),
-            expense.notes(),
-            expense.createdBy()
+            params,
+            Long.class
         );
 
         return findByUuid(uuid)
@@ -112,10 +127,14 @@ public class ExpenseRepositoryImpl implements ExpenseRepository {
     public Optional<Expense> findByUuid(UUID uuid) {
 
         String sql = SELECT_EXPENSE + """
-            WHERE e.uuid = ?
+            WHERE e.uuid = :uuid
             """;
 
-        List<Expense> results = jdbcTemplate.query(sql, rowMapper, uuid);
+        List<Expense> results = jdbcTemplate.query(
+                sql,
+                new MapSqlParameterSource("uuid", uuid),
+                rowMapper
+        );
 
         return results.stream().findFirst();
     }
@@ -127,7 +146,7 @@ public class ExpenseRepositoryImpl implements ExpenseRepository {
             ORDER BY e.expense_date DESC, e.created_at DESC
             """;
 
-        return jdbcTemplate.query(sql, rowMapper);
+        return jdbcTemplate.query(sql, new MapSqlParameterSource(), rowMapper);
     }
 
     @Override
@@ -136,31 +155,31 @@ public class ExpenseRepositoryImpl implements ExpenseRepository {
         String sql = """
             UPDATE expenses
             SET
-                category_id = ?,
-                expense_date = ?,
-                title = ?,
-                description = ?,
-                amount = ?,
-                payment_method = ?,
-                reference_number = ?,
-                notes = ?,
+                category_id = :categoryId,
+                expense_date = :expenseDate,
+                title = :title,
+                description = :description,
+                amount = :amount,
+                payment_method = :paymentMethod,
+                reference_number = :referenceNumber,
+                notes = :notes,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE uuid = ?
+            WHERE uuid = :uuid
               AND status = 'ACTIVE'
             """;
 
-        int updated = jdbcTemplate.update(
-            sql,
-            expense.categoryId(),
-            expense.expenseDate(),
-            expense.title(),
-            expense.description(),
-            expense.amount(),
-            expense.paymentMethod().name(),
-            expense.referenceNumber(),
-            expense.notes(),
-            expense.uuid()
-        );
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("categoryId", expense.categoryId())
+                .addValue("expenseDate", expense.expenseDate())
+                .addValue("title", expense.title())
+                .addValue("description", expense.description())
+                .addValue("amount", expense.amount())
+                .addValue("paymentMethod", expense.paymentMethod().name())
+                .addValue("referenceNumber", expense.referenceNumber())
+                .addValue("notes", expense.notes())
+                .addValue("uuid", expense.uuid());
+
+        int updated = jdbcTemplate.update(sql, params);
 
         if (updated == 0) {
             return Optional.empty();
@@ -178,10 +197,10 @@ public class ExpenseRepositoryImpl implements ExpenseRepository {
                 status = 'CANCELLED',
                 cancelled_at = CURRENT_TIMESTAMP,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE uuid = ?
+            WHERE uuid = :uuid
               AND status = 'ACTIVE'
             """;
 
-        return jdbcTemplate.update(sql, uuid) > 0;
+        return jdbcTemplate.update(sql, new MapSqlParameterSource("uuid", uuid)) > 0;
     }
 }

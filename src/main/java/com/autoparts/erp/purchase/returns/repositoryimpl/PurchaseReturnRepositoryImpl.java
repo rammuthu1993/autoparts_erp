@@ -5,8 +5,9 @@ import com.autoparts.erp.purchase.returns.model.PurchaseReturnProduct;
 import com.autoparts.erp.purchase.returns.model.SupplierCredit;
 import com.autoparts.erp.purchase.returns.repository.PurchaseReturnRepository;
 
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -21,9 +22,9 @@ import java.util.UUID;
 public class PurchaseReturnRepositoryImpl
         implements PurchaseReturnRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public PurchaseReturnRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public PurchaseReturnRepositoryImpl(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -96,19 +97,22 @@ public class PurchaseReturnRepositoryImpl
             SELECT id, uuid, supplier_id, status,
                    purchase_number, grand_total
             FROM purchases
-            WHERE uuid = ?
+            WHERE uuid = :uuid
             FOR UPDATE
             """;
 
-        return jdbcTemplate.query(sql, (rs, rowNum) ->
-            new PurchaseInfo(
+        return jdbcTemplate.query(
+            sql,
+            new MapSqlParameterSource("uuid", uuid),
+            (rs, rowNum) -> new PurchaseInfo(
                 rs.getLong("id"),
                 rs.getObject("uuid", UUID.class),
                 rs.getLong("supplier_id"),
                 rs.getString("status"),
                 rs.getString("purchase_number"),
                 rs.getBigDecimal("grand_total")
-            ), uuid).stream().findFirst();
+            )
+        ).stream().findFirst();
     }
 
     @Override
@@ -137,13 +141,15 @@ public class PurchaseReturnRepositoryImpl
                 pp.line_total
             FROM purchase_products pp
             JOIN products p ON p.id = pp.product_id
-            WHERE pp.purchase_id = ?
+            WHERE pp.purchase_id = :purchaseId
             ORDER BY pp.id
             FOR UPDATE OF pp
             """;
 
-        return jdbcTemplate.query(sql, (rs, rowNum) ->
-            new OriginalPurchaseProduct(
+        return jdbcTemplate.query(
+            sql,
+            new MapSqlParameterSource("purchaseId", purchaseId),
+            (rs, rowNum) -> new OriginalPurchaseProduct(
                 rs.getLong("id"),
                 rs.getObject("uuid", UUID.class),
                 rs.getLong("product_id"),
@@ -155,7 +161,8 @@ public class PurchaseReturnRepositoryImpl
                 rs.getBigDecimal("tax_percent"),
                 rs.getBigDecimal("tax_amount"),
                 rs.getBigDecimal("line_total")
-            ), purchaseId);
+            )
+        );
     }
 
     @Override
@@ -163,8 +170,11 @@ public class PurchaseReturnRepositoryImpl
         return jdbcTemplate.queryForObject("""
             SELECT COALESCE(SUM(quantity), 0)
             FROM purchase_return_products
-            WHERE purchase_product_id = ?
-            """, BigDecimal.class, purchaseProductId);
+            WHERE purchase_product_id = :purchaseProductId
+            """,
+            new MapSqlParameterSource("purchaseProductId", purchaseProductId),
+            BigDecimal.class
+        );
     }
 
     @Override
@@ -181,13 +191,13 @@ public class PurchaseReturnRepositoryImpl
         String sql = """
             SELECT COALESCE(SUM(%s), 0)
             FROM purchase_return_products
-            WHERE purchase_product_id = ?
+            WHERE purchase_product_id = :purchaseProductId
             """.formatted(amountColumn);
 
         return jdbcTemplate.queryForObject(
             sql,
-            BigDecimal.class,
-            purchaseProductId
+            new MapSqlParameterSource("purchaseProductId", purchaseProductId),
+            BigDecimal.class
         );
     }
 
@@ -199,28 +209,49 @@ public class PurchaseReturnRepositoryImpl
                 reason, notes, subtotal, discount_total,
                 tax_total, total_return_amount
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (
+                :uuid, :returnNumber, :purchaseId, :returnDate,
+                :reason, :notes, :subtotal, :discountTotal,
+                :taxTotal, :totalReturnAmount
+            )
             RETURNING *
             """;
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", value.uuid())
+                .addValue("returnNumber", value.returnNumber())
+                .addValue("purchaseId", value.purchaseId())
+                .addValue("returnDate", value.returnDate())
+                .addValue("reason", value.reason())
+                .addValue("notes", value.notes())
+                .addValue("subtotal", value.subtotal())
+                .addValue("discountTotal", value.discountTotal())
+                .addValue("taxTotal", value.taxTotal())
+                .addValue("totalReturnAmount", value.totalReturnAmount());
+
         return jdbcTemplate.queryForObject(
             sql,
-            returnMapper,
-            value.uuid(),
-            value.returnNumber(),
-            value.purchaseId(),
-            value.returnDate(),
-            value.reason(),
-            value.notes(),
-            value.subtotal(),
-            value.discountTotal(),
-            value.taxTotal(),
-            value.totalReturnAmount()
+            params,
+            returnMapper
         );
     }
 
     @Override
     public void createReturnProduct(PurchaseReturnProduct product) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", product.uuid())
+                .addValue("purchaseReturnId", product.purchaseReturnId())
+                .addValue("purchaseProductId", product.purchaseProductId())
+                .addValue("productId", product.productId())
+                .addValue("productCode", product.productCode())
+                .addValue("productName", product.productName())
+                .addValue("quantity", product.quantity())
+                .addValue("purchasePrice", product.purchasePrice())
+                .addValue("discountAmount", product.discountAmount())
+                .addValue("taxPercent", product.taxPercent())
+                .addValue("taxAmount", product.taxAmount())
+                .addValue("lineTotal", product.lineTotal());
+
         jdbcTemplate.update("""
             INSERT INTO purchase_return_products (
                 uuid, purchase_return_id, purchase_product_id,
@@ -228,20 +259,14 @@ public class PurchaseReturnRepositoryImpl
                 purchase_price, discount_amount, tax_percent,
                 tax_amount, line_total
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (
+                :uuid, :purchaseReturnId, :purchaseProductId,
+                :productId, :productCode, :productName, :quantity,
+                :purchasePrice, :discountAmount, :taxPercent,
+                :taxAmount, :lineTotal
+            )
             """,
-            product.uuid(),
-            product.purchaseReturnId(),
-            product.purchaseProductId(),
-            product.productId(),
-            product.productCode(),
-            product.productName(),
-            product.quantity(),
-            product.purchasePrice(),
-            product.discountAmount(),
-            product.taxPercent(),
-            product.taxAmount(),
-            product.lineTotal()
+            params
         );
     }
 
@@ -250,8 +275,11 @@ public class PurchaseReturnRepositoryImpl
         return jdbcTemplate.query("""
             SELECT *
             FROM purchase_returns
-            WHERE uuid = ?
-            """, returnMapper, uuid).stream().findFirst();
+            WHERE uuid = :uuid
+            """,
+            new MapSqlParameterSource("uuid", uuid),
+            returnMapper
+        ).stream().findFirst();
     }
 
     @Override
@@ -259,9 +287,12 @@ public class PurchaseReturnRepositoryImpl
         return jdbcTemplate.query("""
             SELECT *
             FROM purchase_return_products
-            WHERE purchase_return_id = ?
+            WHERE purchase_return_id = :returnId
             ORDER BY id
-            """, productMapper, returnId);
+            """,
+            new MapSqlParameterSource("returnId", returnId),
+            productMapper
+        );
     }
 
     @Override
@@ -270,27 +301,30 @@ public class PurchaseReturnRepositoryImpl
             Long purchaseReturnId,
             BigDecimal amount
     ) {
-    	return jdbcTemplate.queryForObject("""
-    		    INSERT INTO supplier_credits (uuid, purchase_return_id, amount)
-    		    VALUES (?, ?, ?)
-    		    RETURNING *
-    		    """,
-    		    (rs, rowNum) -> new SupplierCredit(
-    		        rs.getLong("id"),
-    		        rs.getObject("uuid", UUID.class),
-    		        rs.getLong("purchase_return_id"),
-    		        rs.getString("credit_note_number"),
-    		        rs.getObject("credit_date", OffsetDateTime.class),
-    		        rs.getBigDecimal("amount"),
-    		        BigDecimal.ZERO,
-    		        BigDecimal.ZERO,
-    		        rs.getBigDecimal("amount"),
-    		        rs.getObject("created_at", OffsetDateTime.class)
-    		    ),
-    		    uuid,
-    		    purchaseReturnId,
-    		    amount
-    		);
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", uuid)
+                .addValue("purchaseReturnId", purchaseReturnId)
+                .addValue("amount", amount);
+
+        return jdbcTemplate.queryForObject("""
+                INSERT INTO supplier_credits (uuid, purchase_return_id, amount)
+                VALUES (:uuid, :purchaseReturnId, :amount)
+                RETURNING *
+                """,
+                params,
+                (rs, rowNum) -> new SupplierCredit(
+                    rs.getLong("id"),
+                    rs.getObject("uuid", UUID.class),
+                    rs.getLong("purchase_return_id"),
+                    rs.getString("credit_note_number"),
+                    rs.getObject("credit_date", OffsetDateTime.class),
+                    rs.getBigDecimal("amount"),
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    rs.getBigDecimal("amount"),
+                    rs.getObject("created_at", OffsetDateTime.class)
+                )
+        );
     }
 
     @Override
@@ -320,12 +354,15 @@ public class PurchaseReturnRepositoryImpl
                       WHERE sca.supplier_credit_id = sc.id
                     ), 0) AS available_amount
             FROM supplier_credits sc
-            WHERE sc.uuid = ?
+            WHERE sc.uuid = :uuid
             FOR UPDATE OF sc
             """;
 
-        return jdbcTemplate.query(sql, creditMapper, uuid)
-            .stream().findFirst();
+        return jdbcTemplate.query(
+            sql,
+            new MapSqlParameterSource("uuid", uuid),
+            creditMapper
+        ).stream().findFirst();
     }
     
     @Override
@@ -356,13 +393,13 @@ public class PurchaseReturnRepositoryImpl
                         WHERE sca.supplier_credit_id = sc.id
                     ), 0) AS available_amount
             FROM supplier_credits sc
-            WHERE sc.uuid = ?
+            WHERE sc.uuid = :creditUuid
             """;
 
         return jdbcTemplate.query(
             sql,
-            creditMapper,
-            creditUuid
+            new MapSqlParameterSource("creditUuid", creditUuid),
+            creditMapper
         ).stream().findFirst();
     }
 
@@ -393,11 +430,14 @@ public class PurchaseReturnRepositoryImpl
                       WHERE sca.supplier_credit_id = sc.id
                     ), 0) AS available_amount
             FROM supplier_credits sc
-            WHERE sc.purchase_return_id = ?
+            WHERE sc.purchase_return_id = :returnId
             """;
 
-        return jdbcTemplate.query(sql, creditMapper, returnId)
-            .stream().findFirst();
+        return jdbcTemplate.query(
+            sql,
+            new MapSqlParameterSource("returnId", returnId),
+            creditMapper
+        ).stream().findFirst();
     }
 
     @Override
@@ -405,8 +445,11 @@ public class PurchaseReturnRepositoryImpl
         return jdbcTemplate.queryForObject("""
             SELECT COALESCE(SUM(amount), 0)
             FROM supplier_refunds
-            WHERE supplier_credit_id = ?
-            """, BigDecimal.class, creditId);
+            WHERE supplier_credit_id = :creditId
+            """,
+            new MapSqlParameterSource("creditId", creditId),
+            BigDecimal.class
+        );
     }
 
     @Override
@@ -414,8 +457,11 @@ public class PurchaseReturnRepositoryImpl
         return jdbcTemplate.queryForObject("""
             SELECT COALESCE(SUM(amount), 0)
             FROM supplier_credit_applications
-            WHERE supplier_credit_id = ?
-            """, BigDecimal.class, creditId);
+            WHERE supplier_credit_id = :creditId
+            """,
+            new MapSqlParameterSource("creditId", creditId),
+            BigDecimal.class
+        );
     }
 
     @Override
@@ -428,20 +474,26 @@ public class PurchaseReturnRepositoryImpl
             String notes,
             Long userId
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", uuid)
+                .addValue("creditId", creditId)
+                .addValue("paymentMethod", paymentMethod)
+                .addValue("amount", amount)
+                .addValue("referenceNumber", referenceNumber)
+                .addValue("notes", notes)
+                .addValue("userId", userId);
+
         jdbcTemplate.update("""
             INSERT INTO supplier_refunds (
                 uuid, supplier_credit_id, payment_method,
                 amount, reference_number, notes, created_by
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (
+                :uuid, :creditId, :paymentMethod,
+                :amount, :referenceNumber, :notes, :userId
+            )
             """,
-            uuid,
-            creditId,
-            paymentMethod,
-            amount,
-            referenceNumber,
-            notes,
-            userId
+            params
         );
     }
 
@@ -453,18 +505,21 @@ public class PurchaseReturnRepositoryImpl
             BigDecimal amount,
             Long userId
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", uuid)
+                .addValue("creditId", creditId)
+                .addValue("purchaseId", purchaseId)
+                .addValue("amount", amount)
+                .addValue("userId", userId);
+
         jdbcTemplate.update("""
             INSERT INTO supplier_credit_applications (
                 uuid, supplier_credit_id, purchase_id,
                 amount, created_by
             )
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (:uuid, :creditId, :purchaseId, :amount, :userId)
             """,
-            uuid,
-            creditId,
-            purchaseId,
-            amount,
-            userId
+            params
         );
     }
 
@@ -473,8 +528,11 @@ public class PurchaseReturnRepositoryImpl
         return jdbcTemplate.queryForObject("""
             SELECT COALESCE(SUM(amount), 0)
             FROM purchase_payments
-            WHERE purchase_id = ?
-            """, BigDecimal.class, purchaseId);
+            WHERE purchase_id = :purchaseId
+            """,
+            new MapSqlParameterSource("purchaseId", purchaseId),
+            BigDecimal.class
+        );
     }
 
     @Override
@@ -482,8 +540,11 @@ public class PurchaseReturnRepositoryImpl
         return jdbcTemplate.queryForObject("""
             SELECT COALESCE(SUM(amount), 0)
             FROM supplier_credit_applications
-            WHERE purchase_id = ?
-            """, BigDecimal.class, purchaseId);
+            WHERE purchase_id = :purchaseId
+            """,
+            new MapSqlParameterSource("purchaseId", purchaseId),
+            BigDecimal.class
+        );
     }
 
     @Override
@@ -491,9 +552,12 @@ public class PurchaseReturnRepositoryImpl
         return jdbcTemplate.queryForObject("""
             SELECT qty
             FROM products
-            WHERE id = ?
+            WHERE id = :productId
             FOR UPDATE
-            """, BigDecimal.class, productId);
+            """,
+            new MapSqlParameterSource("productId", productId),
+            BigDecimal.class
+        );
     }
 
     @Override
@@ -501,16 +565,18 @@ public class PurchaseReturnRepositoryImpl
             Long productId,
             BigDecimal quantity
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("quantity", quantity)
+                .addValue("productId", productId);
+
         int updated = jdbcTemplate.update("""
             UPDATE products
-            SET qty = qty - ?,
+            SET qty = qty - :quantity,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-              AND qty >= ?
+            WHERE id = :productId
+              AND qty >= :quantity
             """,
-            quantity,
-            productId,
-            quantity
+            params
         );
 
         if (updated != 1) {
@@ -529,6 +595,14 @@ public class PurchaseReturnRepositoryImpl
             BigDecimal quantityBefore,
             BigDecimal quantityAfter
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", uuid)
+                .addValue("productId", productId)
+                .addValue("returnId", returnId)
+                .addValue("quantityChange", quantityChange)
+                .addValue("quantityBefore", quantityBefore)
+                .addValue("quantityAfter", quantityAfter);
+
         jdbcTemplate.update("""
             INSERT INTO inventory_movements (
                 uuid, product_id, movement_type, reference_type,
@@ -536,16 +610,12 @@ public class PurchaseReturnRepositoryImpl
                 quantity_after, notes
             )
             VALUES (
-                ?, ?, 'PURCHASE_RETURN', 'PURCHASE_RETURN',
-                ?, ?, ?, ?, 'Stock returned to supplier'
+                :uuid, :productId, 'PURCHASE_RETURN', 'PURCHASE_RETURN',
+                :returnId, :quantityChange, :quantityBefore,
+                :quantityAfter, 'Stock returned to supplier'
             )
             """,
-            uuid,
-            productId,
-            returnId,
-            quantityChange,
-            quantityBefore,
-            quantityAfter
+            params
         );
     }
     
@@ -553,6 +623,7 @@ public class PurchaseReturnRepositoryImpl
     public String generateReturnNumber() {
         Long number = jdbcTemplate.queryForObject(
             "SELECT nextval('purchase_return_number_seq')",
+            new MapSqlParameterSource(),
             Long.class
         );
 
@@ -566,8 +637,9 @@ public class PurchaseReturnRepositoryImpl
                    p.purchase_number, p.grand_total
             FROM purchases p
             JOIN purchase_returns pr ON pr.purchase_id = p.id
-            WHERE pr.id = ?
+            WHERE pr.id = :returnId
             """,
+            new MapSqlParameterSource("returnId", returnId),
             (rs, rowNum) -> new PurchaseInfo(
                 rs.getLong("id"),
                 rs.getObject("uuid", UUID.class),
@@ -575,38 +647,37 @@ public class PurchaseReturnRepositoryImpl
                 rs.getString("status"),
                 rs.getString("purchase_number"),
                 rs.getBigDecimal("grand_total")
-            ),
-            returnId
+            )
         ).stream().findFirst();
     }
 
     @Override
     public Optional<UUID> findPurchaseUuidById(Long purchaseId) {
         return jdbcTemplate.query("""
-            SELECT uuid FROM purchases WHERE id = ?
+            SELECT uuid FROM purchases WHERE id = :purchaseId
             """,
-            (rs, rowNum) -> rs.getObject("uuid", UUID.class),
-            purchaseId
+            new MapSqlParameterSource("purchaseId", purchaseId),
+            (rs, rowNum) -> rs.getObject("uuid", UUID.class)
         ).stream().findFirst();
     }
 
     @Override
     public Optional<UUID> findPurchaseProductUuidById(Long purchaseProductId) {
         return jdbcTemplate.query("""
-            SELECT uuid FROM purchase_products WHERE id = ?
+            SELECT uuid FROM purchase_products WHERE id = :purchaseProductId
             """,
-            (rs, rowNum) -> rs.getObject("uuid", UUID.class),
-            purchaseProductId
+            new MapSqlParameterSource("purchaseProductId", purchaseProductId),
+            (rs, rowNum) -> rs.getObject("uuid", UUID.class)
         ).stream().findFirst();
     }
 
     @Override
     public Optional<UUID> findReturnUuidById(Long returnId) {
         return jdbcTemplate.query("""
-            SELECT uuid FROM purchase_returns WHERE id = ?
+            SELECT uuid FROM purchase_returns WHERE id = :returnId
             """,
-            (rs, rowNum) -> rs.getObject("uuid", UUID.class),
-            returnId
+            new MapSqlParameterSource("returnId", returnId),
+            (rs, rowNum) -> rs.getObject("uuid", UUID.class)
         ).stream().findFirst();
     }
     
@@ -622,11 +693,12 @@ public class PurchaseReturnRepositoryImpl
                 purchase_number,
                 grand_total
             FROM purchases
-            WHERE id = ?
+            WHERE id = :purchaseId
             """;
 
         return jdbcTemplate.query(
             sql,
+            new MapSqlParameterSource("purchaseId", purchaseId),
             (rs, rowNum) -> new PurchaseInfo(
                 rs.getLong("id"),
                 rs.getObject("uuid", UUID.class),
@@ -634,8 +706,7 @@ public class PurchaseReturnRepositoryImpl
                 rs.getString("status"),
                 rs.getString("purchase_number"),
                 rs.getBigDecimal("grand_total")
-            ),
-            purchaseId
+            )
         ).stream().findFirst();
     }
 }

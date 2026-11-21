@@ -1,14 +1,15 @@
-
 package com.autoparts.erp.tax.repositoryimpl;
 
 import com.autoparts.erp.tax.model.TaxRate;
-
 import com.autoparts.erp.tax.repository.TaxRateRepository;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.EmptySqlParameterSource;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -20,20 +21,18 @@ import java.util.UUID;
 @Repository
 public class TaxRateRepositoryImpl implements TaxRateRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public TaxRateRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public TaxRateRepositoryImpl(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    private final RowMapper<TaxRate> taxRateRowMapper =
-        this::mapTaxRate;
+    private final RowMapper<TaxRate> taxRateRowMapper = this::mapTaxRate;
 
     private TaxRate mapTaxRate(
         ResultSet rs,
         int rowNum
     ) throws SQLException {
-
         return new TaxRate(
             rs.getLong("id"),
             rs.getObject("uuid", UUID.class),
@@ -67,19 +66,12 @@ public class TaxRateRepositoryImpl implements TaxRateRepository {
         FROM tax_rates
         """;
 
-//    @Override
-//    public void lockTaxRateConfiguration() {
-//
-//        jdbcTemplate.queryForObject(
-//            "SELECT pg_advisory_xact_lock(824611)",
-//            Object.class
-//        );
-//    }
-    
     @Override
     public void lockTaxRateConfiguration() {
         jdbcTemplate.execute(
-            "SELECT pg_advisory_xact_lock(824611)"
+            "SELECT pg_advisory_xact_lock(:lockKey)",
+            new MapSqlParameterSource("lockKey", 824611L),
+            PreparedStatement::execute
         );
     }
 
@@ -90,47 +82,33 @@ public class TaxRateRepositoryImpl implements TaxRateRepository {
         LocalDate effectiveTo,
         UUID excludeUuid
     ) {
+        String sql = """
+            SELECT EXISTS (
+                SELECT 1
+                FROM tax_rates
+                WHERE LOWER(TRIM(tax_name)) = LOWER(TRIM(:taxName))
+                  AND (CAST(:excludeUuid AS UUID) IS NULL OR uuid <> CAST(:excludeUuid AS UUID))
+                  AND (
+                      effective_to IS NULL
+                      OR effective_to > CAST(:effectiveFrom AS DATE)
+                  )
+                  AND (
+                      CAST(:effectiveTo AS DATE) IS NULL
+                      OR effective_from < CAST(:effectiveTo AS DATE)
+                  )
+            )
+            """;
 
-//        String sql = """
-//            SELECT EXISTS (
-//                SELECT 1
-//                FROM tax_rates
-//                WHERE LOWER(TRIM(tax_name)) = LOWER(TRIM(?))
-//                  AND (? IS NULL OR uuid <> ?)
-//                  AND (
-//                      effective_to IS NULL
-//                      OR effective_to > ?
-//                  )
-//                  AND (
-//                      ? IS NULL
-//                      OR effective_from < ?
-//                  )
-//            )
-//            """;
-    	  String sql = "SELECT EXISTS (\r\n"
-    	  		+ "    SELECT 1\r\n"
-    	  		+ "    FROM tax_rates\r\n"
-    	  		+ "    WHERE LOWER(TRIM(tax_name)) = LOWER(TRIM(?))\r\n"
-    	  		+ "      AND (CAST(? AS UUID) IS NULL OR uuid <> CAST(? AS UUID))\r\n"
-    	  		+ "      AND (\r\n"
-    	  		+ "          effective_to IS NULL\r\n"
-    	  		+ "          OR effective_to > CAST(? AS DATE)\r\n"
-    	  		+ "      )\r\n"
-    	  		+ "      AND (\r\n"
-    	  		+ "          CAST(? AS DATE) IS NULL\r\n"
-    	  		+ "          OR effective_from < CAST(? AS DATE)\r\n"
-    	  		+ "      )\r\n"
-    	  		+ ")";
+        MapSqlParameterSource params = new MapSqlParameterSource()
+            .addValue("taxName", taxName)
+            .addValue("excludeUuid", excludeUuid)
+            .addValue("effectiveFrom", effectiveFrom)
+            .addValue("effectiveTo", effectiveTo);
 
         Boolean exists = jdbcTemplate.queryForObject(
             sql,
-            Boolean.class,
-            taxName,
-            excludeUuid,
-            excludeUuid,
-            effectiveFrom,
-            effectiveTo,
-            effectiveTo
+            params,
+            Boolean.class
         );
 
         return Boolean.TRUE.equals(exists);
@@ -142,31 +120,25 @@ public class TaxRateRepositoryImpl implements TaxRateRepository {
         LocalDate effectiveFrom,
         UUID excludeUuid
     ) {
-
         String sql = """
             SELECT EXISTS (
                 SELECT 1
                 FROM tax_rates
-                WHERE LOWER(TRIM(tax_name)) = LOWER(TRIM(?))
-                  AND effective_from = ?
-                  AND (? IS NULL OR uuid <> ?)
+                WHERE LOWER(TRIM(tax_name)) = LOWER(TRIM(:taxName))
+                  AND effective_from = :effectiveFrom
+                  AND (CAST(:excludeUuid AS UUID) IS NULL OR uuid <> CAST(:excludeUuid AS UUID))
             )
             """;
-//    	  String sql = """SELECT EXISTS (\r\n"
-//    			    + "SELECT 1\r\n
-//    			    + FROM tax_rates
-//    			    WHERE LOWER(TRIM(tax_name)) = LOWER(TRIM(?))
-//    			      AND effective_from = ?
-//    			      AND (CAST(? AS UUID) IS NULL OR uuid <> CAST(? AS UUID))
-//    			)""";
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+            .addValue("taxName", taxName)
+            .addValue("effectiveFrom", effectiveFrom)
+            .addValue("excludeUuid", excludeUuid);
 
         Boolean exists = jdbcTemplate.queryForObject(
             sql,
-            Boolean.class,
-            taxName,
-            effectiveFrom,
-            excludeUuid,
-            excludeUuid
+            params,
+            Boolean.class
         );
 
         return Boolean.TRUE.equals(exists);
@@ -183,7 +155,6 @@ public class TaxRateRepositoryImpl implements TaxRateRepository {
         LocalDate effectiveFrom,
         LocalDate effectiveTo
     ) {
-
         String sql = """
             INSERT INTO tax_rates (
                 uuid,
@@ -195,54 +166,64 @@ public class TaxRateRepositoryImpl implements TaxRateRepository {
                 effective_from,
                 effective_to
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (
+                :uuid,
+                :taxName,
+                :gstRate,
+                :cgstRate,
+                :sgstRate,
+                :igstRate,
+                :effectiveFrom,
+                :effectiveTo
+            )
             RETURNING *
             """;
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+            .addValue("uuid", uuid)
+            .addValue("taxName", taxName.trim())
+            .addValue("gstRate", gstRate)
+            .addValue("cgstRate", cgstRate)
+            .addValue("sgstRate", sgstRate)
+            .addValue("igstRate", igstRate)
+            .addValue("effectiveFrom", effectiveFrom)
+            .addValue("effectiveTo", effectiveTo);
+
         return jdbcTemplate.queryForObject(
             sql,
-            taxRateRowMapper,
-            uuid,
-            taxName.trim(),
-            gstRate,
-            cgstRate,
-            sgstRate,
-            igstRate,
-            effectiveFrom,
-            effectiveTo
+            params,
+            taxRateRowMapper
         );
     }
 
     @Override
     public Optional<TaxRate> findByUuid(UUID uuid) {
-
         String sql = SELECT_COLUMNS + """
-            WHERE uuid = ?
+            WHERE uuid = :uuid
             """;
 
         return jdbcTemplate.query(
             sql,
-            taxRateRowMapper,
-            uuid
+            new MapSqlParameterSource("uuid", uuid),
+            taxRateRowMapper
         ).stream().findFirst();
     }
 
     @Override
     public List<TaxRate> findAll() {
-
         String sql = SELECT_COLUMNS + """
             ORDER BY effective_from DESC, tax_name
             """;
 
         return jdbcTemplate.query(
             sql,
+            EmptySqlParameterSource.INSTANCE,
             taxRateRowMapper
         );
     }
 
     @Override
     public List<TaxRate> findCurrent() {
-
         String sql = SELECT_COLUMNS + """
             WHERE active = TRUE
               AND effective_from <= CURRENT_DATE
@@ -255,6 +236,7 @@ public class TaxRateRepositoryImpl implements TaxRateRepository {
 
         return jdbcTemplate.query(
             sql,
+            EmptySqlParameterSource.INSTANCE,
             taxRateRowMapper
         );
     }
@@ -265,22 +247,24 @@ public class TaxRateRepositoryImpl implements TaxRateRepository {
         String taxName,
         boolean active
     ) {
-
         String sql = """
             UPDATE tax_rates
-            SET tax_name = ?,
-                active = ?,
+            SET tax_name = :taxName,
+                active = :active,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE uuid = ?
+            WHERE uuid = :uuid
             RETURNING *
             """;
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+            .addValue("uuid", uuid)
+            .addValue("taxName", taxName.trim())
+            .addValue("active", active);
+
         return jdbcTemplate.queryForObject(
             sql,
-            taxRateRowMapper,
-            taxName.trim(),
-            active,
-            uuid
+            params,
+            taxRateRowMapper
         );
     }
 }

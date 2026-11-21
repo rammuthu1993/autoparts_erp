@@ -10,8 +10,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.autoparts.erp.sales.enums.PaymentMethod;
@@ -20,15 +21,14 @@ import com.autoparts.erp.sales.enums.SalesStatus;
 import com.autoparts.erp.sales.model.Sales;
 import com.autoparts.erp.sales.model.SalesProduct;
 import com.autoparts.erp.sales.model.SalesPayment;
-//import com.autoparts.erp.sales.repository.ProductStock;
 import com.autoparts.erp.sales.repository.SalesRepository;
 
 @Repository
 public class SalesRepositoryImpl implements SalesRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public SalesRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public SalesRepositoryImpl(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -101,36 +101,40 @@ public class SalesRepositoryImpl implements SalesRepository {
                 updated_at
             )
             VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?, ?, ?, ?,
+                :uuid, :invoiceNumber, :customerId, :customerName, :customerPhone, :saleDate,
+                :subtotal, :discountAmount, :taxableAmount, :cgstAmount, :sgstAmount, :igstAmount,
+                :totalTaxAmount, :grandTotal, :paidAmount, :balanceAmount, :status, :paymentStatus, :notes,
                 CURRENT_TIMESTAMP,
                 CURRENT_TIMESTAMP
             )
             RETURNING *
             """;
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", sale.uuid())
+                .addValue("invoiceNumber", sale.invoiceNumber())
+                .addValue("customerId", sale.customerId())
+                .addValue("customerName", sale.customerName())
+                .addValue("customerPhone", sale.customerPhone())
+                .addValue("saleDate", sale.saleDate())
+                .addValue("subtotal", sale.subtotal())
+                .addValue("discountAmount", sale.discountAmount())
+                .addValue("taxableAmount", sale.taxableAmount())
+                .addValue("cgstAmount", sale.cgstAmount())
+                .addValue("sgstAmount", sale.sgstAmount())
+                .addValue("igstAmount", sale.igstAmount())
+                .addValue("totalTaxAmount", sale.totalTaxAmount())
+                .addValue("grandTotal", sale.grandTotal())
+                .addValue("paidAmount", sale.paidAmount())
+                .addValue("balanceAmount", sale.balanceAmount())
+                .addValue("status", sale.status().name())
+                .addValue("paymentStatus", sale.paymentStatus().name())
+                .addValue("notes", sale.notes());
+
         return jdbcTemplate.queryForObject(
             sql,
-            saleRowMapper,
-            sale.uuid(),
-            sale.invoiceNumber(),
-            sale.customerId(),
-            sale.customerName(),
-            sale.customerPhone(),
-            sale.saleDate(),
-            sale.subtotal(),
-            sale.discountAmount(),
-            sale.taxableAmount(),
-            sale.cgstAmount(),
-            sale.sgstAmount(),
-            sale.igstAmount(),
-            sale.totalTaxAmount(),
-            sale.grandTotal(),
-            sale.paidAmount(),
-            sale.balanceAmount(),
-            sale.status().name(),
-            sale.paymentStatus().name(),
-            sale.notes()
+            params,
+            saleRowMapper
         );
     }
 
@@ -139,39 +143,42 @@ public class SalesRepositoryImpl implements SalesRepository {
 
         String sql = """
             UPDATE sales
-            SET subtotal = ?,
-                discount_amount = ?,
-                taxable_amount = ?,
-                cgst_amount = ?,
-                sgst_amount = ?,
-                igst_amount = ?,
-                total_tax_amount = ?,
-                grand_total = ?,
-                paid_amount = ?,
-                balance_amount = ?,
-                status = ?,
-                payment_status = ?,
+            SET subtotal = :subtotal,
+                discount_amount = :discountAmount,
+                taxable_amount = :taxableAmount,
+                cgst_amount = :cgstAmount,
+                sgst_amount = :sgstAmount,
+                igst_amount = :igstAmount,
+                total_tax_amount = :totalTaxAmount,
+                grand_total = :grandTotal,
+                paid_amount = :paidAmount,
+                balance_amount = :balanceAmount,
+                status = :status,
+                payment_status = :paymentStatus,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
+            WHERE id = :id
             RETURNING *
             """;
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("subtotal", sale.subtotal())
+                .addValue("discountAmount", sale.discountAmount())
+                .addValue("taxableAmount", sale.taxableAmount())
+                .addValue("cgstAmount", sale.cgstAmount())
+                .addValue("sgstAmount", sale.sgstAmount())
+                .addValue("igstAmount", sale.igstAmount())
+                .addValue("totalTaxAmount", sale.totalTaxAmount())
+                .addValue("grandTotal", sale.grandTotal())
+                .addValue("paidAmount", sale.paidAmount())
+                .addValue("balanceAmount", sale.balanceAmount())
+                .addValue("status", sale.status().name())
+                .addValue("paymentStatus", sale.paymentStatus().name())
+                .addValue("id", sale.id());
+
         return jdbcTemplate.queryForObject(
             sql,
-            saleRowMapper,
-            sale.subtotal(),
-            sale.discountAmount(),
-            sale.taxableAmount(),
-            sale.cgstAmount(),
-            sale.sgstAmount(),
-            sale.igstAmount(),
-            sale.totalTaxAmount(),
-            sale.grandTotal(),
-            sale.paidAmount(),
-            sale.balanceAmount(),
-            sale.status().name(),
-            sale.paymentStatus().name(),
-            sale.id()
+            params,
+            saleRowMapper
         );
     }
 
@@ -181,13 +188,13 @@ public class SalesRepositoryImpl implements SalesRepository {
         String sql = """
             SELECT *
             FROM sales
-            WHERE uuid = ?
+            WHERE uuid = :uuid
             """;
 
         return jdbcTemplate.query(
             sql,
-            saleRowMapper,
-            uuid
+            new MapSqlParameterSource("uuid", uuid),
+            saleRowMapper
         ).stream().findFirst();
     }
 
@@ -197,14 +204,14 @@ public class SalesRepositoryImpl implements SalesRepository {
         String sql = """
             SELECT *
             FROM sales
-            WHERE uuid = ?
+            WHERE uuid = :uuid
             FOR UPDATE
             """;
 
         return jdbcTemplate.query(
             sql,
-            saleRowMapper,
-            uuid
+            new MapSqlParameterSource("uuid", uuid),
+            saleRowMapper
         ).stream().findFirst();
     }
 
@@ -217,7 +224,7 @@ public class SalesRepositoryImpl implements SalesRepository {
             ORDER BY created_at DESC
             """;
 
-        return jdbcTemplate.query(sql, saleRowMapper);
+        return jdbcTemplate.query(sql, new MapSqlParameterSource(), saleRowMapper);
     }
 
     @Override
@@ -247,34 +254,36 @@ public class SalesRepositoryImpl implements SalesRepository {
                 line_total
             )
             VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                :uuid, :saleId, :productId, :productCode, :productName,
+                :quantity, :unit, :unitPrice, :discountAmount, :taxableAmount,
+                :hsnCode, :gstRate, :cgstRate, :sgstRate, :igstRate,
+                :cgstAmount, :sgstAmount, :igstAmount, :totalTaxAmount, :lineTotal
             )
             """;
 
-        jdbcTemplate.update(
-            sql,
-            product.uuid(),
-            product.saleId(),
-            product.productId(),
-            product.productCode(),
-            product.productName(),
-            product.quantity(),
-            product.unit(),
-            product.unitPrice(),
-            product.discountAmount(),
-            product.taxableAmount(),
-            product.hsnCode(),
-            product.gstRate(),
-            product.cgstRate(),
-            product.sgstRate(),
-            product.igstRate(),
-            product.cgstAmount(),
-            product.sgstAmount(),
-            product.igstAmount(),
-            product.totalTaxAmount(),
-            product.lineTotal()
-        );
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", product.uuid())
+                .addValue("saleId", product.saleId())
+                .addValue("productId", product.productId())
+                .addValue("productCode", product.productCode())
+                .addValue("productName", product.productName())
+                .addValue("quantity", product.quantity())
+                .addValue("unit", product.unit())
+                .addValue("unitPrice", product.unitPrice())
+                .addValue("discountAmount", product.discountAmount())
+                .addValue("taxableAmount", product.taxableAmount())
+                .addValue("hsnCode", product.hsnCode())
+                .addValue("gstRate", product.gstRate())
+                .addValue("cgstRate", product.cgstRate())
+                .addValue("sgstRate", product.sgstRate())
+                .addValue("igstRate", product.igstRate())
+                .addValue("cgstAmount", product.cgstAmount())
+                .addValue("sgstAmount", product.sgstAmount())
+                .addValue("igstAmount", product.igstAmount())
+                .addValue("totalTaxAmount", product.totalTaxAmount())
+                .addValue("lineTotal", product.lineTotal());
+
+        jdbcTemplate.update(sql, params);
     }
 
     @Override
@@ -308,14 +317,14 @@ public class SalesRepositoryImpl implements SalesRepository {
             FROM sales_products sp
             JOIN products p
                 ON p.id = sp.product_id
-            WHERE sp.sale_id = ?
+            WHERE sp.sale_id = :saleId
             ORDER BY sp.id
             """;
 
         return jdbcTemplate.query(
             sql,
-            (rs, rowNum) -> mapSaleProduct(rs),
-            saleId
+            new MapSqlParameterSource("saleId", saleId),
+            (rs, rowNum) -> mapSaleProduct(rs)
         );
     }
 
@@ -361,19 +370,19 @@ public class SalesRepositoryImpl implements SalesRepository {
                 payment_date,
                 notes
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (:uuid, :saleId, :paymentMethod, :amount, :referenceNumber, :paymentDate, :notes)
             """;
 
-        jdbcTemplate.update(
-            sql,
-            payment.uuid(),
-            payment.saleId(),
-            payment.paymentMethod().name(),
-            payment.amount(),
-            payment.referenceNumber(),
-            payment.paymentDate(),
-            payment.notes()
-        );
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", payment.uuid())
+                .addValue("saleId", payment.saleId())
+                .addValue("paymentMethod", payment.paymentMethod().name())
+                .addValue("amount", payment.amount())
+                .addValue("referenceNumber", payment.referenceNumber())
+                .addValue("paymentDate", payment.paymentDate())
+                .addValue("notes", payment.notes());
+
+        jdbcTemplate.update(sql, params);
     }
 
     @Override
@@ -382,14 +391,14 @@ public class SalesRepositoryImpl implements SalesRepository {
         String sql = """
             SELECT *
             FROM sales_payments
-            WHERE sale_id = ?
+            WHERE sale_id = :saleId
             ORDER BY payment_date, id
             """;
 
         return jdbcTemplate.query(
             sql,
-            paymentRowMapper,
-            saleId
+            new MapSqlParameterSource("saleId", saleId),
+            paymentRowMapper
         );
     }
 
@@ -399,14 +408,14 @@ public class SalesRepositoryImpl implements SalesRepository {
         String sql = """
             SELECT id
             FROM products
-            WHERE uuid = ?
+            WHERE uuid = :productUuid
               AND active = TRUE
             """;
 
         return jdbcTemplate.query(
             sql,
-            (rs, rowNum) -> rs.getLong("id"),
-            productUuid
+            new MapSqlParameterSource("productUuid", productUuid),
+            (rs, rowNum) -> rs.getLong("id")
         ).stream().findFirst();
     }
 
@@ -417,14 +426,14 @@ public class SalesRepositoryImpl implements SalesRepository {
             SELECT EXISTS (
                 SELECT 1
                 FROM sales
-                WHERE invoice_number = ?
+                WHERE invoice_number = :invoiceNumber
             )
             """;
 
         Boolean exists = jdbcTemplate.queryForObject(
             sql,
-            Boolean.class,
-            invoiceNumber
+            new MapSqlParameterSource("invoiceNumber", invoiceNumber),
+            Boolean.class
         );
 
         return Boolean.TRUE.equals(exists);
@@ -438,14 +447,14 @@ public class SalesRepositoryImpl implements SalesRepository {
         String lockSql = """
             SELECT last_number
             FROM sales_invoice_counters
-            WHERE invoice_prefix = ?
+            WHERE invoice_prefix = :prefix
             FOR UPDATE
             """;
 
         Long currentNumber = jdbcTemplate.query(
             lockSql,
-            (rs, rowNum) -> rs.getLong("last_number"),
-            prefix
+            new MapSqlParameterSource("prefix", prefix),
+            (rs, rowNum) -> rs.getLong("last_number")
         ).stream().findFirst().orElse(null);
 
         if (currentNumber == null) {
@@ -457,36 +466,39 @@ public class SalesRepositoryImpl implements SalesRepository {
                             last_number,
                             updated_at
                         )
-                        VALUES (?, 0, CURRENT_TIMESTAMP)
+                        VALUES (:prefix, 0, CURRENT_TIMESTAMP)
                     """,
-                    prefix
+                    new MapSqlParameterSource("prefix", prefix)
                 );
             } catch (DuplicateKeyException ex) {
                 currentNumber = jdbcTemplate.query(
                     lockSql,
-                    (rs, rowNum) -> rs.getLong("last_number"),
-                    prefix
+                    new MapSqlParameterSource("prefix", prefix),
+                    (rs, rowNum) -> rs.getLong("last_number")
                 ).stream().findFirst().orElse(0L);
             }
 
             currentNumber = jdbcTemplate.query(
                 lockSql,
-                (rs, rowNum) -> rs.getLong("last_number"),
-                prefix
+                new MapSqlParameterSource("prefix", prefix),
+                (rs, rowNum) -> rs.getLong("last_number")
             ).stream().findFirst().orElse(0L);
         }
 
         Long nextNumber = currentNumber + 1;
 
+        MapSqlParameterSource updateParams = new MapSqlParameterSource()
+                .addValue("nextNumber", nextNumber)
+                .addValue("prefix", prefix);
+
         jdbcTemplate.update(
             """
                 UPDATE sales_invoice_counters
-                SET last_number = ?,
+                SET last_number = :nextNumber,
                     updated_at = CURRENT_TIMESTAMP
-                WHERE invoice_prefix = ?
+                WHERE invoice_prefix = :prefix
             """,
-            nextNumber,
-            prefix
+            updateParams
         );
 
         return prefix + "-" + String.format("%05d", nextNumber);
@@ -498,13 +510,13 @@ public class SalesRepositoryImpl implements SalesRepository {
         String sql = """
                 SELECT uuid
                 FROM sales
-                WHERE id = ?
+                WHERE id = :saleId
                 """;
 
         return jdbcTemplate.query(
                 sql,
-                (rs, rowNum) -> rs.getObject("uuid", UUID.class),
-                saleId
+                new MapSqlParameterSource("saleId", saleId),
+                (rs, rowNum) -> rs.getObject("uuid", UUID.class)
         ).stream().findFirst();
     }
 }

@@ -2,8 +2,9 @@ package com.autoparts.erp.product.repositoryimpl;
 
 import com.autoparts.erp.product.model.Product;
 import com.autoparts.erp.product.repository.ProductRepository;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -14,9 +15,9 @@ import java.util.UUID;
 @Repository
 public class ProductRepositoryImpl implements ProductRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public ProductRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public ProductRepositoryImpl(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -61,7 +62,7 @@ public class ProductRepositoryImpl implements ProductRepository {
     @Override
     public long nextProductCodeNumber() {
         Long number = jdbcTemplate.queryForObject(
-                "SELECT nextval('product_code_seq')", Long.class);
+                "SELECT nextval('product_code_seq')", new MapSqlParameterSource(), Long.class);
         if (number == null) {
             throw new IllegalStateException("Could not generate product code number");
         }
@@ -73,9 +74,9 @@ public class ProductRepositoryImpl implements ProductRepository {
         Boolean exists = jdbcTemplate.queryForObject("""
                 SELECT EXISTS (
                     SELECT 1 FROM product_categories
-                    WHERE id = ? AND active = TRUE
+                    WHERE id = :categoryId AND active = TRUE
                 )
-                """, Boolean.class, categoryId);
+                """, new MapSqlParameterSource("categoryId", categoryId), Boolean.class);
         return Boolean.TRUE.equals(exists);
     }
 
@@ -84,9 +85,9 @@ public class ProductRepositoryImpl implements ProductRepository {
         Boolean exists = jdbcTemplate.queryForObject("""
                 SELECT EXISTS (
                     SELECT 1 FROM product_brands
-                    WHERE id = ? AND active = TRUE
+                    WHERE id = :brandId AND active = TRUE
                 )
-                """, Boolean.class, brandId);
+                """, new MapSqlParameterSource("brandId", brandId), Boolean.class);
         return Boolean.TRUE.equals(exists);
     }
 
@@ -113,26 +114,34 @@ public class ProductRepositoryImpl implements ProductRepository {
                     purchase_price, selling_price, minimum_stock, unit,
                     barcode, barcode_type
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (
+                    :uuid, :productCode, :partNo, :name, :description,
+                    :categoryId, :brandId,
+                    :purchasePrice, :sellingPrice, :minimumStock, :unit,
+                    :barcode, :barcodeType
+                )
                 RETURNING id
                 """;
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", uuid)
+                .addValue("productCode", productCode)
+                .addValue("partNo", partNo)
+                .addValue("name", name)
+                .addValue("description", description)
+                .addValue("categoryId", categoryId)
+                .addValue("brandId", brandId)
+                .addValue("purchasePrice", purchasePrice)
+                .addValue("sellingPrice", sellingPrice)
+                .addValue("minimumStock", minimumStock)
+                .addValue("unit", unit)
+                .addValue("barcode", barcode)
+                .addValue("barcodeType", barcodeType);
+
         Long id = jdbcTemplate.queryForObject(
                 sql,
-                Long.class,
-                uuid,
-                productCode,
-                partNo,
-                name,
-                description,
-                categoryId,
-                brandId,
-                purchasePrice,
-                sellingPrice,
-                minimumStock,
-                unit,
-                barcode,
-                barcodeType
+                params,
+                Long.class
         );
 
         if (id == null) {
@@ -148,6 +157,7 @@ public class ProductRepositoryImpl implements ProductRepository {
     public List<Product> findAll() {
         return jdbcTemplate.query(
                 SELECT_PRODUCT + " ORDER BY p.id DESC",
+                new MapSqlParameterSource(),
                 rowMapper
         );
     }
@@ -155,9 +165,9 @@ public class ProductRepositoryImpl implements ProductRepository {
     @Override
     public Optional<Product> findByUuid(UUID uuid) {
         return jdbcTemplate.query(
-                SELECT_PRODUCT + " WHERE p.uuid = ?",
-                rowMapper,
-                uuid
+                SELECT_PRODUCT + " WHERE p.uuid = :uuid",
+                new MapSqlParameterSource("uuid", uuid),
+                rowMapper
         ).stream().findFirst();
     }
 
@@ -176,33 +186,33 @@ public class ProductRepositoryImpl implements ProductRepository {
     ) {
         String sql = """
                 UPDATE products
-                SET part_no = ?,
-                    name = ?,
-                    description = ?,
-                    category_id = ?,
-                    brand_id = ?,
-                    purchase_price = ?,
-                    selling_price = ?,
-                    minimum_stock = ?,
-                    unit = ?,
+                SET part_no = :partNo,
+                    name = :name,
+                    description = :description,
+                    category_id = :categoryId,
+                    brand_id = :brandId,
+                    purchase_price = :purchasePrice,
+                    selling_price = :sellingPrice,
+                    minimum_stock = :minimumStock,
+                    unit = :unit,
                     updated_at = CURRENT_TIMESTAMP
-                WHERE uuid = ?
+                WHERE uuid = :uuid
                   AND active = TRUE
                 """;
 
-        return jdbcTemplate.update(
-                sql,
-                partNo,
-                name,
-                description,
-                categoryId,
-                brandId,
-                purchasePrice,
-                sellingPrice,
-                minimumStock,
-                unit,
-                uuid
-        ) > 0;
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("partNo", partNo)
+                .addValue("name", name)
+                .addValue("description", description)
+                .addValue("categoryId", categoryId)
+                .addValue("brandId", brandId)
+                .addValue("purchasePrice", purchasePrice)
+                .addValue("sellingPrice", sellingPrice)
+                .addValue("minimumStock", minimumStock)
+                .addValue("unit", unit)
+                .addValue("uuid", uuid);
+
+        return jdbcTemplate.update(sql, params) > 0;
     }
 
     @Override
@@ -211,18 +221,18 @@ public class ProductRepositoryImpl implements ProductRepository {
                 UPDATE products
                 SET active = FALSE,
                     updated_at = CURRENT_TIMESTAMP
-                WHERE uuid = ?
+                WHERE uuid = :uuid
                   AND active = TRUE
-                """, uuid) > 0;
+                """, new MapSqlParameterSource("uuid", uuid)) > 0;
     }
 
     @Override
     public boolean existsByName(String name) {
         Boolean exists = jdbcTemplate.queryForObject("""
                 SELECT EXISTS (
-                    SELECT 1 FROM products WHERE LOWER(name) = LOWER(?)
+                    SELECT 1 FROM products WHERE LOWER(name) = LOWER(:name)
                 )
-                """, Boolean.class, name);
+                """, new MapSqlParameterSource("name", name), Boolean.class);
         return Boolean.TRUE.equals(exists);
     }
 
@@ -230,9 +240,9 @@ public class ProductRepositoryImpl implements ProductRepository {
     public boolean existsByPartNo(String partNo) {
         Boolean exists = jdbcTemplate.queryForObject("""
                 SELECT EXISTS (
-                    SELECT 1 FROM products WHERE part_no = ?
+                    SELECT 1 FROM products WHERE part_no = :partNo
                 )
-                """, Boolean.class, partNo);
+                """, new MapSqlParameterSource("partNo", partNo), Boolean.class);
         return Boolean.TRUE.equals(exists);
     }
 
@@ -240,33 +250,41 @@ public class ProductRepositoryImpl implements ProductRepository {
     public boolean existsByProductCode(String productCode) {
         Boolean exists = jdbcTemplate.queryForObject("""
                 SELECT EXISTS (
-                    SELECT 1 FROM products WHERE product_code = ?
+                    SELECT 1 FROM products WHERE product_code = :productCode
                 )
-                """, Boolean.class, productCode);
+                """, new MapSqlParameterSource("productCode", productCode), Boolean.class);
         return Boolean.TRUE.equals(exists);
     }
 
     @Override
     public boolean existsByNameExcludingUuid(String name, UUID uuid) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("name", name)
+                .addValue("uuid", uuid);
+
         Boolean exists = jdbcTemplate.queryForObject("""
                 SELECT EXISTS (
                     SELECT 1 FROM products
-                    WHERE LOWER(name) = LOWER(?)
-                      AND uuid <> ?
+                    WHERE LOWER(name) = LOWER(:name)
+                      AND uuid <> :uuid
                 )
-                """, Boolean.class, name, uuid);
+                """, params, Boolean.class);
         return Boolean.TRUE.equals(exists);
     }
 
     @Override
     public boolean existsByPartNoExcludingUuid(String partNo, UUID uuid) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("partNo", partNo)
+                .addValue("uuid", uuid);
+
         Boolean exists = jdbcTemplate.queryForObject("""
                 SELECT EXISTS (
                     SELECT 1 FROM products
-                    WHERE part_no = ?
-                      AND uuid <> ?
+                    WHERE part_no = :partNo
+                      AND uuid <> :uuid
                 )
-                """, Boolean.class, partNo, uuid);
+                """, params, Boolean.class);
         return Boolean.TRUE.equals(exists);
     }
 }

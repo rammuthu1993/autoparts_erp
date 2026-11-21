@@ -79,6 +79,18 @@ public class SecurityConfig {
 
             .csrf(csrf -> csrf.disable())
 
+            .headers(headers -> headers
+                .contentTypeOptions(org.springframework.security.config.Customizer.withDefaults())
+                .frameOptions(frame -> frame.deny())
+                .httpStrictTransportSecurity(hsts -> hsts
+                    .includeSubDomains(true)
+                    .maxAgeInSeconds(31536000)
+                )
+                .referrerPolicy(referrer -> referrer
+                    .policy(org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)
+                )
+            )
+
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
@@ -90,6 +102,11 @@ public class SecurityConfig {
             .httpBasic(basic -> basic.disable())
 
             .logout(logout -> logout.disable())
+
+            .addFilterBefore(
+                new SecurityCorrelationFilter(),
+                org.springframework.security.web.context.SecurityContextHolderFilter.class
+            )
 
             .authorizeHttpRequests(auth -> auth
 
@@ -114,8 +131,12 @@ public class SecurityConfig {
                 ).permitAll()
 
                 // ADMIN-only endpoints.
-                .requestMatchers("/api/v1/admin/**")
-                .hasRole("ADMIN")
+                .requestMatchers(
+                    "/api/v1/admin/**",
+                    "/api/v1/users/**",
+                    "/api/v1/roles/**",
+                    "/api/v1/audit-logs/**"
+                ).hasRole("ADMIN")
 
                 // All other endpoints require authentication.
                 .anyRequest().authenticated()
@@ -212,7 +233,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public DaoAuthenticationProvider authenticationProvider(
+    public AuthenticationManager authenticationManager(
             CustomUserDetailsService userDetailsService,
             PasswordEncoder passwordEncoder) {
 
@@ -221,14 +242,7 @@ public class SecurityConfig {
 
         provider.setPasswordEncoder(passwordEncoder);
 
-        return provider;
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager(
-            DaoAuthenticationProvider authenticationProvider) {
-
-        return new ProviderManager(authenticationProvider);
+        return new ProviderManager(provider);
     }
 
     @Bean

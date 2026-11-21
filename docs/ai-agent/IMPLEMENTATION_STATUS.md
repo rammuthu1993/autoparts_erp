@@ -50,3 +50,33 @@ Do not rewrite these systems merely to create a larger patch. The remaining work
 **Production readiness: NOT APPROVED / NOT YET MEASURED.**
 
 Phase 5 — Development Stopped; Implementation Largely Complete; Final Runtime Verification Deferred.
+
+Live AI provider evaluation – verify actual Sarvam responses, empty responses, malformed responses and provider failures.
+
+
+
+Grounded answer quality – ensure answers are supported by retrieved ERP records, not invented information.
+
+
+
+Retrieval evaluation – measure Precision@K, Recall@K and MRR.
+
+
+
+Concurrency testing – verify simultaneous users and conversation isolation.
+
+
+
+Performance testing – measure HTTP throughput and P95 latency.
+
+
+
+Security testing – verify authorization boundaries, prompt injection and transactional attack scenarios.
+
+
+
+Database least privilege – finish the separate runtime, migration and AI-reader role verification.
+
+
+
+Regression evidence – consolidate automated and live evaluation results.

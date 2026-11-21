@@ -8,9 +8,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.dao.DuplicateKeyException;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.autoparts.erp.cashregister.enums.CashMovementSourceType;
@@ -24,9 +24,9 @@ import com.autoparts.erp.cashregister.repository.CashRegisterRepository;
 @Repository
 public class CashRegisterRepositoryImpl implements CashRegisterRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public CashRegisterRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public CashRegisterRepositoryImpl(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -75,34 +75,37 @@ public class CashRegisterRepositoryImpl implements CashRegisterRepository {
 
     @Override
     public CashRegister createRegister(CashRegister register) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", register.uuid())
+                .addValue("registerCode", register.registerCode())
+                .addValue("name", register.name())
+                .addValue("description", register.description());
 
         return jdbcTemplate.queryForObject(
             """
             INSERT INTO cash_registers (
                 uuid, register_code, name, description
             )
-            VALUES (?, ?, ?, ?)
+            VALUES (:uuid, :registerCode, :name, :description)
             RETURNING *
             """,
-            registerMapper,
-            register.uuid(),
-            register.registerCode(),
-            register.name(),
-            register.description()
+            params,
+            registerMapper
         );
     }
 
     @Override
     public Optional<CashRegister> findRegisterByUuid(UUID uuid) {
+        MapSqlParameterSource params = new MapSqlParameterSource("uuid", uuid);
 
         return jdbcTemplate.query(
             """
             SELECT *
             FROM cash_registers
-            WHERE uuid = ?
+            WHERE uuid = :uuid
             """,
-            registerMapper,
-            uuid
+            params,
+            registerMapper
         ).stream().findFirst();
     }
 
@@ -115,6 +118,7 @@ public class CashRegisterRepositoryImpl implements CashRegisterRepository {
             FROM cash_registers
             ORDER BY created_at DESC
             """,
+            new MapSqlParameterSource(),
             registerMapper
         );
     }
@@ -132,15 +136,16 @@ public class CashRegisterRepositoryImpl implements CashRegisterRepository {
     public Optional<CashRegisterSession> findOpenSessionForUpdate(
         UUID registerUuid
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource("registerUuid", registerUuid);
 
         return jdbcTemplate.query(
             SESSION_SELECT + """
-                WHERE r.uuid = ?
+                WHERE r.uuid = :registerUuid
                   AND s.status = 'OPEN'
                 FOR UPDATE OF s
                 """,
-            sessionMapper,
-            registerUuid
+            params,
+            sessionMapper
         ).stream().findFirst();
     }
 
@@ -151,6 +156,11 @@ public class CashRegisterRepositoryImpl implements CashRegisterRepository {
         Long userId,
         BigDecimal openingBalance
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("sessionUuid", sessionUuid)
+                .addValue("registerId", registerId)
+                .addValue("userId", userId)
+                .addValue("openingBalance", openingBalance);
 
         return jdbcTemplate.queryForObject(
             """
@@ -160,30 +170,28 @@ public class CashRegisterRepositoryImpl implements CashRegisterRepository {
                 opened_by,
                 opening_balance
             )
-            VALUES (?, ?, ?, ?)
+            VALUES (:sessionUuid, :registerId, :userId, :openingBalance)
             RETURNING
                 id, uuid, cash_register_id, opened_by,
                 opened_at, opening_balance, closed_by,
                 closed_at, expected_closing_balance,
-                actual_closing_balance, difference, status,
+                actual_closing_balance, difference_amount, status,
                 (SELECT name FROM cash_registers WHERE id = cash_register_id)
                     AS register_name
             """,
-            sessionMapper,
-            sessionUuid,
-            registerId,
-            userId,
-            openingBalance
+            params,
+            sessionMapper
         );
     }
 
     @Override
     public Optional<CashRegisterSession> findSessionByUuid(UUID uuid) {
+        MapSqlParameterSource params = new MapSqlParameterSource("uuid", uuid);
 
         return jdbcTemplate.query(
-            SESSION_SELECT + " WHERE s.uuid = ?",
-            sessionMapper,
-            uuid
+            SESSION_SELECT + " WHERE s.uuid = :uuid",
+            params,
+            sessionMapper
         ).stream().findFirst();
     }
 
@@ -191,14 +199,15 @@ public class CashRegisterRepositoryImpl implements CashRegisterRepository {
     public Optional<CashRegisterSession> findSessionByUuidForUpdate(
         UUID uuid
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource("uuid", uuid);
 
         return jdbcTemplate.query(
             SESSION_SELECT + """
-                WHERE s.uuid = ?
+                WHERE s.uuid = :uuid
                 FOR UPDATE OF s
                 """,
-            sessionMapper,
-            uuid
+            params,
+            sessionMapper
         ).stream().findFirst();
     }
 
@@ -210,24 +219,26 @@ public class CashRegisterRepositoryImpl implements CashRegisterRepository {
         BigDecimal actualBalance,
         BigDecimal differenceAmount
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("userId", userId)
+                .addValue("expectedBalance", expectedBalance)
+                .addValue("actualBalance", actualBalance)
+                .addValue("differenceAmount", differenceAmount)
+                .addValue("sessionId", sessionId);
 
         return jdbcTemplate.update(
             """
             UPDATE cash_register_sessions
             SET status = 'CLOSED',
-                closed_by = ?,
+                closed_by = :userId,
                 closed_at = CURRENT_TIMESTAMP,
-                expected_closing_balance = ?,
-                actual_closing_balance = ?,
-                differenceAmount = ?
-            WHERE id = ?
+                expected_closing_balance = :expectedBalance,
+                actual_closing_balance = :actualBalance,
+                difference_amount = :differenceAmount
+            WHERE id = :sessionId
               AND status = 'OPEN'
             """,
-            userId,
-            expectedBalance,
-            actualBalance,
-            differenceAmount,
-            sessionId
+            params
         ) == 1;
     }
 
@@ -235,6 +246,15 @@ public class CashRegisterRepositoryImpl implements CashRegisterRepository {
     public CashRegisterMovement createMovement(
         CashRegisterMovement movement
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", movement.uuid())
+                .addValue("sessionId", movement.sessionId())
+                .addValue("movementType", movement.movementType().name())
+                .addValue("sourceType", movement.sourceType().name())
+                .addValue("sourceUuid", movement.sourceUuid())
+                .addValue("amount", movement.amount())
+                .addValue("description", movement.description())
+                .addValue("createdBy", movement.createdBy());
 
         return jdbcTemplate.queryForObject(
             """
@@ -248,36 +268,31 @@ public class CashRegisterRepositoryImpl implements CashRegisterRepository {
                 description,
                 created_by
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (:uuid, :sessionId, :movementType, :sourceType, :sourceUuid, :amount, :description, :createdBy)
             RETURNING *
             """,
-            movementMapper,
-            movement.uuid(),
-            movement.sessionId(),
-            movement.movementType().name(),
-            movement.sourceType().name(),
-            movement.sourceUuid(),
-            movement.amount(),
-            movement.description(),
-            movement.createdBy()
+            params,
+            movementMapper
         );
     }
 
     @Override
     public boolean existsMovement(String sourceType, UUID sourceUuid) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("sourceType", sourceType)
+                .addValue("sourceUuid", sourceUuid);
 
         Boolean exists = jdbcTemplate.queryForObject(
             """
             SELECT EXISTS (
                 SELECT 1
                 FROM cash_register_movements
-                WHERE source_type = ?
-                  AND source_uuid = ?
+                WHERE source_type = :sourceType
+                  AND source_uuid = :sourceUuid
             )
             """,
-            Boolean.class,
-            sourceType,
-            sourceUuid
+            params,
+            Boolean.class
         );
 
         return Boolean.TRUE.equals(exists);
@@ -285,16 +300,17 @@ public class CashRegisterRepositoryImpl implements CashRegisterRepository {
 
     @Override
     public List<CashRegisterMovement> findMovements(Long sessionId) {
+        MapSqlParameterSource params = new MapSqlParameterSource("sessionId", sessionId);
 
         return jdbcTemplate.query(
             """
             SELECT *
             FROM cash_register_movements
-            WHERE session_id = ?
+            WHERE session_id = :sessionId
             ORDER BY created_at, id
             """,
-            movementMapper,
-            sessionId
+            params,
+            movementMapper
         );
     }
 
@@ -303,17 +319,19 @@ public class CashRegisterRepositoryImpl implements CashRegisterRepository {
         Long sessionId,
         String movementType
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("sessionId", sessionId)
+                .addValue("movementType", movementType);
 
         return jdbcTemplate.queryForObject(
             """
             SELECT COALESCE(SUM(amount), 0)
             FROM cash_register_movements
-            WHERE session_id = ?
-              AND movement_type = ?
+            WHERE session_id = :sessionId
+              AND movement_type = :movementType
             """,
-            BigDecimal.class,
-            sessionId,
-            movementType
+            params,
+            BigDecimal.class
         );
     }
 
@@ -321,15 +339,16 @@ public class CashRegisterRepositoryImpl implements CashRegisterRepository {
     public Optional<CashRegisterSession> findLatestSession(
         UUID registerUuid
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource("registerUuid", registerUuid);
 
         return jdbcTemplate.query(
             SESSION_SELECT + """
-                WHERE r.uuid = ?
+                WHERE r.uuid = :registerUuid
                 ORDER BY s.opened_at DESC
                 LIMIT 1
                 """,
-            sessionMapper,
-            registerUuid
+            params,
+            sessionMapper
         ).stream().findFirst();
     }
     
@@ -340,33 +359,35 @@ public class CashRegisterRepositoryImpl implements CashRegisterRepository {
 
         String sql = """
             SELECT
-				    s.id,
-				    s.uuid,
-				    s.cash_register_id,
-				    r.name AS register_name,
-				    s.opened_by,
-				    s.opened_at,
-				    s.opening_balance,
-				    s.closed_by,
-				    s.closed_at,
-				    s.expected_closing_balance,
-				    s.actual_closing_balance,
-				    s.difference_amount,
-				    s.status
-				FROM cash_register_sessions s
-				JOIN cash_registers r
-				    ON r.id = s.cash_register_id
-				WHERE s.opened_by = ?
-				  AND s.status = 'OPEN'
-				ORDER BY s.opened_at DESC
-				LIMIT 1
-				FOR UPDATE OF s
-				            """;
+                s.id,
+                s.uuid,
+                s.cash_register_id,
+                r.name AS register_name,
+                s.opened_by,
+                s.opened_at,
+                s.opening_balance,
+                s.closed_by,
+                s.closed_at,
+                s.expected_closing_balance,
+                s.actual_closing_balance,
+                s.difference_amount,
+                s.status
+            FROM cash_register_sessions s
+            JOIN cash_registers r
+                ON r.id = s.cash_register_id
+            WHERE s.opened_by = :userId
+              AND s.status = 'OPEN'
+            ORDER BY s.opened_at DESC
+            LIMIT 1
+            FOR UPDATE OF s
+            """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource("userId", userId);
 
         List<CashRegisterSession> sessions = jdbcTemplate.query(
             sql,
-            (rs, rowNum) -> mapSession(rs),
-            userId
+            params,
+            (rs, rowNum) -> mapSession(rs)
         );
 
         return sessions.stream().findFirst();
@@ -393,20 +414,20 @@ public class CashRegisterRepositoryImpl implements CashRegisterRepository {
     }
     
     private CashRegisterMovement mapMovement(ResultSet rs)
-    	    throws SQLException {
+            throws SQLException {
 
-    	    return new CashRegisterMovement(
-    	        rs.getLong("id"),
-    	        rs.getObject("uuid", UUID.class),
-    	        rs.getLong("session_id"),
-    	        CashMovementType.valueOf(rs.getString("movement_type")),
-    	        CashMovementSourceType.valueOf(rs.getString("source_type")),
-    	        rs.getObject("source_uuid", UUID.class),
-    	        rs.getBigDecimal("amount"),
-    	        rs.getString("description"),
-    	        rs.getLong("created_by"),
-    	        rs.getObject("created_at", OffsetDateTime.class)
-    	    );
+        return new CashRegisterMovement(
+            rs.getLong("id"),
+            rs.getObject("uuid", UUID.class),
+            rs.getLong("session_id"),
+            CashMovementType.valueOf(rs.getString("movement_type")),
+            CashMovementSourceType.valueOf(rs.getString("source_type")),
+            rs.getObject("source_uuid", UUID.class),
+            rs.getBigDecimal("amount"),
+            rs.getString("description"),
+            rs.getLong("created_by"),
+            rs.getObject("created_at", OffsetDateTime.class)
+        );
     }
     
     @Override
@@ -428,13 +449,18 @@ public class CashRegisterRepositoryImpl implements CashRegisterRepository {
                 created_by,
                 created_at
             FROM cash_register_movements
-            WHERE source_type = ?
-              AND source_uuid = ?
+            WHERE source_type = :sourceType
+              AND source_uuid = :sourceUuid
             LIMIT 1
             """;
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("sourceType", sourceType)
+                .addValue("sourceUuid", sourceUuid);
+
         List<CashRegisterMovement> movements = jdbcTemplate.query(
             sql,
+            params,
             (rs, rowNum) -> new CashRegisterMovement(
                 rs.getObject("id", Long.class),
                 rs.getObject("uuid", UUID.class),
@@ -450,9 +476,7 @@ public class CashRegisterRepositoryImpl implements CashRegisterRepository {
                 rs.getString("description"),
                 rs.getObject("created_by", Long.class),
                 rs.getObject("created_at", OffsetDateTime.class)
-            ),
-            sourceType,
-            sourceUuid
+            )
         );
 
         return movements.stream().findFirst();

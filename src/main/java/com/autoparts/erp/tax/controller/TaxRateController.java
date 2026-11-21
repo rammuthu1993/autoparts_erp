@@ -1,6 +1,7 @@
 
 package com.autoparts.erp.tax.controller;
 
+import com.autoparts.erp.auth.security.annotation.AdminOrManager;
 import com.autoparts.erp.tax.dto.TaxRateCreateRequest;
 import com.autoparts.erp.tax.dto.TaxRateResponse;
 import com.autoparts.erp.tax.dto.TaxRateUpdateRequest;
@@ -25,6 +26,7 @@ public class TaxRateController {
         this.taxRateService = taxRateService;
     }
 
+    @AdminOrManager
     @PostMapping
     public ResponseEntity<TaxRateResponse> create(
         @Valid @RequestBody TaxRateCreateRequest request
@@ -50,6 +52,7 @@ public class TaxRateController {
         );
     }
 
+    @AdminOrManager
     @PutMapping("/{uuid}")
     public ResponseEntity<TaxRateResponse> update(
         @PathVariable UUID uuid,

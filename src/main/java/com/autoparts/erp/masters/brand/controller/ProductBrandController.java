@@ -1,5 +1,6 @@
 package com.autoparts.erp.masters.brand.controller;
 
+import com.autoparts.erp.auth.security.annotation.AdminOrManager;
 import com.autoparts.erp.masters.brand.dto.BrandCreateRequest;
 import com.autoparts.erp.masters.brand.dto.BrandResponse;
 import com.autoparts.erp.masters.brand.dto.BrandUpdateRequest;
@@ -24,6 +25,7 @@ public class ProductBrandController {
         this.service = service;
     }
 
+    @AdminOrManager
     @PostMapping
     public ResponseEntity<BrandResponse> create(
             @Valid @RequestBody BrandCreateRequest request
@@ -45,6 +47,7 @@ public class ProductBrandController {
         return ResponseEntity.ok(service.findByUuid(uuid));
     }
 
+    @AdminOrManager
     @PutMapping("/{uuid}")
     public ResponseEntity<BrandResponse> update(
             @PathVariable UUID uuid,
@@ -53,6 +56,7 @@ public class ProductBrandController {
         return ResponseEntity.ok(service.update(uuid, request));
     }
 
+    @AdminOrManager
     @PatchMapping("/{uuid}/deactivate")
     public ResponseEntity<Void> deactivate(
             @PathVariable UUID uuid

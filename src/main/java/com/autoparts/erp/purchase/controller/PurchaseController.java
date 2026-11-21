@@ -1,6 +1,7 @@
 
 package com.autoparts.erp.purchase.controller;
 
+import com.autoparts.erp.auth.security.annotation.AdminOrManager;
 import com.autoparts.erp.purchase.dto.PurchaseCreateRequest;
 import com.autoparts.erp.purchase.dto.PurchaseResponse;
 import com.autoparts.erp.purchase.service.PurchaseService;
@@ -22,6 +23,7 @@ public class PurchaseController {
         this.purchaseService = purchaseService;
     }
 
+    @AdminOrManager
     @PostMapping
     public ResponseEntity<PurchaseResponse> create(
         @Valid @RequestBody PurchaseCreateRequest request
@@ -48,6 +50,7 @@ public class PurchaseController {
     }
     
 
+	@AdminOrManager
 	@PostMapping("/{uuid}/receive")
 	public ResponseEntity<PurchaseResponse> receive(
 	    @PathVariable UUID uuid

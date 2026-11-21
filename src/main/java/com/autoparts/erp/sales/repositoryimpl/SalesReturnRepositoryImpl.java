@@ -8,8 +8,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.autoparts.erp.sales.enums.PaymentMethod;
@@ -22,9 +23,9 @@ import com.autoparts.erp.sales.repository.SalesReturnRepository;
 @Repository
 public class SalesReturnRepositoryImpl implements SalesReturnRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public SalesReturnRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public SalesReturnRepositoryImpl(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -146,28 +147,33 @@ public class SalesReturnRepositoryImpl implements SalesReturnRepository {
                 status
             )
             VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                :uuid, :saleId, :returnDate, :reason, :notes, :subtotal, :discountAmount,
+                :taxableAmount, :cgstAmount, :sgstAmount, :igstAmount, :totalTaxAmount,
+                :totalReturnAmount, :status
             )
             RETURNING *
             """;
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", salesReturn.uuid())
+                .addValue("saleId", salesReturn.saleId())
+                .addValue("returnDate", salesReturn.returnDate())
+                .addValue("reason", salesReturn.reason())
+                .addValue("notes", salesReturn.notes())
+                .addValue("subtotal", salesReturn.subtotal())
+                .addValue("discountAmount", salesReturn.discountAmount())
+                .addValue("taxableAmount", salesReturn.taxableAmount())
+                .addValue("cgstAmount", salesReturn.cgstAmount())
+                .addValue("sgstAmount", salesReturn.sgstAmount())
+                .addValue("igstAmount", salesReturn.igstAmount())
+                .addValue("totalTaxAmount", salesReturn.totalTaxAmount())
+                .addValue("totalReturnAmount", salesReturn.totalReturnAmount())
+                .addValue("status", salesReturn.status().name());
+
         return jdbcTemplate.queryForObject(
             sql,
-            returnRowMapper,
-            salesReturn.uuid(),
-            salesReturn.saleId(),
-            salesReturn.returnDate(),
-            salesReturn.reason(),
-            salesReturn.notes(),
-            salesReturn.subtotal(),
-            salesReturn.discountAmount(),
-            salesReturn.taxableAmount(),
-            salesReturn.cgstAmount(),
-            salesReturn.sgstAmount(),
-            salesReturn.igstAmount(),
-            salesReturn.totalTaxAmount(),
-            salesReturn.totalReturnAmount(),
-            salesReturn.status().name()
+            params,
+            returnRowMapper
         );
     }
 
@@ -205,35 +211,38 @@ public class SalesReturnRepositoryImpl implements SalesReturnRepository {
                     line_total
                 )
                 VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    :uuid, :salesReturnId, :salesProductId, :productId, :productCode,
+                    :productName, :quantity, :unit, :unitPrice, :discountAmount,
+                    :taxableAmount, :hsnCode, :gstRate, :cgstRate, :sgstRate,
+                    :igstRate, :cgstAmount, :sgstAmount, :igstAmount, :totalTaxAmount,
+                    :lineTotal
                 )
                 """;
 
-        jdbcTemplate.update(
-                sql,
-                product.uuid(),
-                product.salesReturnId(),
-                product.salesProductId(),
-                product.productId(),
-                product.productCode(),
-                product.productName(),
-                product.quantity(),
-                product.unit(),
-                product.unitPrice(),
-                product.discountAmount(),
-                product.taxableAmount(),
-                product.hsnCode(),
-                product.gstRate(),
-                product.cgstRate(),
-                product.sgstRate(),
-                product.igstRate(),
-                product.cgstAmount(),
-                product.sgstAmount(),
-                product.igstAmount(),
-                product.totalTaxAmount(),
-                product.lineTotal()
-        );
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", product.uuid())
+                .addValue("salesReturnId", product.salesReturnId())
+                .addValue("salesProductId", product.salesProductId())
+                .addValue("productId", product.productId())
+                .addValue("productCode", product.productCode())
+                .addValue("productName", product.productName())
+                .addValue("quantity", product.quantity())
+                .addValue("unit", product.unit())
+                .addValue("unitPrice", product.unitPrice())
+                .addValue("discountAmount", product.discountAmount())
+                .addValue("taxableAmount", product.taxableAmount())
+                .addValue("hsnCode", product.hsnCode())
+                .addValue("gstRate", product.gstRate())
+                .addValue("cgstRate", product.cgstRate())
+                .addValue("sgstRate", product.sgstRate())
+                .addValue("igstRate", product.igstRate())
+                .addValue("cgstAmount", product.cgstAmount())
+                .addValue("sgstAmount", product.sgstAmount())
+                .addValue("igstAmount", product.igstAmount())
+                .addValue("totalTaxAmount", product.totalTaxAmount())
+                .addValue("lineTotal", product.lineTotal());
+
+        jdbcTemplate.update(sql, params);
     }
 
     // ---------------------------------------------------------
@@ -253,20 +262,26 @@ public class SalesReturnRepositoryImpl implements SalesReturnRepository {
                 refund_date,
                 notes
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (
+                :uuid, :salesReturnId, :paymentMethod, :amount,
+                :referenceNumber, :refundDate, :notes
+            )
             RETURNING *
             """;
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", refund.uuid())
+                .addValue("salesReturnId", refund.salesReturnId())
+                .addValue("paymentMethod", refund.paymentMethod().name())
+                .addValue("amount", refund.amount())
+                .addValue("referenceNumber", refund.referenceNumber())
+                .addValue("refundDate", refund.refundDate())
+                .addValue("notes", refund.notes());
+
         return jdbcTemplate.queryForObject(
             sql,
-            refundRowMapper,
-            refund.uuid(),
-            refund.salesReturnId(),
-            refund.paymentMethod().name(),
-            refund.amount(),
-            refund.referenceNumber(),
-            refund.refundDate(),
-            refund.notes()
+            params,
+            refundRowMapper
         );
     }
 
@@ -279,33 +294,36 @@ public class SalesReturnRepositoryImpl implements SalesReturnRepository {
 
         String sql = """
             UPDATE sales_returns
-            SET subtotal = ?,
-                discount_amount = ?,
-                taxable_amount = ?,
-                cgst_amount = ?,
-                sgst_amount = ?,
-                igst_amount = ?,
-                total_tax_amount = ?,
-                total_return_amount = ?,
-                status = ?,
+            SET subtotal = :subtotal,
+                discount_amount = :discountAmount,
+                taxable_amount = :taxableAmount,
+                cgst_amount = :cgstAmount,
+                sgst_amount = :sgstAmount,
+                igst_amount = :igstAmount,
+                total_tax_amount = :totalTaxAmount,
+                total_return_amount = :totalReturnAmount,
+                status = :status,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
+            WHERE id = :id
             RETURNING *
             """;
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("subtotal", salesReturn.subtotal())
+                .addValue("discountAmount", salesReturn.discountAmount())
+                .addValue("taxableAmount", salesReturn.taxableAmount())
+                .addValue("cgstAmount", salesReturn.cgstAmount())
+                .addValue("sgstAmount", salesReturn.sgstAmount())
+                .addValue("igstAmount", salesReturn.igstAmount())
+                .addValue("totalTaxAmount", salesReturn.totalTaxAmount())
+                .addValue("totalReturnAmount", salesReturn.totalReturnAmount())
+                .addValue("status", salesReturn.status().name())
+                .addValue("id", salesReturn.id());
+
         return jdbcTemplate.queryForObject(
             sql,
-            returnRowMapper,
-            salesReturn.subtotal(),
-            salesReturn.discountAmount(),
-            salesReturn.taxableAmount(),
-            salesReturn.cgstAmount(),
-            salesReturn.sgstAmount(),
-            salesReturn.igstAmount(),
-            salesReturn.totalTaxAmount(),
-            salesReturn.totalReturnAmount(),
-            salesReturn.status().name(),
-            salesReturn.id()
+            params,
+            returnRowMapper
         );
     }
 
@@ -319,13 +337,13 @@ public class SalesReturnRepositoryImpl implements SalesReturnRepository {
         String sql = """
             SELECT *
             FROM sales_returns
-            WHERE uuid = ?
+            WHERE uuid = :uuid
             """;
 
         return jdbcTemplate.query(
             sql,
-            returnRowMapper,
-            uuid
+            new MapSqlParameterSource("uuid", uuid),
+            returnRowMapper
         ).stream().findFirst();
     }
 
@@ -339,14 +357,14 @@ public class SalesReturnRepositoryImpl implements SalesReturnRepository {
         String sql = """
             SELECT *
             FROM sales_returns
-            WHERE uuid = ?
+            WHERE uuid = :uuid
             FOR UPDATE
             """;
 
         return jdbcTemplate.query(
             sql,
-            returnRowMapper,
-            uuid
+            new MapSqlParameterSource("uuid", uuid),
+            returnRowMapper
         ).stream().findFirst();
     }
 
@@ -360,14 +378,14 @@ public class SalesReturnRepositoryImpl implements SalesReturnRepository {
         String sql = """
             SELECT *
             FROM sales_returns
-            WHERE sale_id = ?
+            WHERE sale_id = :saleId
             ORDER BY return_date DESC, id DESC
             """;
 
         return jdbcTemplate.query(
             sql,
-            returnRowMapper,
-            saleId
+            new MapSqlParameterSource("saleId", saleId),
+            returnRowMapper
         );
     }
 
@@ -390,14 +408,14 @@ public class SalesReturnRepositoryImpl implements SalesReturnRepository {
                 ON sp.id = srp.sales_product_id
             JOIN products p
                 ON p.id = srp.product_id
-            WHERE srp.sales_return_id = ?
+            WHERE srp.sales_return_id = :returnId
             ORDER BY srp.id
             """;
 
         return jdbcTemplate.query(
             sql,
-            returnProductRowMapper,
-            returnId
+            new MapSqlParameterSource("returnId", returnId),
+            returnProductRowMapper
         );
     }
 
@@ -411,14 +429,14 @@ public class SalesReturnRepositoryImpl implements SalesReturnRepository {
         String sql = """
             SELECT *
             FROM sales_refunds
-            WHERE sales_return_id = ?
+            WHERE sales_return_id = :returnId
             ORDER BY refund_date, id
             """;
 
         return jdbcTemplate.query(
             sql,
-            refundRowMapper,
-            returnId
+            new MapSqlParameterSource("returnId", returnId),
+            refundRowMapper
         );
     }
 
@@ -441,14 +459,14 @@ public class SalesReturnRepositoryImpl implements SalesReturnRepository {
                 ON sp.id = srp.sales_product_id
             JOIN products p
                 ON p.id = srp.product_id
-            WHERE srp.sales_product_id = ?
+            WHERE srp.sales_product_id = :salesProductId
             ORDER BY srp.id
             """;
 
         return jdbcTemplate.query(
             sql,
-            returnProductRowMapper,
-            salesProductId
+            new MapSqlParameterSource("salesProductId", salesProductId),
+            returnProductRowMapper
         );
     }
 
@@ -462,13 +480,13 @@ public class SalesReturnRepositoryImpl implements SalesReturnRepository {
         String sql = """
             SELECT COALESCE(SUM(amount), 0)
             FROM sales_refunds
-            WHERE sales_return_id = ?
+            WHERE sales_return_id = :returnId
             """;
 
         return jdbcTemplate.queryForObject(
             sql,
-            BigDecimal.class,
-            returnId
+            new MapSqlParameterSource("returnId", returnId),
+            BigDecimal.class
         );
     }
 
@@ -484,13 +502,13 @@ public class SalesReturnRepositoryImpl implements SalesReturnRepository {
             FROM sales_refunds sr
             JOIN sales_returns sret
                 ON sret.id = sr.sales_return_id
-            WHERE sret.sale_id = ?
+            WHERE sret.sale_id = :saleId
             """;
 
         return jdbcTemplate.queryForObject(
             sql,
-            BigDecimal.class,
-            saleId
+            new MapSqlParameterSource("saleId", saleId),
+            BigDecimal.class
         );
     }
 }

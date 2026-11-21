@@ -1,4 +1,3 @@
-
 package com.autoparts.erp.auth.repositoryimpl;
 
 import java.sql.ResultSet;
@@ -8,7 +7,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.autoparts.erp.auth.model.RefreshToken;
@@ -18,10 +18,10 @@ import com.autoparts.erp.auth.repository.RefreshTokenRepository;
 public class RefreshTokenRepositoryImpl
         implements RefreshTokenRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
     public RefreshTokenRepositoryImpl(
-            JdbcTemplate jdbcTemplate
+            NamedParameterJdbcTemplate jdbcTemplate
     ) {
         this.jdbcTemplate = jdbcTemplate;
     }
@@ -37,7 +37,7 @@ public class RefreshTokenRepositoryImpl
             rt.revoked_at
         FROM refresh_tokens rt
         JOIN users u ON u.id = rt.user_id
-        WHERE rt.token_hash = ?
+        WHERE rt.token_hash = :tokenHash
         FOR UPDATE OF rt
         """;
 
@@ -48,45 +48,46 @@ public class RefreshTokenRepositoryImpl
             token_family,
             expires_at
         )
-        VALUES (?, ?, ?, ?)
+        VALUES (:userId, :tokenHash, :tokenFamily, :expiresAt)
         """;
 
     private static final String REVOKE_AND_REPLACE_SQL = """
         UPDATE refresh_tokens
         SET
-            revoked_at = ?,
-            replaced_by_token_hash = ?
-        WHERE id = ?
+            revoked_at = :revokedAt,
+            replaced_by_token_hash = :replacementTokenHash
+        WHERE id = :id
           AND revoked_at IS NULL
         """;
 
     private static final String REVOKE_FAMILY_SQL = """
         UPDATE refresh_tokens
-        SET revoked_at = ?
-        WHERE token_family = ?
+        SET revoked_at = :revokedAt
+        WHERE token_family = :tokenFamily
           AND revoked_at IS NULL
         """;
 
     private static final String REVOKE_FAMILY_BY_HASH_SQL = """
-    	    UPDATE refresh_tokens
-    	    SET revoked_at = ?
-    	    WHERE token_family = (
-    	        SELECT token_family
-    	        FROM refresh_tokens
-    	        WHERE token_hash = ?
-    	    )
-    	    AND revoked_at IS NULL
-    	 """;
+        UPDATE refresh_tokens
+        SET revoked_at = :revokedAt
+        WHERE token_family = (
+            SELECT token_family
+            FROM refresh_tokens
+            WHERE token_hash = :tokenHash
+        )
+        AND revoked_at IS NULL
+        """;
 
     @Override
     public Optional<RefreshToken> findByTokenHashForUpdate(
             String tokenHash
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource("tokenHash", tokenHash);
 
         List<RefreshToken> results = jdbcTemplate.query(
                 FIND_BY_HASH_FOR_UPDATE_SQL,
-                (rs, rowNum) -> mapRefreshToken(rs),
-                tokenHash
+                params,
+                (rs, rowNum) -> mapRefreshToken(rs)
         );
 
         return results.stream().findFirst();
@@ -99,14 +100,13 @@ public class RefreshTokenRepositoryImpl
             UUID tokenFamily,
             Instant expiresAt
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("userId", userId)
+                .addValue("tokenHash", tokenHash)
+                .addValue("tokenFamily", tokenFamily)
+                .addValue("expiresAt", java.sql.Timestamp.from(expiresAt));
 
-        jdbcTemplate.update(
-                INSERT_SQL,
-                userId,
-                tokenHash,
-                tokenFamily,
-                java.sql.Timestamp.from(expiresAt)
-        );
+        jdbcTemplate.update(INSERT_SQL, params);
     }
 
     @Override
@@ -115,13 +115,12 @@ public class RefreshTokenRepositoryImpl
             Instant revokedAt,
             String replacementTokenHash
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("revokedAt", java.sql.Timestamp.from(revokedAt))
+                .addValue("replacementTokenHash", replacementTokenHash)
+                .addValue("id", id);
 
-        return jdbcTemplate.update(
-                REVOKE_AND_REPLACE_SQL,
-                java.sql.Timestamp.from(revokedAt),
-                replacementTokenHash,
-                id
-        );
+        return jdbcTemplate.update(REVOKE_AND_REPLACE_SQL, params);
     }
 
     @Override
@@ -129,12 +128,11 @@ public class RefreshTokenRepositoryImpl
             UUID tokenFamily,
             Instant revokedAt
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("revokedAt", java.sql.Timestamp.from(revokedAt))
+                .addValue("tokenFamily", tokenFamily);
 
-        return jdbcTemplate.update(
-                REVOKE_FAMILY_SQL,
-                java.sql.Timestamp.from(revokedAt),
-                tokenFamily
-        );
+        return jdbcTemplate.update(REVOKE_FAMILY_SQL, params);
     }
 
     @Override
@@ -142,12 +140,11 @@ public class RefreshTokenRepositoryImpl
             String tokenHash,
             Instant revokedAt
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("revokedAt", java.sql.Timestamp.from(revokedAt))
+                .addValue("tokenHash", tokenHash);
 
-        return jdbcTemplate.update(
-                REVOKE_FAMILY_BY_HASH_SQL,
-                java.sql.Timestamp.from(revokedAt),
-                tokenHash
-        );
+        return jdbcTemplate.update(REVOKE_FAMILY_BY_HASH_SQL, params);
     }
 
     private RefreshToken mapRefreshToken(
@@ -166,18 +163,19 @@ public class RefreshTokenRepositoryImpl
                         : null
         );
     }
-    
+
     @Override
     public void revokeAllActiveByUserId(Long userId) {
+        MapSqlParameterSource params = new MapSqlParameterSource("userId", userId);
 
         jdbcTemplate.update(
                 """
                 UPDATE refresh_tokens
                 SET revoked_at = CURRENT_TIMESTAMP
-                WHERE user_id = ?
+                WHERE user_id = :userId
                   AND revoked_at IS NULL
                 """,
-                userId
+                params
         );
     }
 }

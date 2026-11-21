@@ -1,6 +1,7 @@
 
 package com.autoparts.erp.dailyclosing.controller;
 
+import com.autoparts.erp.auth.security.annotation.AdminOrManager;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -26,6 +27,7 @@ public class DailyClosingController {
         this.service = service;
     }
 
+    @AdminOrManager
     @PostMapping
     public ResponseEntity<DailyClosingResponse> closeBusinessDate(
 

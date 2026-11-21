@@ -6,8 +6,9 @@ import com.autoparts.erp.inventory.model.InventoryMovement;
 import com.autoparts.erp.inventory.model.InventoryStock;
 import com.autoparts.erp.inventory.repository.InventoryRepository;
 
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -22,9 +23,9 @@ import java.util.UUID;
 @Repository
 public class InventoryRepositoryImpl implements InventoryRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public InventoryRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public InventoryRepositoryImpl(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -64,9 +65,9 @@ public class InventoryRepositoryImpl implements InventoryRepository {
     public Optional<InventoryStock> findStockByUuid(UUID productUuid) {
 
         return jdbcTemplate.query(
-                STOCK_SELECT + " AND p.uuid = ?",
-                stockRowMapper,
-                productUuid
+                STOCK_SELECT + " AND p.uuid = :productUuid",
+                new MapSqlParameterSource("productUuid", productUuid),
+                stockRowMapper
         ).stream().findFirst();
     }
 
@@ -74,9 +75,9 @@ public class InventoryRepositoryImpl implements InventoryRepository {
     public Optional<InventoryStock> findStockById(Long productId) {
 
         return jdbcTemplate.query(
-                STOCK_SELECT + " AND p.id = ?",
-                stockRowMapper,
-                productId
+                STOCK_SELECT + " AND p.id = :productId",
+                new MapSqlParameterSource("productId", productId),
+                stockRowMapper
         ).stream().findFirst();
     }
 
@@ -87,11 +88,11 @@ public class InventoryRepositoryImpl implements InventoryRepository {
 
         return jdbcTemplate.query(
                 STOCK_SELECT + """
-                         AND p.uuid = ?
+                         AND p.uuid = :productUuid
                          FOR UPDATE
                         """,
-                stockRowMapper,
-                productUuid
+                new MapSqlParameterSource("productUuid", productUuid),
+                stockRowMapper
         ).stream().findFirst();
     }
 
@@ -100,11 +101,11 @@ public class InventoryRepositoryImpl implements InventoryRepository {
 
         return jdbcTemplate.query(
                 STOCK_SELECT + """
-                         AND p.id = ?
+                         AND p.id = :productId
                          FOR UPDATE
                         """,
-                stockRowMapper,
-                productId
+                new MapSqlParameterSource("productId", productId),
+                stockRowMapper
         ).stream().findFirst();
     }
 
@@ -113,6 +114,7 @@ public class InventoryRepositoryImpl implements InventoryRepository {
 
         return jdbcTemplate.query(
                 STOCK_SELECT + " ORDER BY p.name ASC",
+                new MapSqlParameterSource(),
                 stockRowMapper
         );
     }
@@ -125,6 +127,7 @@ public class InventoryRepositoryImpl implements InventoryRepository {
                          AND p.qty <= p.minimum_stock
                          ORDER BY p.qty ASC, p.name ASC
                         """,
+                new MapSqlParameterSource(),
                 stockRowMapper
         );
     }
@@ -135,6 +138,10 @@ public class InventoryRepositoryImpl implements InventoryRepository {
             String reason,
             String notes
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", uuid)
+                .addValue("reason", reason)
+                .addValue("notes", notes);
 
         return jdbcTemplate.queryForObject(
                 """
@@ -143,13 +150,11 @@ public class InventoryRepositoryImpl implements InventoryRepository {
                     reason,
                     notes
                 )
-                VALUES (?, ?, ?)
+                VALUES (:uuid, :reason, :notes)
                 RETURNING id
                 """,
-                Long.class,
-                uuid,
-                reason,
-                notes
+                params,
+                Long.class
         );
     }
 
@@ -158,17 +163,19 @@ public class InventoryRepositoryImpl implements InventoryRepository {
             Long productId,
             BigDecimal quantity
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("quantity", quantity)
+                .addValue("productId", productId);
 
         int updated = jdbcTemplate.update(
                 """
                 UPDATE products
-                SET qty = ?,
+                SET qty = :quantity,
                     updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
+                WHERE id = :productId
                   AND active = TRUE
                 """,
-                quantity,
-                productId
+                params
         );
 
         if (updated != 1) {
@@ -190,6 +197,16 @@ public class InventoryRepositoryImpl implements InventoryRepository {
             BigDecimal quantityAfter,
             String notes
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", uuid)
+                .addValue("productId", productId)
+                .addValue("movementType", movementType.name())
+                .addValue("referenceType", referenceType.name())
+                .addValue("referenceId", referenceId)
+                .addValue("quantityChange", quantityChange)
+                .addValue("quantityBefore", quantityBefore)
+                .addValue("quantityAfter", quantityAfter)
+                .addValue("notes", notes);
 
         jdbcTemplate.update(
                 """
@@ -204,17 +221,19 @@ public class InventoryRepositoryImpl implements InventoryRepository {
                     quantity_after,
                     notes
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (
+                    :uuid,
+                    :productId,
+                    :movementType,
+                    :referenceType,
+                    :referenceId,
+                    :quantityChange,
+                    :quantityBefore,
+                    :quantityAfter,
+                    :notes
+                )
                 """,
-                uuid,
-                productId,
-                movementType.name(),
-                referenceType.name(),
-                referenceId,
-                quantityChange,
-                quantityBefore,
-                quantityAfter,
-                notes
+                params
         );
     }
 
@@ -262,19 +281,19 @@ public class InventoryRepositoryImpl implements InventoryRepository {
                 im.created_at
             FROM inventory_movements im
             JOIN products p ON p.id = im.product_id
-            WHERE (CAST(? AS UUID) IS NULL OR p.uuid = CAST(? AS UUID))
-				  AND (
-				        CAST(? AS VARCHAR) IS NULL
-				        OR im.movement_type = CAST(? AS VARCHAR)
-				      )
-				  AND (
-				        CAST(? AS DATE) IS NULL
-				        OR im.created_at >= CAST(? AS DATE)
-				      )
-				  AND (
-				        CAST(? AS DATE) IS NULL
-    		 OR im.created_at < CAST(? AS DATE) + INTERVAL '1 day'
-    		)
+            WHERE (CAST(:productUuid AS UUID) IS NULL OR p.uuid = CAST(:productUuid AS UUID))
+              AND (
+                    CAST(:movementType AS VARCHAR) IS NULL
+                    OR im.movement_type = CAST(:movementType AS VARCHAR)
+                  )
+              AND (
+                    CAST(:fromDate AS DATE) IS NULL
+                    OR im.created_at >= CAST(:fromDate AS DATE)
+                  )
+              AND (
+                    CAST(:toDate AS DATE) IS NULL
+                    OR im.created_at < CAST(:toDate AS DATE) + INTERVAL '1 day'
+                  )
             """;
 
     @Override
@@ -286,23 +305,21 @@ public class InventoryRepositoryImpl implements InventoryRepository {
             int limit,
             int offset
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("productUuid", productUuid)
+                .addValue("movementType", movementType == null ? null : movementType.name())
+                .addValue("fromDate", fromDate)
+                .addValue("toDate", toDate)
+                .addValue("limit", limit)
+                .addValue("offset", offset);
 
         return jdbcTemplate.query(
                 MOVEMENT_SELECT + """
                         ORDER BY im.created_at DESC, im.id DESC
-                        LIMIT ? OFFSET ?
+                        LIMIT :limit OFFSET :offset
                         """,
-                movementRowMapper,
-                productUuid,
-                productUuid,
-                movementType == null ? null : movementType.name(),
-                movementType == null ? null : movementType.name(),
-                fromDate,
-                fromDate,
-                toDate,
-                toDate,
-                limit,
-                offset
+                params,
+                movementRowMapper
         );
     }
 
@@ -313,35 +330,33 @@ public class InventoryRepositoryImpl implements InventoryRepository {
             LocalDate fromDate,
             LocalDate toDate
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("productUuid", productUuid)
+                .addValue("movementType", movementType == null ? null : movementType.name())
+                .addValue("fromDate", fromDate)
+                .addValue("toDate", toDate);
 
         Long count = jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
                 FROM inventory_movements im
                 JOIN products p ON p.id = im.product_id
-                WHERE (CAST(? AS UUID) IS NULL OR p.uuid = CAST(? AS UUID))
-					  AND (
-					        CAST(? AS VARCHAR) IS NULL
-					        OR im.movement_type = CAST(? AS VARCHAR)
-					      )
-					  AND (
-					        CAST(? AS DATE) IS NULL
-					        OR im.created_at >= CAST(? AS DATE)
-					      )
-					  AND (
-					        CAST(? AS DATE) IS NULL
-					        OR im.created_at < CAST(? AS DATE) + INTERVAL '1 day'
-			    )
+                WHERE (CAST(:productUuid AS UUID) IS NULL OR p.uuid = CAST(:productUuid AS UUID))
+                  AND (
+                        CAST(:movementType AS VARCHAR) IS NULL
+                        OR im.movement_type = CAST(:movementType AS VARCHAR)
+                      )
+                  AND (
+                        CAST(:fromDate AS DATE) IS NULL
+                        OR im.created_at >= CAST(:fromDate AS DATE)
+                      )
+                  AND (
+                        CAST(:toDate AS DATE) IS NULL
+                        OR im.created_at < CAST(:toDate AS DATE) + INTERVAL '1 day'
+                      )
                 """,
-                Long.class,
-                productUuid,
-                productUuid,
-                movementType == null ? null : movementType.name(),
-                movementType == null ? null : movementType.name(),
-                fromDate,
-                fromDate,
-                toDate,
-                toDate
+                params,
+                Long.class
         );
 
         return count == null ? 0L : count;

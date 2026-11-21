@@ -1,10 +1,11 @@
 package com.autoparts.erp.masters.brand.repositoryimpl;
 
 import com.autoparts.erp.masters.brand.model.ProductBrand;
-
 import com.autoparts.erp.masters.brand.repository.ProductBrandRepository;
-import org.springframework.jdbc.core.JdbcTemplate;
+
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -15,9 +16,9 @@ import java.util.UUID;
 public class ProductBrandRepositoryImpl
         implements ProductBrandRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public ProductBrandRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public ProductBrandRepositoryImpl(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -44,17 +45,20 @@ public class ProductBrandRepositoryImpl
         String sql = """
                 INSERT INTO product_brands
                     (uuid, name, description)
-                VALUES (?, ?, ?)
+                VALUES (:uuid, :name, :description)
                 RETURNING id, uuid, name, description,
                           active, created_at, updated_at
                 """;
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", brand.uuid())
+                .addValue("name", brand.name())
+                .addValue("description", brand.description());
+
         return jdbcTemplate.queryForObject(
                 sql,
-                rowMapper,
-                brand.uuid(),
-                brand.name(),
-                brand.description()
+                params,
+                rowMapper
         );
     }
 
@@ -68,7 +72,7 @@ public class ProductBrandRepositoryImpl
                 ORDER BY id DESC
                 """;
 
-        return jdbcTemplate.query(sql, rowMapper);
+        return jdbcTemplate.query(sql, new MapSqlParameterSource(), rowMapper);
     }
 
     @Override
@@ -78,12 +82,16 @@ public class ProductBrandRepositoryImpl
                 SELECT id, uuid, name, description,
                        active, created_at, updated_at
                 FROM product_brands
-                WHERE uuid = ?
+                WHERE uuid = :uuid
                 """;
 
-        return jdbcTemplate.query(sql, rowMapper, uuid)
-                .stream()
-                .findFirst();
+        return jdbcTemplate.query(
+                sql,
+                new MapSqlParameterSource("uuid", uuid),
+                rowMapper
+        )
+        .stream()
+        .findFirst();
     }
 
     @Override
@@ -95,19 +103,19 @@ public class ProductBrandRepositoryImpl
 
         String sql = """
                 UPDATE product_brands
-                SET name = ?,
-                    description = ?,
+                SET name = :name,
+                    description = :description,
                     updated_at = CURRENT_TIMESTAMP
-                WHERE uuid = ?
+                WHERE uuid = :uuid
                   AND active = TRUE
                 """;
 
-        return jdbcTemplate.update(
-                sql,
-                name,
-                description,
-                uuid
-        ) > 0;
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("name", name)
+                .addValue("description", description)
+                .addValue("uuid", uuid);
+
+        return jdbcTemplate.update(sql, params) > 0;
     }
 
     @Override
@@ -117,11 +125,14 @@ public class ProductBrandRepositoryImpl
                 UPDATE product_brands
                 SET active = FALSE,
                     updated_at = CURRENT_TIMESTAMP
-                WHERE uuid = ?
+                WHERE uuid = :uuid
                   AND active = TRUE
                 """;
 
-        return jdbcTemplate.update(sql, uuid) > 0;
+        return jdbcTemplate.update(
+                sql,
+                new MapSqlParameterSource("uuid", uuid)
+        ) > 0;
     }
     
     @Override
@@ -131,13 +142,13 @@ public class ProductBrandRepositoryImpl
                 SELECT id, uuid, name, description,
                        active, created_at, updated_at
                 FROM product_brands
-                WHERE LOWER(name) = LOWER(?)
+                WHERE LOWER(name) = LOWER(:name)
                 """;
 
         List<ProductBrand> brands = jdbcTemplate.query(
                 sql,
-                rowMapper,
-                name.trim()
+                new MapSqlParameterSource("name", name.trim()),
+                rowMapper
         );
 
         return brands.stream().findFirst();

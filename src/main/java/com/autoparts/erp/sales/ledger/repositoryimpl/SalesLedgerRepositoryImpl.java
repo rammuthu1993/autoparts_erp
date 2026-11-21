@@ -5,8 +5,9 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
 
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.autoparts.erp.sales.ledger.dto.SalesLedgerEntryResponse;
@@ -16,9 +17,9 @@ import com.autoparts.erp.sales.ledger.repository.SalesLedgerRepository;
 @Repository
 public class SalesLedgerRepositoryImpl implements SalesLedgerRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public SalesLedgerRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public SalesLedgerRepositoryImpl(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -45,7 +46,7 @@ public class SalesLedgerRepositoryImpl implements SalesLedgerRepository {
                 0::NUMERIC(14,2) AS credit
             FROM sales s
             WHERE s.status = 'COMPLETED'
-              AND s.customer_id = ?
+              AND s.customer_id = :customerId
 
             UNION ALL
 
@@ -64,7 +65,7 @@ public class SalesLedgerRepositoryImpl implements SalesLedgerRepository {
             FROM sales_payments sp
             INNER JOIN sales s ON s.id = sp.sale_id
             WHERE s.status = 'COMPLETED'
-              AND s.customer_id = ?
+              AND s.customer_id = :customerId
 
             UNION ALL
 
@@ -78,12 +79,12 @@ public class SalesLedgerRepositoryImpl implements SalesLedgerRepository {
                 s.invoice_number,
                 s.customer_name,
                 'Sales return'::VARCHAR AS description,
-                0::NUMERIC(14,2) AS debit,
+                0::NUMERIC(14,2) AS credit,
                 sr.total_return_amount AS credit
             FROM sales_returns sr
             INNER JOIN sales s ON s.id = sr.sale_id
             WHERE s.status = 'COMPLETED'
-              AND s.customer_id = ?
+              AND s.customer_id = :customerId
 
             UNION ALL
 
@@ -103,7 +104,7 @@ public class SalesLedgerRepositoryImpl implements SalesLedgerRepository {
             INNER JOIN sales_returns sr ON sr.id = sf.sales_return_id
             INNER JOIN sales s ON s.id = sr.sale_id
             WHERE s.status = 'COMPLETED'
-              AND s.customer_id = ?
+              AND s.customer_id = :customerId
         ),
 
         balanced_entries AS (
@@ -123,13 +124,13 @@ public class SalesLedgerRepositoryImpl implements SalesLedgerRepository {
         filtered_entries AS (
             SELECT *
             FROM balanced_entries
-            WHERE transaction_date >= ?
-              AND transaction_date <= ?
+            WHERE transaction_date >= :fromDate
+              AND transaction_date <= :toDate
               AND (
-                    CAST(? AS VARCHAR) IS NULL
-                    OR invoice_number ILIKE CAST(? AS VARCHAR)
-                    OR COALESCE(customer_name, '') ILIKE CAST(? AS VARCHAR)
-                    OR description ILIKE CAST(? AS VARCHAR)
+                    :searchPattern IS NULL
+                    OR invoice_number ILIKE :searchPattern
+                    OR COALESCE(customer_name, '') ILIKE :searchPattern
+                    OR description ILIKE :searchPattern
               )
         )
         """;
@@ -152,17 +153,6 @@ public class SalesLedgerRepositoryImpl implements SalesLedgerRepository {
         );
     }
 
-    private Object[] ledgerAndPeriodArgs(
-        Long customerId,
-        LocalDate fromDate,
-        LocalDate toDate
-    ) {
-        return new Object[] {
-            customerId, customerId, customerId, customerId,
-            fromDate, toDate
-        };
-    }
-
     @Override
     public SalesLedgerSummaryResponse getSummary(
         Long customerId,
@@ -173,15 +163,15 @@ public class SalesLedgerRepositoryImpl implements SalesLedgerRepository {
             , opening AS (
                 SELECT COALESCE(SUM(debit - credit), 0) AS opening_balance
                 FROM ledger_entries
-                WHERE transaction_date < ?
+                WHERE transaction_date < :fromDate
             ),
             period_totals AS (
                 SELECT
                     COALESCE(SUM(debit), 0) AS total_debit,
                     COALESCE(SUM(credit), 0) AS total_credit
                 FROM ledger_entries
-                WHERE transaction_date >= ?
-                  AND transaction_date <= ?
+                WHERE transaction_date >= :fromDate
+                  AND transaction_date <= :toDate
             )
             SELECT
                 o.opening_balance,
@@ -192,22 +182,21 @@ public class SalesLedgerRepositoryImpl implements SalesLedgerRepository {
             CROSS JOIN period_totals p
             """;
 
-        Object[] base = ledgerAndPeriodArgs(customerId, fromDate, toDate);
-        Object[] args = new Object[] {
-            base[0], base[1], base[2], base[3], base[4], base[5],
-            null, null, null, null,
-            fromDate, fromDate, toDate
-        };
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("customerId", customerId)
+                .addValue("fromDate", fromDate)
+                .addValue("toDate", toDate)
+                .addValue("searchPattern", null);
 
         return jdbcTemplate.queryForObject(
             sql,
+            params,
             (rs, rowNum) -> new SalesLedgerSummaryResponse(
                 rs.getBigDecimal("opening_balance"),
                 rs.getBigDecimal("total_debit"),
                 rs.getBigDecimal("total_credit"),
                 rs.getBigDecimal("closing_balance")
-            ),
-            args
+            )
         );
     }
 
@@ -232,17 +221,20 @@ public class SalesLedgerRepositoryImpl implements SalesLedgerRepository {
                 running_balance
             FROM filtered_entries
             ORDER BY transaction_date, sale_id, entry_order, entry_id
-            LIMIT ? OFFSET ?
+            LIMIT :limit OFFSET :offset
             """;
 
-        String pattern = search == null ? null : "%" + search.trim() + "%";
-        Object[] base = ledgerAndPeriodArgs(customerId, fromDate, toDate);
-        Object[] args = new Object[] {
-            base[0], base[1], base[2], base[3], base[4], base[5],
-            pattern, pattern, pattern, pattern, limit, offset
-        };
+        String pattern = (search == null || search.isBlank()) ? null : "%" + search.trim() + "%";
 
-        return jdbcTemplate.query(sql, ENTRY_ROW_MAPPER, args);
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("customerId", customerId)
+                .addValue("fromDate", fromDate)
+                .addValue("toDate", toDate)
+                .addValue("searchPattern", pattern)
+                .addValue("limit", limit)
+                .addValue("offset", offset);
+
+        return jdbcTemplate.query(sql, params, ENTRY_ROW_MAPPER);
     }
 
     @Override
@@ -253,14 +245,15 @@ public class SalesLedgerRepositoryImpl implements SalesLedgerRepository {
         String search
     ) {
         String sql = LEDGER_CTE + " SELECT COUNT(*) FROM filtered_entries";
-        String pattern = search == null ? null : "%" + search.trim() + "%";
-        Object[] base = ledgerAndPeriodArgs(customerId, fromDate, toDate);
-        Object[] args = new Object[] {
-            base[0], base[1], base[2], base[3], base[4], base[5],
-            pattern, pattern, pattern, pattern
-        };
+        String pattern = (search == null || search.isBlank()) ? null : "%" + search.trim() + "%";
 
-        Long count = jdbcTemplate.queryForObject(sql, Long.class, args);
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("customerId", customerId)
+                .addValue("fromDate", fromDate)
+                .addValue("toDate", toDate)
+                .addValue("searchPattern", pattern);
+
+        Long count = jdbcTemplate.queryForObject(sql, params, Long.class);
         return count == null ? 0 : count;
     }
 }

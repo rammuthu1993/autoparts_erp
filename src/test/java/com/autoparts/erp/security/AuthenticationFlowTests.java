@@ -88,6 +88,7 @@ class AuthenticationFlowTests {
         assertEquals("alice", response.username());
         assertEquals(ISSUER, decodedToken.getClaimAsString("iss"));
         assertEquals("alice", decodedToken.getSubject());
+        assertEquals(1L, ((Number) decodedToken.getClaim("user_id")).longValue());
         assertEquals(
                 Set.of("ROLE_USER", "ROLE_ADMIN"),
                 Set.copyOf(decodedToken.getClaimAsStringList("roles")));

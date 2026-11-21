@@ -1,12 +1,12 @@
-
 package com.autoparts.erp.audit.repositoryimpl;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.autoparts.erp.audit.model.AuditLog;
@@ -15,9 +15,9 @@ import com.autoparts.erp.audit.repository.AuditLogRepository;
 @Repository
 public class AuditLogRepositoryImpl implements AuditLogRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public AuditLogRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public AuditLogRepositoryImpl(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -33,9 +33,14 @@ public class AuditLogRepositoryImpl implements AuditLogRepository {
             new_values
         )
         VALUES (
-            ?, ?, ?, ?, ?, ?,
-            CAST(? AS JSONB),
-            CAST(? AS JSONB)
+            :userId,
+            :username,
+            :action,
+            :entityType,
+            :entityId,
+            :description,
+            CAST(:oldValues AS JSONB),
+            CAST(:newValues AS JSONB)
         )
         """;
 
@@ -54,7 +59,7 @@ public class AuditLogRepositoryImpl implements AuditLogRepository {
             created_at
         FROM audit_logs
         ORDER BY created_at DESC, id DESC
-        LIMIT ? OFFSET ?
+        LIMIT :limit OFFSET :offset
         """;
 
     @Override
@@ -68,33 +73,33 @@ public class AuditLogRepositoryImpl implements AuditLogRepository {
             String oldValues,
             String newValues
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("userId", userId)
+                .addValue("username", username)
+                .addValue("action", action)
+                .addValue("entityType", entityType)
+                .addValue("entityId", entityId)
+                .addValue("description", description)
+                .addValue("oldValues", oldValues)
+                .addValue("newValues", newValues);
 
-        jdbcTemplate.update(
-                INSERT_SQL,
-                userId,
-                username,
-                action,
-                entityType,
-                entityId,
-                description,
-                oldValues,
-                newValues
-        );
+        jdbcTemplate.update(INSERT_SQL, params);
     }
 
     @Override
     public List<AuditLog> findRecent(int limit, int offset) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("limit", limit)
+                .addValue("offset", offset);
 
         return jdbcTemplate.query(
                 FIND_RECENT_SQL,
-                auditLogRowMapper(),
-                limit,
-                offset
+                params,
+                auditLogRowMapper()
         );
     }
 
     private RowMapper<AuditLog> auditLogRowMapper() {
-
         return (rs, rowNum) -> mapAuditLog(rs);
     }
 

@@ -1,6 +1,7 @@
 
 package com.autoparts.erp.tax.controller;
 
+import com.autoparts.erp.auth.security.annotation.AdminOrManager;
 import com.autoparts.erp.tax.dto.ProductTaxMappingCreateRequest;
 import com.autoparts.erp.tax.dto.ProductTaxMappingResponse;
 import com.autoparts.erp.tax.service.ProductTaxMappingService;
@@ -26,6 +27,7 @@ public class ProductTaxMappingController {
         this.mappingService = mappingService;
     }
 
+    @AdminOrManager
     @PostMapping
     public ResponseEntity<ProductTaxMappingResponse> create(
         @PathVariable UUID productUuid,

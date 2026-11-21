@@ -1,4 +1,3 @@
-
 package com.autoparts.erp.auth.repositoryimpl;
 
 import java.sql.ResultSet;
@@ -7,8 +6,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.autoparts.erp.auth.model.UserAccount;
@@ -17,9 +17,9 @@ import com.autoparts.erp.auth.repository.UserRepository;
 @Repository
 public class UserRepositoryImpl implements UserRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public UserRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public UserRepositoryImpl(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -39,7 +39,7 @@ public class UserRepositoryImpl implements UserRepository {
         FROM users u
         LEFT JOIN user_roles ur ON ur.user_id = u.id
         LEFT JOIN roles r ON r.id = ur.role_id
-        WHERE LOWER(u.username) = LOWER(?)
+        WHERE LOWER(u.username) = LOWER(:username)
         ORDER BY r.name
         """;
 
@@ -61,14 +61,14 @@ public class UserRepositoryImpl implements UserRepository {
                         THEN 1
                         ELSE u.failed_login_attempts + 1
                     END
-                ) >= ?
-                THEN CURRENT_TIMESTAMP + (? * INTERVAL '1 second')
+                ) >= :maxFailedAttempts
+                THEN CURRENT_TIMESTAMP + (:lockDurationSeconds * INTERVAL '1 second')
                 ELSE NULL
             END,
 
             updated_at = CURRENT_TIMESTAMP
 
-        WHERE LOWER(u.username) = LOWER(?)
+        WHERE LOWER(u.username) = LOWER(:username)
         """;
 
     private static final String RESET_FAILED_LOGIN_SQL = """
@@ -77,17 +77,18 @@ public class UserRepositoryImpl implements UserRepository {
             failed_login_attempts = 0,
             locked_until = NULL,
             updated_at = CURRENT_TIMESTAMP
-        WHERE LOWER(username) = LOWER(?)
+        WHERE LOWER(username) = LOWER(:username)
         """;
 
     @Override
     public Optional<UserAccount> findByUsername(String username) {
+        MapSqlParameterSource params = new MapSqlParameterSource("username", username);
 
         List<UserAccount> results = jdbcTemplate.query(
                 FIND_BY_USERNAME_SQL,
+                params,
                 (ResultSetExtractor<List<UserAccount>>) rs ->
-                        extractUser(rs),
-                username
+                        extractUser(rs)
         );
 
         if (results == null || results.isEmpty()) {
@@ -103,20 +104,24 @@ public class UserRepositoryImpl implements UserRepository {
             int maxFailedAttempts,
             long lockDurationSeconds) {
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("maxFailedAttempts", maxFailedAttempts)
+                .addValue("lockDurationSeconds", lockDurationSeconds)
+                .addValue("username", username);
+
         return jdbcTemplate.update(
                 RECORD_FAILED_LOGIN_SQL,
-                maxFailedAttempts,
-                lockDurationSeconds,
-                username
+                params
         );
     }
 
     @Override
     public int resetFailedLoginAttempts(String username) {
+        MapSqlParameterSource params = new MapSqlParameterSource("username", username);
 
         return jdbcTemplate.update(
                 RESET_FAILED_LOGIN_SQL,
-                username
+                params
         );
     }
 

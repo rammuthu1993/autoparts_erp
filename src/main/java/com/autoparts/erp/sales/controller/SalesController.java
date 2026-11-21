@@ -1,5 +1,6 @@
 package com.autoparts.erp.sales.controller;
 
+import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,6 +25,7 @@ public class SalesController {
         this.salesService = salesService;
     }
 
+    @SalesAccess
     @PostMapping
     public ResponseEntity<SalesResponse> create(
         @Valid @RequestBody SalesCreateRequest request
@@ -33,6 +35,7 @@ public class SalesController {
             .body(salesService.create(request));
     }
 
+    @SalesAccess
     @PostMapping("/{saleUuid}/complete")
     public ResponseEntity<SalesResponse> complete(
         @PathVariable UUID saleUuid

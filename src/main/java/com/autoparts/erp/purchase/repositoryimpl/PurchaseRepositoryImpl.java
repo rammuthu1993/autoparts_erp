@@ -1,12 +1,11 @@
-
 package com.autoparts.erp.purchase.repositoryimpl;
 
 import com.autoparts.erp.purchase.model.Purchase;
 import com.autoparts.erp.purchase.model.PurchaseProduct;
 import com.autoparts.erp.purchase.model.PurchaseStatus;
 import com.autoparts.erp.purchase.repository.PurchaseRepository;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -22,9 +21,9 @@ import java.util.UUID;
 @Repository
 public class PurchaseRepositoryImpl implements PurchaseRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public PurchaseRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public PurchaseRepositoryImpl(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -34,11 +33,11 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
             """
             SELECT EXISTS (
                 SELECT 1 FROM suppliers
-                WHERE id = ? AND active = TRUE
+                WHERE id = :supplierId AND active = TRUE
             )
             """,
-            Boolean.class,
-            supplierId
+            new MapSqlParameterSource("supplierId", supplierId),
+            Boolean.class
         );
         return Boolean.TRUE.equals(exists);
     }
@@ -49,11 +48,11 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
             """
             SELECT EXISTS (
                 SELECT 1 FROM products
-                WHERE id = ? AND active = TRUE
+                WHERE id = :productId AND active = TRUE
             )
             """,
-            Boolean.class,
-            productId
+            new MapSqlParameterSource("productId", productId),
+            Boolean.class
         );
         return Boolean.TRUE.equals(exists);
     }
@@ -63,19 +62,22 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
         Long supplierId,
         String invoiceNo
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("supplierId", supplierId)
+                .addValue("invoiceNo", invoiceNo);
+
         Boolean exists = jdbcTemplate.queryForObject(
             """
             SELECT EXISTS (
                 SELECT 1
                 FROM purchases
-                WHERE supplier_id = ?
+                WHERE supplier_id = :supplierId
                   AND LOWER(TRIM(supplier_invoice_no))
-                      = LOWER(TRIM(?))
+                      = LOWER(TRIM(:invoiceNo))
             )
             """,
-            Boolean.class,
-            supplierId,
-            invoiceNo
+            params,
+            Boolean.class
         );
         return Boolean.TRUE.equals(exists);
     }
@@ -84,6 +86,7 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
     public String nextPurchaseNumber() {
         Long number = jdbcTemplate.queryForObject(
             "SELECT nextval('purchase_number_seq')",
+            new MapSqlParameterSource(),
             Long.class
         );
 
@@ -99,18 +102,27 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
         LocalDate purchaseDate,
         String notes
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", uuid)
+                .addValue("purchaseNumber", purchaseNumber)
+                .addValue("supplierId", supplierId)
+                .addValue("supplierInvoiceNo", supplierInvoiceNo)
+                .addValue("purchaseDate", purchaseDate)
+                .addValue("notes", notes);
+
         return jdbcTemplate.queryForObject(
             """
             INSERT INTO purchases (
                 uuid, purchase_number, supplier_id,
                 supplier_invoice_no, purchase_date, notes
             )
-            VALUES (?, ?, ?, TRIM(?), ?, ?)
+            VALUES (:uuid, :purchaseNumber, :supplierId, TRIM(:supplierInvoiceNo), :purchaseDate, :notes)
             RETURNING id, uuid, purchase_number, supplier_id,
                       supplier_invoice_no, purchase_date, status,
                       subtotal, discount_total, tax_total, grand_total,
                       notes, created_at, updated_at, received_at
             """,
+            params,
             (rs, rowNum) -> new Purchase(
                 rs.getLong("id"),
                 rs.getObject("uuid", UUID.class),
@@ -129,13 +141,7 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
                 rs.getObject("created_at", OffsetDateTime.class),
                 rs.getObject("updated_at", OffsetDateTime.class),
                 rs.getObject("received_at", OffsetDateTime.class)
-            ),
-            uuid,
-            purchaseNumber,
-            supplierId,
-            supplierInvoiceNo,
-            purchaseDate,
-            notes
+            )
         );
     }
 
@@ -152,10 +158,21 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
         BigDecimal lineTotal
     ) {
         Long purchaseId = jdbcTemplate.queryForObject(
-            "SELECT id FROM purchases WHERE uuid = ?",
-            Long.class,
-            purchaseUuid
+            "SELECT id FROM purchases WHERE uuid = :purchaseUuid",
+            new MapSqlParameterSource("purchaseUuid", purchaseUuid),
+            Long.class
         );
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", uuid)
+                .addValue("purchaseId", purchaseId)
+                .addValue("productId", productId)
+                .addValue("quantity", quantity)
+                .addValue("purchasePrice", purchasePrice)
+                .addValue("discountAmount", discountAmount)
+                .addValue("taxPercent", taxPercent)
+                .addValue("taxAmount", taxAmount)
+                .addValue("lineTotal", lineTotal);
 
         return jdbcTemplate.queryForObject(
             """
@@ -164,21 +181,17 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
                 purchase_price, discount_amount, tax_percent,
                 tax_amount, line_total
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (
+                :uuid, :purchaseId, :productId, :quantity,
+                :purchasePrice, :discountAmount, :taxPercent,
+                :taxAmount, :lineTotal
+            )
             RETURNING id, uuid, product_id, quantity,
                       purchase_price, discount_amount, tax_percent,
                       tax_amount, line_total
             """,
-            (rs, rowNum) -> mapPurchaseProduct(rs),
-            uuid,
-            purchaseId,
-            productId,
-            quantity,
-            purchasePrice,
-            discountAmount,
-            taxPercent,
-            taxAmount,
-            lineTotal
+            params,
+            (rs, rowNum) -> mapPurchaseProduct(rs)
         );
     }
 
@@ -191,14 +204,14 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
             """
             SELECT product_code, part_no, name
             FROM products
-            WHERE id = ?
+            WHERE id = :productId
             """,
+            new MapSqlParameterSource("productId", productId),
             (productRs, rowNum) -> new ProductInfo(
                 productRs.getString("product_code"),
                 productRs.getString("part_no"),
                 productRs.getString("name")
-            ),
-            productId
+            )
         );
 
         ProductInfo product = products.getFirst();
@@ -233,21 +246,24 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
         BigDecimal taxTotal,
         BigDecimal grandTotal
     ) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("subtotal", subtotal)
+                .addValue("discountTotal", discountTotal)
+                .addValue("taxTotal", taxTotal)
+                .addValue("grandTotal", grandTotal)
+                .addValue("purchaseUuid", purchaseUuid);
+
         int updated = jdbcTemplate.update(
             """
             UPDATE purchases
-            SET subtotal = ?,
-                discount_total = ?,
-                tax_total = ?,
-                grand_total = ?,
+            SET subtotal = :subtotal,
+                discount_total = :discountTotal,
+                tax_total = :taxTotal,
+                grand_total = :grandTotal,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE uuid = ? AND status = 'DRAFT'
+            WHERE uuid = :purchaseUuid AND status = 'DRAFT'
             """,
-            subtotal,
-            discountTotal,
-            taxTotal,
-            grandTotal,
-            purchaseUuid
+            params
         );
 
         if (updated == 0) {
@@ -268,10 +284,10 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
                    p.notes, p.created_at, p.updated_at, p.received_at
             FROM purchases p
             JOIN suppliers s ON s.id = p.supplier_id
-            WHERE p.uuid = ?
+            WHERE p.uuid = :uuid
             """,
-            this::mapPurchase,
-            uuid
+            new MapSqlParameterSource("uuid", uuid),
+            this::mapPurchase
         );
 
         if (purchases.isEmpty()) {
@@ -297,6 +313,7 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
             JOIN suppliers s ON s.id = p.supplier_id
             ORDER BY p.created_at DESC
             """,
+            new MapSqlParameterSource(),
             this::mapPurchase
         );
 
@@ -340,15 +357,16 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
     private List<PurchaseProduct> findProducts(Long purchaseId) {
         return jdbcTemplate.query(
             """
-            SELECT             pp.id, pp.uuid, pp.product_id, pp.quantity,
-            pp.purchase_price, pp.discount_amount,
-            pp.tax_percent, pp.tax_amount, pp.line_total,
+            SELECT pp.id, pp.uuid, pp.product_id, pp.quantity,
+                   pp.purchase_price, pp.discount_amount,
+                   pp.tax_percent, pp.tax_amount, pp.line_total,
                    pr.product_code, pr.part_no, pr.name
             FROM purchase_products pp
             JOIN products pr ON pr.id = pp.product_id
-            WHERE pp.purchase_id = ?
+            WHERE pp.purchase_id = :purchaseId
             ORDER BY pp.id
             """,
+            new MapSqlParameterSource("purchaseId", purchaseId),
             (rs, rowNum) -> new PurchaseProduct(
                 rs.getLong("id"),
                 rs.getObject("uuid", UUID.class),
@@ -362,8 +380,7 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
                 rs.getBigDecimal("tax_percent"),
                 rs.getBigDecimal("tax_amount"),
                 rs.getBigDecimal("line_total")
-            ),
-            purchaseId
+            )
         );
     }
 
@@ -391,50 +408,48 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
             purchase.receivedAt()
         );
     }
-    
 
-	@Override
-	public Optional<Purchase> findByUuidForUpdate(UUID uuid) {
-	    List<Purchase> purchases = jdbcTemplate.query(
-	        """
-	        SELECT p.id, p.uuid, p.purchase_number, p.supplier_id,
-	               s.supplier_name, p.supplier_invoice_no,
-	               p.purchase_date, p.status, p.subtotal,
-	               p.discount_total, p.tax_total, p.grand_total,
-	               p.notes, p.created_at, p.updated_at, p.received_at
-	        FROM purchases p
-	        JOIN suppliers s ON s.id = p.supplier_id
-	        WHERE p.uuid = ?
-	        FOR UPDATE OF p
-	        """,
-	        this::mapPurchase,
-	        uuid
-	    );
-	
-	    if (purchases.isEmpty()) {
-	        return Optional.empty();
-	    }
-	
-	    Purchase purchase = purchases.getFirst();
-	
-	    return Optional.of(
-	        withProducts(purchase, findProducts(purchase.id()))
-	    );
-	}
-	@Override
-	public boolean markReceived(UUID purchaseUuid) {
-	    return jdbcTemplate.update(
-	        """
-	        UPDATE purchases
-	        SET status = 'RECEIVED',
-	            received_at = CURRENT_TIMESTAMP,
-	            updated_at = CURRENT_TIMESTAMP
-	        WHERE uuid = ?
-	          AND status = 'DRAFT'
-	        """,
-	        purchaseUuid
-	    ) == 1;
-	}
+    @Override
+    public Optional<Purchase> findByUuidForUpdate(UUID uuid) {
+        List<Purchase> purchases = jdbcTemplate.query(
+            """
+            SELECT p.id, p.uuid, p.purchase_number, p.supplier_id,
+                   s.supplier_name, p.supplier_invoice_no,
+                   p.purchase_date, p.status, p.subtotal,
+                   p.discount_total, p.tax_total, p.grand_total,
+                   p.notes, p.created_at, p.updated_at, p.received_at
+            FROM purchases p
+            JOIN suppliers s ON s.id = p.supplier_id
+            WHERE p.uuid = :uuid
+            FOR UPDATE OF p
+            """,
+            new MapSqlParameterSource("uuid", uuid),
+            this::mapPurchase
+        );
 
+        if (purchases.isEmpty()) {
+            return Optional.empty();
+        }
 
+        Purchase purchase = purchases.getFirst();
+
+        return Optional.of(
+            withProducts(purchase, findProducts(purchase.id()))
+        );
+    }
+
+    @Override
+    public boolean markReceived(UUID purchaseUuid) {
+        return jdbcTemplate.update(
+            """
+            UPDATE purchases
+            SET status = 'RECEIVED',
+                received_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE uuid = :purchaseUuid
+              AND status = 'DRAFT'
+            """,
+            new MapSqlParameterSource("purchaseUuid", purchaseUuid)
+        ) == 1;
+    }
 }

@@ -37,3 +37,8 @@ config/application-secrets.properties
 .env.*
 !*.env.example
 *.log
+
+# Generated/runtime artifacts and local source archives
+*.log
+*.zip
+/.git/

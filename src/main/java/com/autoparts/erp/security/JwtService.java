@@ -53,13 +53,19 @@ public class JwtService {
                 .distinct()
                 .toList();
 
-        JwtClaimsSet claims = JwtClaimsSet.builder()
+        JwtClaimsSet.Builder claimsBuilder = JwtClaimsSet.builder()
                 .issuer(issuer)
                 .issuedAt(now)
                 .expiresAt(now.plus(tokenLifetime))
                 .subject(authentication.getName())
-                .claim("roles", roles)
-                .build();
+                .claim("roles", roles);
+
+        if (authentication.getPrincipal() instanceof AuthenticatedUserDetails userDetails
+                && userDetails.getUserId() != null) {
+            claimsBuilder.claim("user_id", userDetails.getUserId());
+        }
+
+        JwtClaimsSet claims = claimsBuilder.build();
 
         JwsHeader header = JwsHeader
                 .with(MacAlgorithm.HS256)

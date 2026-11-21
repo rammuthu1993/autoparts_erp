@@ -1,5 +1,6 @@
 package com.autoparts.erp.expense.management.controller;
 
+import com.autoparts.erp.auth.security.annotation.AdminOrManager;
 import com.autoparts.erp.expense.management.dto.CreateExpenseRequest;
 import com.autoparts.erp.expense.management.dto.UpdateExpenseRequest;
 import com.autoparts.erp.expense.management.model.Expense;
@@ -24,6 +25,7 @@ public class ExpenseController {
         this.expenseService = expenseService;
     }
 
+    @AdminOrManager
     @PostMapping
     public ResponseEntity<Expense> create(
         @Valid @RequestBody CreateExpenseRequest request
@@ -52,6 +54,7 @@ public class ExpenseController {
         );
     }
 
+    @AdminOrManager
     @PutMapping("/{uuid}")
     public ResponseEntity<Expense> update(
         @PathVariable UUID uuid,
@@ -62,6 +65,7 @@ public class ExpenseController {
         );
     }
 
+    @AdminOrManager
     @PatchMapping("/{uuid}/cancel")
     public ResponseEntity<Void> cancel(
         @PathVariable UUID uuid

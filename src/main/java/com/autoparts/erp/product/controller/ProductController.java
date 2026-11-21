@@ -1,5 +1,6 @@
 package com.autoparts.erp.product.controller;
 
+import com.autoparts.erp.auth.security.annotation.AdminOrManager;
 import com.autoparts.erp.product.dto.ProductCreateRequest;
 import com.autoparts.erp.product.dto.ProductResponse;
 import com.autoparts.erp.product.dto.ProductUpdateRequest;
@@ -32,6 +33,7 @@ public class ProductController {
         this.barcodeService = barcodeService;
     }
 
+    @AdminOrManager
     @PostMapping
     public ResponseEntity<ProductResponse> create(
             @Valid @RequestBody ProductCreateRequest request
@@ -50,6 +52,7 @@ public class ProductController {
         return ResponseEntity.ok(productService.findByUuid(uuid));
     }
 
+    @AdminOrManager
     @PutMapping("/{uuid}")
     public ResponseEntity<ProductResponse> update(
             @PathVariable UUID uuid,
@@ -58,6 +61,7 @@ public class ProductController {
         return ResponseEntity.ok(productService.update(uuid, request));
     }
 
+    @AdminOrManager
     @PatchMapping("/{uuid}/deactivate")
     public ResponseEntity<Void> deactivate(@PathVariable UUID uuid) {
         productService.deactivate(uuid);

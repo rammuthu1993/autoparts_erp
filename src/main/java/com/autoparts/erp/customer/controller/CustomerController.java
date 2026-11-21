@@ -1,5 +1,7 @@
 package com.autoparts.erp.customer.controller;
 
+import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.customer.dto.CustomerCreateRequest;
 import com.autoparts.erp.customer.dto.CustomerResponse;
 import com.autoparts.erp.customer.dto.CustomerUpdateRequest;
@@ -24,6 +26,7 @@ public class CustomerController {
         this.customerService = customerService;
     }
 
+    @SalesAccess
     @PostMapping
     public ResponseEntity<CustomerResponse> create(
             @Valid @RequestBody CustomerCreateRequest request
@@ -48,6 +51,7 @@ public class CustomerController {
         );
     }
 
+    @SalesAccess
     @PutMapping("/{uuid}")
     public ResponseEntity<CustomerResponse> update(
             @PathVariable UUID uuid,
@@ -58,6 +62,7 @@ public class CustomerController {
         );
     }
 
+    @AdminOrManager
     @PatchMapping("/{uuid}/deactivate")
     public ResponseEntity<Void> deactivate(
             @PathVariable UUID uuid

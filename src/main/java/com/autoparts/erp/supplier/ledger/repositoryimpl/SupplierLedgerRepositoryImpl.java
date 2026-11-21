@@ -3,12 +3,12 @@ package com.autoparts.erp.supplier.ledger.repositoryimpl;
 import com.autoparts.erp.supplier.ledger.dto.SupplierLedgerEntry;
 import com.autoparts.erp.supplier.ledger.dto.SupplierLedgerSummary;
 import com.autoparts.erp.supplier.ledger.repository.SupplierLedgerRepository;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -18,9 +18,9 @@ import java.util.UUID;
 public class SupplierLedgerRepositoryImpl
         implements SupplierLedgerRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public SupplierLedgerRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public SupplierLedgerRepositoryImpl(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -42,17 +42,17 @@ public class SupplierLedgerRepositoryImpl
         String sql = """
                 SELECT id, uuid, supplier_name
                 FROM suppliers
-                WHERE uuid = ?
+                WHERE uuid = :supplierUuid
                 """;
 
         return jdbcTemplate.query(
                 sql,
+                new MapSqlParameterSource("supplierUuid", supplierUuid),
                 (rs, rowNum) -> new SupplierInfo(
                         rs.getLong("id"),
                         rs.getObject("uuid", UUID.class),
                         rs.getString("supplier_name")
-                ),
-                supplierUuid
+                )
         ).stream().findFirst();
     }
 
@@ -77,39 +77,38 @@ public class SupplierLedgerRepositoryImpl
                 FROM (
                     SELECT p.grand_total AS transaction_amount
                     FROM purchases p
-                    WHERE p.supplier_id = ?
+                    WHERE p.supplier_id = :supplierId
                       AND p.status = 'RECEIVED'
-                      AND p.purchase_date < ?
+                      AND p.purchase_date < :fromDate
 
                     UNION ALL
 
                     SELECT -pp.amount AS transaction_amount
                     FROM purchase_payments pp
                     JOIN purchases p ON p.id = pp.purchase_id
-                    WHERE p.supplier_id = ?
+                    WHERE p.supplier_id = :supplierId
                       AND p.status = 'RECEIVED'
-                      AND pp.payment_date::date < ?
+                      AND CAST(pp.payment_date AS DATE) < :fromDate
 
                     UNION ALL
 
                     SELECT -pr.total_return_amount AS transaction_amount
                     FROM purchase_returns pr
                     JOIN purchases p ON p.id = pr.purchase_id
-                    WHERE p.supplier_id = ?
+                    WHERE p.supplier_id = :supplierId
                       AND p.status = 'RECEIVED'
-                      AND pr.return_date::date < ?
+                      AND CAST(pr.return_date AS DATE) < :fromDate
                 ) transactions
                 """;
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("supplierId", supplierId)
+                .addValue("fromDate", fromDate);
+
         BigDecimal result = jdbcTemplate.queryForObject(
                 sql,
-                BigDecimal.class,
-                supplierId,
-                Date.valueOf(fromDate),
-                supplierId,
-                Date.valueOf(fromDate),
-                supplierId,
-                Date.valueOf(fromDate)
+                params,
+                BigDecimal.class
         );
 
         return result != null ? result : BigDecimal.ZERO;
@@ -139,10 +138,10 @@ public class SupplierLedgerRepositoryImpl
                         0::numeric AS payment_amount,
                         0::numeric AS purchase_return_amount
                     FROM purchases p
-                    WHERE p.supplier_id = ?
+                    WHERE p.supplier_id = :supplierId
                       AND p.status = 'RECEIVED'
-                      AND (?::date IS NULL OR p.purchase_date >= ?::date)
-                      AND (?::date IS NULL OR p.purchase_date <= ?::date)
+                      AND (CAST(:fromDate AS DATE) IS NULL OR p.purchase_date >= CAST(:fromDate AS DATE))
+                      AND (CAST(:toDate AS DATE) IS NULL OR p.purchase_date <= CAST(:toDate AS DATE))
 
                     UNION ALL
 
@@ -153,10 +152,10 @@ public class SupplierLedgerRepositoryImpl
                         0::numeric AS purchase_return_amount
                     FROM purchase_payments pp
                     JOIN purchases p ON p.id = pp.purchase_id
-                    WHERE p.supplier_id = ?
+                    WHERE p.supplier_id = :supplierId
                       AND p.status = 'RECEIVED'
-                      AND (?::date IS NULL OR pp.payment_date::date >= ?::date)
-                      AND (?::date IS NULL OR pp.payment_date::date <= ?::date)
+                      AND (CAST(:fromDate AS DATE) IS NULL OR CAST(pp.payment_date AS DATE) >= CAST(:fromDate AS DATE))
+                      AND (CAST(:toDate AS DATE) IS NULL OR CAST(pp.payment_date AS DATE) <= CAST(:toDate AS DATE))
 
                     UNION ALL
 
@@ -167,16 +166,22 @@ public class SupplierLedgerRepositoryImpl
                         pr.total_return_amount AS purchase_return_amount
                     FROM purchase_returns pr
                     JOIN purchases p ON p.id = pr.purchase_id
-                    WHERE p.supplier_id = ?
+                    WHERE p.supplier_id = :supplierId
                       AND p.status = 'RECEIVED'
-                      AND (?::date IS NULL OR pr.return_date::date >= ?::date)
-                      AND (?::date IS NULL OR pr.return_date::date <= ?::date)
+                      AND (CAST(:fromDate AS DATE) IS NULL OR CAST(pr.return_date AS DATE) >= CAST(:fromDate AS DATE))
+                      AND (CAST(:toDate AS DATE) IS NULL OR CAST(pr.return_date AS DATE) <= CAST(:toDate AS DATE))
 
                 ) transactions
                 """;
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("supplierId", supplier.id())
+                .addValue("fromDate", fromDate)
+                .addValue("toDate", toDate);
+
         return jdbcTemplate.queryForObject(
                 sql,
+                params,
                 (rs, rowNum) -> {
 
                     BigDecimal purchases =
@@ -204,22 +209,7 @@ public class SupplierLedgerRepositoryImpl
                             purchaseReturns,
                             closingBalance
                     );
-                },
-
-                // Purchase filters
-                supplier.id(),
-                fromDate, fromDate,
-                toDate, toDate,
-
-                // Payment filters
-                supplier.id(),
-                fromDate, fromDate,
-                toDate, toDate,
-
-                // Purchase return filters
-                supplier.id(),
-                fromDate, fromDate,
-                toDate, toDate
+                }
         );
     }
 
@@ -249,7 +239,7 @@ public class SupplierLedgerRepositoryImpl
                         1 AS sort_order,
                         p.id AS sort_id
                     FROM purchases p
-                    WHERE p.supplier_id = ?
+                    WHERE p.supplier_id = :supplierId
                       AND p.status = 'RECEIVED'
 
                     UNION ALL
@@ -262,7 +252,7 @@ public class SupplierLedgerRepositoryImpl
                             pp.reference_number,
                             p.purchase_number
                         ) AS reference_number,
-                        pp.payment_date::date AS transaction_date,
+                        CAST(pp.payment_date AS DATE) AS transaction_date,
                         0::numeric AS purchase_amount,
                         pp.amount AS payment_amount,
                         0::numeric AS purchase_return_amount,
@@ -271,7 +261,7 @@ public class SupplierLedgerRepositoryImpl
                         pp.id AS sort_id
                     FROM purchase_payments pp
                     JOIN purchases p ON p.id = pp.purchase_id
-                    WHERE p.supplier_id = ?
+                    WHERE p.supplier_id = :supplierId
                       AND p.status = 'RECEIVED'
 
                     UNION ALL
@@ -281,7 +271,7 @@ public class SupplierLedgerRepositoryImpl
                         pr.uuid AS transaction_uuid,
                         'PURCHASE_RETURN' AS transaction_type,
                         pr.return_number AS reference_number,
-                        pr.return_date::date AS transaction_date,
+                        CAST(pr.return_date AS DATE) AS transaction_date,
                         0::numeric AS purchase_amount,
                         0::numeric AS payment_amount,
                         pr.total_return_amount AS purchase_return_amount,
@@ -290,21 +280,21 @@ public class SupplierLedgerRepositoryImpl
                         pr.id AS sort_id
                     FROM purchase_returns pr
                     JOIN purchases p ON p.id = pr.purchase_id
-                    WHERE p.supplier_id = ?
+                    WHERE p.supplier_id = :supplierId
                       AND p.status = 'RECEIVED'
                 ),
 
                 period_transactions AS (
                     SELECT *
                     FROM transactions
-                    WHERE (?::date IS NULL OR transaction_date >= ?::date)
-                      AND (?::date IS NULL OR transaction_date <= ?::date)
+                    WHERE (CAST(:fromDate AS DATE) IS NULL OR transaction_date >= CAST(:fromDate AS DATE))
+                      AND (CAST(:toDate AS DATE) IS NULL OR transaction_date <= CAST(:toDate AS DATE))
                 ),
 
                 running AS (
                     SELECT
                         *,
-                        ?::numeric + SUM(signed_amount) OVER (
+                        CAST(:openingBalance AS NUMERIC) + SUM(signed_amount) OVER (
                             ORDER BY
                                 transaction_date,
                                 sort_order,
@@ -329,20 +319,21 @@ public class SupplierLedgerRepositoryImpl
                     transaction_date DESC,
                     sort_order DESC,
                     sort_id DESC
-                LIMIT ? OFFSET ?
+                LIMIT :limit OFFSET :offset
                 """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("supplierId", supplierId)
+                .addValue("fromDate", fromDate)
+                .addValue("toDate", toDate)
+                .addValue("openingBalance", openingBalance)
+                .addValue("limit", limit)
+                .addValue("offset", offset);
 
         return jdbcTemplate.query(
                 sql,
-                entryRowMapper,
-                supplierId,
-                supplierId,
-                supplierId,
-                fromDate, fromDate,
-                toDate, toDate,
-                openingBalance,
-                limit,
-                offset
+                params,
+                entryRowMapper
         );
     }
 
@@ -359,52 +350,43 @@ public class SupplierLedgerRepositoryImpl
 
                     SELECT p.id
                     FROM purchases p
-                    WHERE p.supplier_id = ?
+                    WHERE p.supplier_id = :supplierId
                       AND p.status = 'RECEIVED'
-                      AND (?::date IS NULL OR p.purchase_date >= ?::date)
-                      AND (?::date IS NULL OR p.purchase_date <= ?::date)
+                      AND (CAST(:fromDate AS DATE) IS NULL OR p.purchase_date >= CAST(:fromDate AS DATE))
+                      AND (CAST(:toDate AS DATE) IS NULL OR p.purchase_date <= CAST(:toDate AS DATE))
 
                     UNION ALL
 
                     SELECT pp.id
                     FROM purchase_payments pp
                     JOIN purchases p ON p.id = pp.purchase_id
-                    WHERE p.supplier_id = ?
+                    WHERE p.supplier_id = :supplierId
                       AND p.status = 'RECEIVED'
-                      AND (?::date IS NULL OR pp.payment_date::date >= ?::date)
-                      AND (?::date IS NULL OR pp.payment_date::date <= ?::date)
+                      AND (CAST(:fromDate AS DATE) IS NULL OR CAST(pp.payment_date AS DATE) >= CAST(:fromDate AS DATE))
+                      AND (CAST(:toDate AS DATE) IS NULL OR CAST(pp.payment_date AS DATE) <= CAST(:toDate AS DATE))
 
                     UNION ALL
 
                     SELECT pr.id
                     FROM purchase_returns pr
                     JOIN purchases p ON p.id = pr.purchase_id
-                    WHERE p.supplier_id = ?
+                    WHERE p.supplier_id = :supplierId
                       AND p.status = 'RECEIVED'
-                      AND (?::date IS NULL OR pr.return_date::date >= ?::date)
-                      AND (?::date IS NULL OR pr.return_date::date <= ?::date)
+                      AND (CAST(:fromDate AS DATE) IS NULL OR CAST(pr.return_date AS DATE) >= CAST(:fromDate AS DATE))
+                      AND (CAST(:toDate AS DATE) IS NULL OR CAST(pr.return_date AS DATE) <= CAST(:toDate AS DATE))
 
                 ) transactions
                 """;
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("supplierId", supplierId)
+                .addValue("fromDate", fromDate)
+                .addValue("toDate", toDate);
+
         Long count = jdbcTemplate.queryForObject(
                 sql,
-                Long.class,
-
-                // Purchase filters
-                supplierId,
-                fromDate, fromDate,
-                toDate, toDate,
-
-                // Payment filters
-                supplierId,
-                fromDate, fromDate,
-                toDate, toDate,
-
-                // Purchase return filters
-                supplierId,
-                fromDate, fromDate,
-                toDate, toDate
+                params,
+                Long.class
         );
 
         return count != null ? count : 0L;

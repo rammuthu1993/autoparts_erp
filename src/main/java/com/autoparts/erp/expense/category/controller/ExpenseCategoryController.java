@@ -1,5 +1,6 @@
 package com.autoparts.erp.expense.category.controller;
 
+import com.autoparts.erp.auth.security.annotation.AdminOrManager;
 import com.autoparts.erp.expense.category.dto.ExpenseCategoryCreateRequest;
 import com.autoparts.erp.expense.category.dto.ExpenseCategoryResponse;
 import com.autoparts.erp.expense.category.dto.ExpenseCategoryUpdateRequest;
@@ -26,6 +27,7 @@ public class ExpenseCategoryController {
         this.service = service;
     }
 
+    @AdminOrManager
     @PostMapping
     public ResponseEntity<ExpenseCategoryResponse> create(
             @Valid @RequestBody ExpenseCategoryCreateRequest request
@@ -48,6 +50,7 @@ public class ExpenseCategoryController {
         return ResponseEntity.ok(service.findByUuid(uuid));
     }
 
+    @AdminOrManager
     @PutMapping("/{uuid}")
     public ResponseEntity<ExpenseCategoryResponse> update(
             @PathVariable UUID uuid,
@@ -56,6 +59,7 @@ public class ExpenseCategoryController {
         return ResponseEntity.ok(service.update(uuid, request));
     }
 
+    @AdminOrManager
     @PatchMapping("/{uuid}/deactivate")
     public ResponseEntity<Void> deactivate(
             @PathVariable UUID uuid

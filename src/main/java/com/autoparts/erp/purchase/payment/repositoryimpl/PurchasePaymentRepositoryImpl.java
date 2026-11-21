@@ -8,8 +8,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.autoparts.erp.purchase.model.PurchasePayment;
@@ -21,10 +22,10 @@ import com.autoparts.erp.purchase.payment.repository.PurchasePaymentRepository.P
 public class PurchasePaymentRepositoryImpl
         implements PurchasePaymentRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
     public PurchasePaymentRepositoryImpl(
-            JdbcTemplate jdbcTemplate
+            NamedParameterJdbcTemplate jdbcTemplate
     ) {
         this.jdbcTemplate = jdbcTemplate;
     }
@@ -66,20 +67,20 @@ public class PurchasePaymentRepositoryImpl
                 status,
                 grand_total
             FROM purchases
-            WHERE uuid = ?
+            WHERE uuid = :purchaseUuid
             FOR UPDATE
             """;
 
         return jdbcTemplate.query(
             sql,
+            new MapSqlParameterSource("purchaseUuid", purchaseUuid),
             (rs, rowNum) -> new PurchasePaymentContext(
                 rs.getLong("id"),
                 rs.getObject("uuid", UUID.class),
                 rs.getString("purchase_number"),
                 rs.getString("status"),
                 rs.getBigDecimal("grand_total")
-            ),
-            purchaseUuid
+            )
         ).stream().findFirst();
     }
 
@@ -89,13 +90,13 @@ public class PurchasePaymentRepositoryImpl
         String sql = """
             SELECT COALESCE(SUM(amount), 0)
             FROM purchase_payments
-            WHERE purchase_id = ?
+            WHERE purchase_id = :purchaseId
             """;
 
         BigDecimal total = jdbcTemplate.queryForObject(
             sql,
-            BigDecimal.class,
-            purchaseId
+            new MapSqlParameterSource("purchaseId", purchaseId),
+            BigDecimal.class
         );
 
         return total == null ? BigDecimal.ZERO : total;
@@ -115,21 +116,33 @@ public class PurchasePaymentRepositoryImpl
                 notes,
                 created_by
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (
+                :uuid,
+                :purchaseId,
+                :paymentMethod,
+                :amount,
+                :referenceNumber,
+                :paymentDate,
+                :notes,
+                :createdBy
+            )
             RETURNING *
             """;
 
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("uuid", payment.uuid())
+                .addValue("purchaseId", payment.purchaseId())
+                .addValue("paymentMethod", payment.paymentMethod().name())
+                .addValue("amount", payment.amount())
+                .addValue("referenceNumber", payment.referenceNumber())
+                .addValue("paymentDate", payment.paymentDate())
+                .addValue("notes", payment.notes())
+                .addValue("createdBy", payment.createdBy());
+
         return jdbcTemplate.queryForObject(
             sql,
-            paymentRowMapper,
-            payment.uuid(),
-            payment.purchaseId(),
-            payment.paymentMethod().name(),
-            payment.amount(),
-            payment.referenceNumber(),
-            payment.paymentDate(),
-            payment.notes(),
-            payment.createdBy()
+            params,
+            paymentRowMapper
         );
     }
 
@@ -141,14 +154,14 @@ public class PurchasePaymentRepositoryImpl
         String sql = """
             SELECT *
             FROM purchase_payments
-            WHERE purchase_id = ?
+            WHERE purchase_id = :purchaseId
             ORDER BY payment_date DESC, id DESC
             """;
 
         return jdbcTemplate.query(
             sql,
-            paymentRowMapper,
-            purchaseId
+            new MapSqlParameterSource("purchaseId", purchaseId),
+            paymentRowMapper
         );
     }
 
@@ -160,13 +173,13 @@ public class PurchasePaymentRepositoryImpl
         String sql = """
             SELECT *
             FROM purchase_payments
-            WHERE uuid = ?
+            WHERE uuid = :paymentUuid
             """;
 
         return jdbcTemplate.query(
             sql,
-            paymentRowMapper,
-            paymentUuid
+            new MapSqlParameterSource("paymentUuid", paymentUuid),
+            paymentRowMapper
         ).stream().findFirst();
     }
     
@@ -183,19 +196,19 @@ public class PurchasePaymentRepositoryImpl
                 status,
                 grand_total
             FROM purchases
-            WHERE uuid = ?
+            WHERE uuid = :purchaseUuid
             """;
 
         return jdbcTemplate.query(
             sql,
+            new MapSqlParameterSource("purchaseUuid", purchaseUuid),
             (rs, rowNum) -> new PurchasePaymentContext(
                 rs.getLong("id"),
                 rs.getObject("uuid", UUID.class),
                 rs.getString("purchase_number"),
                 rs.getString("status"),
                 rs.getBigDecimal("grand_total")
-            ),
-            purchaseUuid
+            )
         ).stream().findFirst();
     }
 }
