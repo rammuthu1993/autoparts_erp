@@ -123,7 +123,7 @@ public class KnowledgeGroundedAnswerService {
             return List.of();
         }
         try {
-            return knowledgeRetrievalService.retrieve(query, context);
+            return knowledgeRetrievalService.retrieveKnowledge(query, context);
         } catch (KnowledgeRetrievalException ex) {
             log.error("Knowledge retrieval error: {}", ex.getMessage());
             return List.of();

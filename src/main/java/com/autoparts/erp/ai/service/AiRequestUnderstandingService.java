@@ -84,7 +84,7 @@ public class AiRequestUnderstandingService {
             if (pendingOpt.isPresent()) {
                 ErpAiPendingClarificationStore.PendingSlot pending = pendingOpt.get();
                 clarificationStore.remove(conversationId, userSubject);
-                String resolvedQuery = currentMessage.trim() + " (" + pending.slotName() + ")";
+                String resolvedQuery = currentMessage.trim() + " (" + pending.pendingSlotName() + ")";
                 ErpAiIntentResult result = deterministicClassifier.classify(resolvedQuery);
                 return validator.validate(toPlan(result, currentMessage, ClassificationSource.CONTEXT_RESOLVED, true));
             }

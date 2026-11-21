@@ -1,0 +1,906 @@
+{
+  "datasetVersion": "1.0",
+  "description": "150 deterministic ERP intent-classification scenarios. These are offline routing tests, not live database or LLM answer-quality measurements.",
+  "scenarios": [
+    {
+      "id": "ERP-001",
+      "domain": "PRODUCT_INVENTORY",
+      "query": "Show GAP-000001",
+      "expectedIntent": "PRODUCT_SEARCH"
+    },
+    {
+      "id": "ERP-002",
+      "domain": "PRODUCT_INVENTORY",
+      "query": "Find product GAP-000002",
+      "expectedIntent": "PRODUCT_SEARCH"
+    },
+    {
+      "id": "ERP-003",
+      "domain": "PRODUCT_INVENTORY",
+      "query": "Search for FILTER-001",
+      "expectedIntent": "PRODUCT_SEARCH"
+    },
+    {
+      "id": "ERP-004",
+      "domain": "PRODUCT_INVENTORY",
+      "query": "Look up brake pads",
+      "expectedIntent": "PRODUCT_SEARCH"
+    },
+    {
+      "id": "ERP-005",
+      "domain": "PRODUCT_INVENTORY",
+      "query": "Find matching brake pad",
+      "expectedIntent": "PRODUCT_SEARCH"
+    },
+    {
+      "id": "ERP-006",
+      "domain": "PRODUCT_INVENTORY",
+      "query": "Show details for GAP-000001",
+      "expectedIntent": "PRODUCT_DETAILS"
+    },
+    {
+      "id": "ERP-007",
+      "domain": "PRODUCT_INVENTORY",
+      "query": "Get product information for GAP-000002",
+      "expectedIntent": "PRODUCT_DETAILS"
+    },
+    {
+      "id": "ERP-008",
+      "domain": "PRODUCT_INVENTORY",
+      "query": "Show specifications for FILTER-001",
+      "expectedIntent": "PRODUCT_DETAILS"
+    },
+    {
+      "id": "ERP-009",
+      "domain": "PRODUCT_INVENTORY",
+      "query": "What is the stock for GAP-000001?",
+      "expectedIntent": "PRODUCT_STOCK"
+    },
+    {
+      "id": "ERP-010",
+      "domain": "PRODUCT_INVENTORY",
+      "query": "Stock for GAP-000002",
+      "expectedIntent": "PRODUCT_STOCK"
+    },
+    {
+      "id": "ERP-011",
+      "domain": "PRODUCT_INVENTORY",
+      "query": "Check inventory for FILTER-001",
+      "expectedIntent": "PRODUCT_STOCK"
+    },
+    {
+      "id": "ERP-012",
+      "domain": "PRODUCT_INVENTORY",
+      "query": "Show low stock products",
+      "expectedIntent": "LOW_STOCK_PRODUCTS"
+    },
+    {
+      "id": "ERP-013",
+      "domain": "PRODUCT_INVENTORY",
+      "query": "Which products need restocking?",
+      "expectedIntent": "LOW_STOCK_PRODUCTS"
+    },
+    {
+      "id": "ERP-014",
+      "domain": "PRODUCT_INVENTORY",
+      "query": "How many products do we have?",
+      "expectedIntent": "COUNT_PRODUCTS"
+    },
+    {
+      "id": "ERP-015",
+      "domain": "PRODUCT_INVENTORY",
+      "query": "Compare product GAP-000001 and GAP-000002",
+      "expectedIntent": "PRODUCT_COMPARISON"
+    },
+    {
+      "id": "ERP-016",
+      "domain": "PURCHASES",
+      "query": "Search purchases Bosch",
+      "expectedIntent": "PURCHASE_SEARCH"
+    },
+    {
+      "id": "ERP-017",
+      "domain": "PURCHASES",
+      "query": "Find purchases from Acme",
+      "expectedIntent": "PURCHASE_SEARCH"
+    },
+    {
+      "id": "ERP-018",
+      "domain": "PURCHASES",
+      "query": "Show purchases",
+      "expectedIntent": "PURCHASE_SEARCH"
+    },
+    {
+      "id": "ERP-019",
+      "domain": "PURCHASES",
+      "query": "Purchase details for PUR-00000001",
+      "expectedIntent": "PURCHASE_DETAILS"
+    },
+    {
+      "id": "ERP-020",
+      "domain": "PURCHASES",
+      "query": "Show purchase PUR-00000002",
+      "expectedIntent": "PURCHASE_DETAILS"
+    },
+    {
+      "id": "ERP-021",
+      "domain": "PURCHASES",
+      "query": "Purchases from 2026-01-01 to 2026-01-31",
+      "expectedIntent": "PURCHASE_DATE_RANGE"
+    },
+    {
+      "id": "ERP-022",
+      "domain": "PURCHASES",
+      "query": "Purchases from supplier Bosch",
+      "expectedIntent": "PURCHASES_BY_SUPPLIER"
+    },
+    {
+      "id": "ERP-023",
+      "domain": "PURCHASES",
+      "query": "Show purchases for supplier Acme",
+      "expectedIntent": "PURCHASES_BY_SUPPLIER"
+    },
+    {
+      "id": "ERP-024",
+      "domain": "PURCHASES",
+      "query": "Purchase summary between 2026-01-01 and 2026-01-31",
+      "expectedIntent": "PURCHASE_SUMMARY"
+    },
+    {
+      "id": "ERP-025",
+      "domain": "PURCHASES",
+      "query": "Total purchases from 2026-01-01 to 2026-01-31",
+      "expectedIntent": "PURCHASE_SUMMARY"
+    },
+    {
+      "id": "ERP-026",
+      "domain": "PURCHASES",
+      "query": "Status of purchase PUR-00000001",
+      "expectedIntent": "PURCHASE_STATUS"
+    },
+    {
+      "id": "ERP-027",
+      "domain": "PURCHASES",
+      "query": "Check order status PUR-00000002",
+      "expectedIntent": "PURCHASE_STATUS"
+    },
+    {
+      "id": "ERP-028",
+      "domain": "PURCHASES",
+      "query": "List purchase orders",
+      "expectedIntent": "PURCHASE_SEARCH"
+    },
+    {
+      "id": "ERP-029",
+      "domain": "PURCHASES",
+      "query": "Find purchase orders for Bosch",
+      "expectedIntent": "PURCHASE_SEARCH"
+    },
+    {
+      "id": "ERP-030",
+      "domain": "PURCHASES",
+      "query": "View purchase details for PUR-00000003",
+      "expectedIntent": "PURCHASE_DETAILS"
+    },
+    {
+      "id": "ERP-031",
+      "domain": "SALES",
+      "query": "Search purchase history Bosch",
+      "expectedIntent": "PURCHASE_SEARCH"
+    },
+    {
+      "id": "ERP-032",
+      "domain": "SALES",
+      "query": "Search sales Acme",
+      "expectedIntent": "SALES_SEARCH"
+    },
+    {
+      "id": "ERP-033",
+      "domain": "SALES",
+      "query": "Find sales",
+      "expectedIntent": "SALES_SEARCH"
+    },
+    {
+      "id": "ERP-034",
+      "domain": "SALES",
+      "query": "Show invoices",
+      "expectedIntent": "SALES_SEARCH"
+    },
+    {
+      "id": "ERP-035",
+      "domain": "SALES",
+      "query": "Sale details for INV-2026-0001",
+      "expectedIntent": "SALE_DETAILS"
+    },
+    {
+      "id": "ERP-036",
+      "domain": "SALES",
+      "query": "Show invoice INV-2026-0002",
+      "expectedIntent": "SALE_DETAILS"
+    },
+    {
+      "id": "ERP-037",
+      "domain": "SALES",
+      "query": "Sales between 2026-01-01 and 2026-01-31",
+      "expectedIntent": "SALES_DATE_RANGE"
+    },
+    {
+      "id": "ERP-038",
+      "domain": "SALES",
+      "query": "Invoices from 2026-01-01 to 2026-01-31",
+      "expectedIntent": "SALES_DATE_RANGE"
+    },
+    {
+      "id": "ERP-039",
+      "domain": "SALES",
+      "query": "Sales for customer Acme Garage",
+      "expectedIntent": "SALES_BY_CUSTOMER"
+    },
+    {
+      "id": "ERP-040",
+      "domain": "SALES",
+      "query": "Show sales to customer CUS000001",
+      "expectedIntent": "SALES_BY_CUSTOMER"
+    },
+    {
+      "id": "ERP-041",
+      "domain": "SALES",
+      "query": "Sales summary from 2026-01-01 to 2026-01-31",
+      "expectedIntent": "SALES_SUMMARY"
+    },
+    {
+      "id": "ERP-042",
+      "domain": "SALES",
+      "query": "Total revenue from 2026-01-01 to 2026-01-31",
+      "expectedIntent": "SALES_SUMMARY"
+    },
+    {
+      "id": "ERP-043",
+      "domain": "SALES",
+      "query": "Status of sale INV-2026-0001",
+      "expectedIntent": "SALE_STATUS"
+    },
+    {
+      "id": "ERP-044",
+      "domain": "SALES",
+      "query": "Check invoice status INV-2026-0002",
+      "expectedIntent": "SALE_STATUS"
+    },
+    {
+      "id": "ERP-045",
+      "domain": "SALES",
+      "query": "List sales records",
+      "expectedIntent": "SALES_SEARCH"
+    },
+    {
+      "id": "ERP-046",
+      "domain": "CUSTOMERS",
+      "query": "Find invoices for today",
+      "expectedIntent": "SALES_SEARCH"
+    },
+    {
+      "id": "ERP-047",
+      "domain": "CUSTOMERS",
+      "query": "View invoice details for INV-2026-0003",
+      "expectedIntent": "SALE_DETAILS"
+    },
+    {
+      "id": "ERP-048",
+      "domain": "CUSTOMERS",
+      "query": "Search sales transactions",
+      "expectedIntent": "SALES_SEARCH"
+    },
+    {
+      "id": "ERP-049",
+      "domain": "CUSTOMERS",
+      "query": "Search customer Acme",
+      "expectedIntent": "CUSTOMER_SEARCH"
+    },
+    {
+      "id": "ERP-050",
+      "domain": "CUSTOMERS",
+      "query": "Find customers",
+      "expectedIntent": "CLARIFICATION"
+    },
+    {
+      "id": "ERP-051",
+      "domain": "CUSTOMERS",
+      "query": "Show customers named Acme Garage",
+      "expectedIntent": "CUSTOMER_SEARCH"
+    },
+    {
+      "id": "ERP-052",
+      "domain": "CUSTOMERS",
+      "query": "Customer details for CUS000001",
+      "expectedIntent": "CUSTOMER_DETAILS"
+    },
+    {
+      "id": "ERP-053",
+      "domain": "CUSTOMERS",
+      "query": "Details of customer CUS000002",
+      "expectedIntent": "CUSTOMER_DETAILS"
+    },
+    {
+      "id": "ERP-054",
+      "domain": "CUSTOMERS",
+      "query": "Sales history for customer CUS000001",
+      "expectedIntent": "CUSTOMER_SALES_HISTORY"
+    },
+    {
+      "id": "ERP-055",
+      "domain": "CUSTOMERS",
+      "query": "Customer purchase history for CUS000002",
+      "expectedIntent": "CUSTOMER_SALES_HISTORY"
+    },
+    {
+      "id": "ERP-056",
+      "domain": "CUSTOMERS",
+      "query": "Outstanding balance for customer Acme",
+      "expectedIntent": "CUSTOMER_OUTSTANDING"
+    },
+    {
+      "id": "ERP-057",
+      "domain": "CUSTOMERS",
+      "query": "How much does customer CUS000001 owe",
+      "expectedIntent": "CUSTOMER_OUTSTANDING"
+    },
+    {
+      "id": "ERP-058",
+      "domain": "CUSTOMERS",
+      "query": "Pending balance for customer CUS000002",
+      "expectedIntent": "CUSTOMER_OUTSTANDING"
+    },
+    {
+      "id": "ERP-059",
+      "domain": "CUSTOMERS",
+      "query": "List customers",
+      "expectedIntent": "CLARIFICATION"
+    },
+    {
+      "id": "ERP-060",
+      "domain": "CUSTOMERS",
+      "query": "Find customer by name Acme",
+      "expectedIntent": "CUSTOMER_SEARCH"
+    },
+    {
+      "id": "ERP-061",
+      "domain": "SUPPLIERS",
+      "query": "Customer information for CUS000003",
+      "expectedIntent": "CUSTOMER_DETAILS"
+    },
+    {
+      "id": "ERP-062",
+      "domain": "SUPPLIERS",
+      "query": "Customer balance for Acme Garage",
+      "expectedIntent": "CUSTOMER_OUTSTANDING"
+    },
+    {
+      "id": "ERP-063",
+      "domain": "SUPPLIERS",
+      "query": "Invoices for customer CUS000001",
+      "expectedIntent": "CUSTOMER_SALES_HISTORY"
+    },
+    {
+      "id": "ERP-064",
+      "domain": "SUPPLIERS",
+      "query": "Search customers by phone",
+      "expectedIntent": "CUSTOMER_SEARCH"
+    },
+    {
+      "id": "ERP-065",
+      "domain": "SUPPLIERS",
+      "query": "Find supplier Bosch",
+      "expectedIntent": "SUPPLIER_SEARCH"
+    },
+    {
+      "id": "ERP-066",
+      "domain": "SUPPLIERS",
+      "query": "Search suppliers",
+      "expectedIntent": "CLARIFICATION"
+    },
+    {
+      "id": "ERP-067",
+      "domain": "SUPPLIERS",
+      "query": "Show vendors",
+      "expectedIntent": "CLARIFICATION"
+    },
+    {
+      "id": "ERP-068",
+      "domain": "SUPPLIERS",
+      "query": "Supplier details for Bosch",
+      "expectedIntent": "SUPPLIER_DETAILS"
+    },
+    {
+      "id": "ERP-069",
+      "domain": "SUPPLIERS",
+      "query": "Details of supplier Acme Parts",
+      "expectedIntent": "SUPPLIER_DETAILS"
+    },
+    {
+      "id": "ERP-070",
+      "domain": "SUPPLIERS",
+      "query": "Purchase history for supplier Bosch",
+      "expectedIntent": "SUPPLIER_PURCHASE_HISTORY"
+    },
+    {
+      "id": "ERP-071",
+      "domain": "SUPPLIERS",
+      "query": "Purchases from supplier Acme",
+      "expectedIntent": "PURCHASES_BY_SUPPLIER"
+    },
+    {
+      "id": "ERP-072",
+      "domain": "SUPPLIERS",
+      "query": "Spend summary for supplier Bosch",
+      "expectedIntent": "SUPPLIER_SUMMARY"
+    },
+    {
+      "id": "ERP-073",
+      "domain": "SUPPLIERS",
+      "query": "Spend summary for supplier Acme",
+      "expectedIntent": "SUPPLIER_SUMMARY"
+    },
+    {
+      "id": "ERP-074",
+      "domain": "SUPPLIERS",
+      "query": "List suppliers",
+      "expectedIntent": "CLARIFICATION"
+    },
+    {
+      "id": "ERP-075",
+      "domain": "SUPPLIERS",
+      "query": "Supplier information for Bosch India",
+      "expectedIntent": "SUPPLIER_DETAILS"
+    },
+    {
+      "id": "ERP-076",
+      "domain": "RETURNS",
+      "query": "Order history from supplier Bosch",
+      "expectedIntent": "SUPPLIER_PURCHASE_HISTORY"
+    },
+    {
+      "id": "ERP-077",
+      "domain": "RETURNS",
+      "query": "Supplier spend for Acme",
+      "expectedIntent": "SUPPLIER_SUMMARY"
+    },
+    {
+      "id": "ERP-078",
+      "domain": "RETURNS",
+      "query": "Find vendor Bosch",
+      "expectedIntent": "SUPPLIER_SEARCH"
+    },
+    {
+      "id": "ERP-079",
+      "domain": "RETURNS",
+      "query": "Contact details for supplier Acme",
+      "expectedIntent": "SUPPLIER_DETAILS"
+    },
+    {
+      "id": "ERP-080",
+      "domain": "RETURNS",
+      "query": "Show supplier purchase history Bosch",
+      "expectedIntent": "SUPPLIER_PURCHASE_HISTORY"
+    },
+    {
+      "id": "ERP-081",
+      "domain": "RETURNS",
+      "query": "Find sales return for defective brake pad",
+      "expectedIntent": "SALES_RETURN_SEARCH"
+    },
+    {
+      "id": "ERP-082",
+      "domain": "RETURNS",
+      "query": "Search sales returns",
+      "expectedIntent": "SALES_RETURN_SEARCH"
+    },
+    {
+      "id": "ERP-083",
+      "domain": "RETURNS",
+      "query": "Show customer returns",
+      "expectedIntent": "SALES_RETURN_SEARCH"
+    },
+    {
+      "id": "ERP-084",
+      "domain": "RETURNS",
+      "query": "Sales return details for INV-2026-001",
+      "expectedIntent": "SALES_RETURN_DETAILS"
+    },
+    {
+      "id": "ERP-085",
+      "domain": "RETURNS",
+      "query": "Refund details for INV-2026-002",
+      "expectedIntent": "SALES_RETURN_DETAILS"
+    },
+    {
+      "id": "ERP-086",
+      "domain": "RETURNS",
+      "query": "Search purchase returns PR-0001",
+      "expectedIntent": "PURCHASE_RETURN_SEARCH"
+    },
+    {
+      "id": "ERP-087",
+      "domain": "RETURNS",
+      "query": "Show supplier returns",
+      "expectedIntent": "PURCHASE_RETURN_SEARCH"
+    },
+    {
+      "id": "ERP-088",
+      "domain": "RETURNS",
+      "query": "Purchase return details for PR-0001",
+      "expectedIntent": "PURCHASE_RETURN_DETAILS"
+    },
+    {
+      "id": "ERP-089",
+      "domain": "RETURNS",
+      "query": "Supplier credit details for PR-0002",
+      "expectedIntent": "PURCHASE_RETURN_DETAILS"
+    },
+    {
+      "id": "ERP-090",
+      "domain": "RETURNS",
+      "query": "Returns summary from 2026-01-01 to 2026-01-31",
+      "expectedIntent": "RETURN_SUMMARY"
+    },
+    {
+      "id": "ERP-091",
+      "domain": "FINANCIALS",
+      "query": "Total returns between 2026-01-01 and 2026-01-31",
+      "expectedIntent": "RETURN_SUMMARY"
+    },
+    {
+      "id": "ERP-092",
+      "domain": "FINANCIALS",
+      "query": "List sales returns",
+      "expectedIntent": "SALES_RETURN_SEARCH"
+    },
+    {
+      "id": "ERP-093",
+      "domain": "FINANCIALS",
+      "query": "List purchase returns",
+      "expectedIntent": "PURCHASE_RETURN_SEARCH"
+    },
+    {
+      "id": "ERP-094",
+      "domain": "FINANCIALS",
+      "query": "Customer return details for INV-2026-003",
+      "expectedIntent": "SALES_RETURN_DETAILS"
+    },
+    {
+      "id": "ERP-095",
+      "domain": "FINANCIALS",
+      "query": "Details of purchase return PR-0003",
+      "expectedIntent": "PURCHASE_RETURN_DETAILS"
+    },
+    {
+      "id": "ERP-096",
+      "domain": "FINANCIALS",
+      "query": "Summary of returns",
+      "expectedIntent": "RETURN_SUMMARY"
+    },
+    {
+      "id": "ERP-097",
+      "domain": "FINANCIALS",
+      "query": "Show open cash registers",
+      "expectedIntent": "OPEN_CASH_REGISTERS"
+    },
+    {
+      "id": "ERP-098",
+      "domain": "FINANCIALS",
+      "query": "Which cash registers are open",
+      "expectedIntent": "OPEN_CASH_REGISTERS"
+    },
+    {
+      "id": "ERP-099",
+      "domain": "FINANCIALS",
+      "query": "Show active registers",
+      "expectedIntent": "OPEN_CASH_REGISTERS"
+    },
+    {
+      "id": "ERP-100",
+      "domain": "FINANCIALS",
+      "query": "Expense summary from 2026-01-01 to 2026-01-31",
+      "expectedIntent": "EXPENSE_SUMMARY"
+    },
+    {
+      "id": "ERP-101",
+      "domain": "FINANCIALS",
+      "query": "Total expenses between 2026-01-01 and 2026-01-31",
+      "expectedIntent": "EXPENSE_SUMMARY"
+    },
+    {
+      "id": "ERP-102",
+      "domain": "FINANCIALS",
+      "query": "Expenses for utilities category",
+      "expectedIntent": "EXPENSES_BY_CATEGORY"
+    },
+    {
+      "id": "ERP-103",
+      "domain": "FINANCIALS",
+      "query": "Show expenses for rent category",
+      "expectedIntent": "EXPENSES_BY_CATEGORY"
+    },
+    {
+      "id": "ERP-104",
+      "domain": "FINANCIALS",
+      "query": "Daily closing report for 2026-01-15",
+      "expectedIntent": "DAILY_CLOSING"
+    },
+    {
+      "id": "ERP-105",
+      "domain": "FINANCIALS",
+      "query": "End of day report for 2026-01-16",
+      "expectedIntent": "DAILY_CLOSING"
+    },
+    {
+      "id": "ERP-106",
+      "domain": "REPORTS",
+      "query": "Show cash register discrepancies",
+      "expectedIntent": "CASH_DISCREPANCIES"
+    },
+    {
+      "id": "ERP-107",
+      "domain": "REPORTS",
+      "query": "Cash shortages from 2026-01-01 to 2026-01-31",
+      "expectedIntent": "CASH_DISCREPANCIES"
+    },
+    {
+      "id": "ERP-108",
+      "domain": "REPORTS",
+      "query": "Expenses summary for 2026-01-01 to 2026-01-31",
+      "expectedIntent": "EXPENSE_SUMMARY"
+    },
+    {
+      "id": "ERP-109",
+      "domain": "REPORTS",
+      "query": "Cash in drawer",
+      "expectedIntent": "OPEN_CASH_REGISTERS"
+    },
+    {
+      "id": "ERP-110",
+      "domain": "REPORTS",
+      "query": "Register surplus",
+      "expectedIntent": "CASH_DISCREPANCIES"
+    },
+    {
+      "id": "ERP-111",
+      "domain": "REPORTS",
+      "query": "Business closing for 2026-01-17",
+      "expectedIntent": "DAILY_CLOSING"
+    },
+    {
+      "id": "ERP-112",
+      "domain": "REPORTS",
+      "query": "Expenses for electricity",
+      "expectedIntent": "EXPENSES_BY_CATEGORY"
+    },
+    {
+      "id": "ERP-113",
+      "domain": "REPORTS",
+      "query": "Operating expenses from 2026-01-01 to 2026-01-31",
+      "expectedIntent": "EXPENSE_SUMMARY"
+    },
+    {
+      "id": "ERP-114",
+      "domain": "REPORTS",
+      "query": "Executive KPI summary for this month",
+      "expectedIntent": "KPI_SUMMARY"
+    },
+    {
+      "id": "ERP-115",
+      "domain": "REPORTS",
+      "query": "Show business KPIs",
+      "expectedIntent": "KPI_SUMMARY"
+    },
+    {
+      "id": "ERP-116",
+      "domain": "REPORTS",
+      "query": "Key performance indicators for 2026-01-01 to 2026-01-31",
+      "expectedIntent": "KPI_SUMMARY"
+    },
+    {
+      "id": "ERP-117",
+      "domain": "REPORTS",
+      "query": "Show inventory abc analysis",
+      "expectedIntent": "INVENTORY_ABC_ANALYSIS"
+    },
+    {
+      "id": "ERP-118",
+      "domain": "REPORTS",
+      "query": "ABC analysis for products",
+      "expectedIntent": "INVENTORY_ABC_ANALYSIS"
+    },
+    {
+      "id": "ERP-119",
+      "domain": "REPORTS",
+      "query": "Top revenue products",
+      "expectedIntent": "INVENTORY_ABC_ANALYSIS"
+    },
+    {
+      "id": "ERP-120",
+      "domain": "REPORTS",
+      "query": "Customer rfm segmentation report",
+      "expectedIntent": "CUSTOMER_RFM_ANALYSIS"
+    },
+    {
+      "id": "ERP-121",
+      "domain": "AUDIT_LOGS",
+      "query": "Show VIP customers",
+      "expectedIntent": "CUSTOMER_RFM_ANALYSIS"
+    },
+    {
+      "id": "ERP-122",
+      "domain": "AUDIT_LOGS",
+      "query": "Customer cohorts report",
+      "expectedIntent": "CUSTOMER_RFM_ANALYSIS"
+    },
+    {
+      "id": "ERP-123",
+      "domain": "AUDIT_LOGS",
+      "query": "Audit reconciliation discrepancies between ledgers",
+      "expectedIntent": "RECONCILIATION_DISCREPANCIES"
+    },
+    {
+      "id": "ERP-124",
+      "domain": "AUDIT_LOGS",
+      "query": "Ledger reconciliation report",
+      "expectedIntent": "RECONCILIATION_DISCREPANCIES"
+    },
+    {
+      "id": "ERP-125",
+      "domain": "AUDIT_LOGS",
+      "query": "Cross-ledger data quality issues",
+      "expectedIntent": "RECONCILIATION_DISCREPANCIES"
+    },
+    {
+      "id": "ERP-126",
+      "domain": "AUDIT_LOGS",
+      "query": "What is our gross profit margin on oil filters",
+      "expectedIntent": "COGS_PROFIT_EXPLANATION"
+    },
+    {
+      "id": "ERP-127",
+      "domain": "AUDIT_LOGS",
+      "query": "Explain cost of goods sold",
+      "expectedIntent": "COGS_PROFIT_EXPLANATION"
+    },
+    {
+      "id": "ERP-128",
+      "domain": "AUDIT_LOGS",
+      "query": "Executive summary",
+      "expectedIntent": "KPI_SUMMARY"
+    },
+    {
+      "id": "ERP-129",
+      "domain": "AUDIT_LOGS",
+      "query": "ABC/XYZ analysis",
+      "expectedIntent": "INVENTORY_ABC_ANALYSIS"
+    },
+    {
+      "id": "ERP-130",
+      "domain": "AUDIT_LOGS",
+      "query": "RFM analysis",
+      "expectedIntent": "CUSTOMER_RFM_ANALYSIS"
+    },
+    {
+      "id": "ERP-131",
+      "domain": "AUDIT_LOGS",
+      "query": "Reconciliation discrepancy report",
+      "expectedIntent": "RECONCILIATION_DISCREPANCIES"
+    },
+    {
+      "id": "ERP-132",
+      "domain": "AUDIT_LOGS",
+      "query": "Product profitability report",
+      "expectedIntent": "COGS_PROFIT_EXPLANATION"
+    },
+    {
+      "id": "ERP-133",
+      "domain": "AUDIT_LOGS",
+      "query": "Show recent system audit logs",
+      "expectedIntent": "AUDIT_LOG_SEARCH"
+    },
+    {
+      "id": "ERP-134",
+      "domain": "AUDIT_LOGS",
+      "query": "Search security logs",
+      "expectedIntent": "AUDIT_LOG_SEARCH"
+    },
+    {
+      "id": "ERP-135",
+      "domain": "AUDIT_LOGS",
+      "query": "Show audit trail",
+      "expectedIntent": "AUDIT_LOG_SEARCH"
+    },
+    {
+      "id": "ERP-136",
+      "domain": "KNOWLEDGE",
+      "query": "Show recent ai tool runs",
+      "expectedIntent": "AI_TOOL_RUNS_LOG"
+    },
+    {
+      "id": "ERP-137",
+      "domain": "KNOWLEDGE",
+      "query": "AI diagnostic logs",
+      "expectedIntent": "AI_TOOL_RUNS_LOG"
+    },
+    {
+      "id": "ERP-138",
+      "domain": "KNOWLEDGE",
+      "query": "Show tool execution logs",
+      "expectedIntent": "AI_TOOL_RUNS_LOG"
+    },
+    {
+      "id": "ERP-139",
+      "domain": "KNOWLEDGE",
+      "query": "List audit events",
+      "expectedIntent": "AUDIT_LOG_SEARCH"
+    },
+    {
+      "id": "ERP-140",
+      "domain": "KNOWLEDGE",
+      "query": "Show system audit trail",
+      "expectedIntent": "AUDIT_LOG_SEARCH"
+    },
+    {
+      "id": "ERP-141",
+      "domain": "KNOWLEDGE",
+      "query": "Find AI tool logs",
+      "expectedIntent": "AI_TOOL_RUNS_LOG"
+    },
+    {
+      "id": "ERP-142",
+      "domain": "KNOWLEDGE",
+      "query": "Recent audit events",
+      "expectedIntent": "AUDIT_LOG_SEARCH"
+    },
+    {
+      "id": "ERP-143",
+      "domain": "KNOWLEDGE",
+      "query": "Show AI tool executions",
+      "expectedIntent": "AI_TOOL_RUNS_LOG"
+    },
+    {
+      "id": "ERP-144",
+      "domain": "KNOWLEDGE",
+      "query": "Search audit logs",
+      "expectedIntent": "AUDIT_LOG_SEARCH"
+    },
+    {
+      "id": "ERP-145",
+      "domain": "KNOWLEDGE",
+      "query": "Show recent AI tool runs",
+      "expectedIntent": "AI_TOOL_RUNS_LOG"
+    },
+    {
+      "id": "ERP-146",
+      "domain": "KNOWLEDGE",
+      "query": "System audit logs",
+      "expectedIntent": "AUDIT_LOG_SEARCH"
+    },
+    {
+      "id": "ERP-147",
+      "domain": "KNOWLEDGE",
+      "query": "AI tool run history",
+      "expectedIntent": "AI_TOOL_RUNS_LOG"
+    },
+    {
+      "id": "ERP-148",
+      "domain": "KNOWLEDGE",
+      "query": "What is the warranty policy?",
+      "expectedIntent": "KNOWLEDGE"
+    },
+    {
+      "id": "ERP-149",
+      "domain": "KNOWLEDGE",
+      "query": "Explain the return policy",
+      "expectedIntent": "KNOWLEDGE"
+    },
+    {
+      "id": "ERP-150",
+      "domain": "KNOWLEDGE",
+      "query": "How to return a product",
+      "expectedIntent": "KNOWLEDGE"
+    }
+  ]
+}

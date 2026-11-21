@@ -260,4 +260,43 @@ class ErpAiIntentClassifierTest {
         assertEquals("COUNT_PRODUCTS", result.intent());
     }
 
+
+    @Test
+    void shouldClassifyMinimumStockAsAFieldSpecificProductIntent() {
+        ErpAiIntentResult result = classifier.classify(
+                "What is minimum stock for GAP-000001?");
+        assertEquals("PRODUCT_MINIMUM_STOCK", result.intent());
+        assertEquals("GAP-000001", result.searchText());
+    }
+
+    @Test
+    void shouldClassifyAvailableQuantityAsAFieldSpecificProductIntent() {
+        ErpAiIntentResult result = classifier.classify(
+                "What is available quantity for GAP-000001?");
+        assertEquals("PRODUCT_AVAILABLE_QUANTITY", result.intent());
+        assertEquals("GAP-000001", result.searchText());
+    }
+
+    @Test
+    void shouldClassifyPartNumberAsAFieldSpecificProductIntent() {
+        ErpAiIntentResult result = classifier.classify(
+                "What is the part number for GAP-000001?");
+        assertEquals("PRODUCT_PART_NUMBER", result.intent());
+        assertEquals("GAP-000001", result.searchText());
+    }
+
+    @Test
+    void shouldClarifyMinimumStockRequestWithoutProductIdentifier() {
+        ErpAiIntentResult result = classifier.classify("What is minimum stock?");
+        assertEquals("CLARIFICATION", result.intent());
+    }
+
+    @Test
+    void shouldClassifyProductSpecificLowStockStatus() {
+        ErpAiIntentResult result = classifier.classify(
+                "Is GAP-000001 low in stock?");
+        assertEquals("PRODUCT_LOW_STOCK_STATUS", result.intent());
+        assertEquals("GAP-000001", result.searchText());
+    }
+
 }

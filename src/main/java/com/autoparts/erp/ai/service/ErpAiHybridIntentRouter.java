@@ -194,7 +194,12 @@ public class ErpAiHybridIntentRouter {
         ErpAiConversationContextResolver.Resolution resolution =
                 ErpAiConversationContextResolver.resolve(currentMessage, history, deterministic);
         if (resolution.needsClarification()) {
-            return ErpAiIntentResult.clarification(resolution.clarificationMessage());
+            ErpAiIntentResult clarification =
+                    ErpAiIntentResult.clarification(resolution.clarificationMessage());
+            if (conversationId != null && userSubject != null) {
+                registerSlotIfApplicable(currentMessage, clarification, conversationId, userSubject);
+            }
+            return clarification;
         } else if (resolution.contextApplied()) {
             deterministic = deterministicClassifier.classify(resolution.resolvedMessage());
         }
@@ -562,8 +567,32 @@ public class ErpAiHybridIntentRouter {
         } else if (msg.contains("purchase number")) {
             clarificationStore.register(conversationId, userSubject, "PURCHASE_DETAILS", "purchaseNumber", Map.of());
         } else if (msg.contains("product code")) {
-            clarificationStore.register(conversationId, userSubject, "PRODUCT_STOCK", "productCode", Map.of());
+            clarificationStore.register(
+                    conversationId,
+                    userSubject,
+                    inferProductIntentForClarification(message),
+                    "productCode",
+                    Map.of()
+            );
         }
+    }
+
+    private String inferProductIntentForClarification(String message) {
+        String normalized = message == null ? "" : message.toLowerCase(Locale.ROOT);
+        if (normalized.contains("minimum stock")) {
+            return "PRODUCT_MINIMUM_STOCK";
+        }
+        if (normalized.contains("available quantity") || normalized.contains("quantity available")) {
+            return "PRODUCT_AVAILABLE_QUANTITY";
+        }
+        if (normalized.contains("part number") || normalized.contains("part no")) {
+            return "PRODUCT_PART_NUMBER";
+        }
+        if (normalized.contains("low in stock") || normalized.contains("below minimum")
+                || normalized.contains("need restocking")) {
+            return "PRODUCT_LOW_STOCK_STATUS";
+        }
+        return "PRODUCT_STOCK";
     }
 
     private String extractSearchText(String message) {

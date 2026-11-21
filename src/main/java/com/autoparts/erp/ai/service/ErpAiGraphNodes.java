@@ -1,5 +1,6 @@
 package com.autoparts.erp.ai.service;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -455,7 +456,9 @@ public class ErpAiGraphNodes {
                             productIdentifiers(state.object("productIdentifiers")), context);
             case "PRODUCT_DETAILS" ->
                     productLookupTool.getProductDetails(searchText, context);
-            case "PRODUCT_STOCK" ->
+            case "PRODUCT_STOCK", "PRODUCT_MINIMUM_STOCK",
+                 "PRODUCT_AVAILABLE_QUANTITY", "PRODUCT_PART_NUMBER",
+                 "PRODUCT_LOW_STOCK_STATUS" ->
                     productLookupTool.getProductStock(searchText, context);
             case "COUNT_PRODUCTS" ->
                     productLookupTool.countProducts(context);
@@ -609,6 +612,9 @@ public class ErpAiGraphNodes {
                 case "INVENTORY_ADJUSTMENTS" -> "No inventory adjustment records were found.";
                 case "LOW_STOCK_PRODUCTS" -> "There are currently no active products below their minimum stock level.";
                 case "PRODUCT_COMPARISON" -> "None of the requested products could be found. Please verify the product codes or part numbers.";
+                case "PRODUCT_STOCK", "PRODUCT_MINIMUM_STOCK", "PRODUCT_AVAILABLE_QUANTITY",
+                     "PRODUCT_PART_NUMBER", "PRODUCT_LOW_STOCK_STATUS" ->
+                        "No matching product was found for " + state.text("searchText") + ".";
                 case "PURCHASE_SEARCH", "PURCHASE_DATE_RANGE", "PURCHASES_BY_SUPPLIER" -> "No purchase records were found matching your request.";
                 case "SALES_SEARCH", "SALES_DATE_RANGE", "SALES_BY_CUSTOMER" -> "No sales invoices were found matching your request.";
                 case "CUSTOMER_SEARCH" -> "No matching customer records were found.";
@@ -692,6 +698,10 @@ public class ErpAiGraphNodes {
                 case "PRODUCT_DETAILS" -> formatProductDetails(rows);
                 case "LOW_STOCK_PRODUCTS" -> formatLowStockProducts(rows);
                 case "PRODUCT_STOCK" -> formatProductStockResponse(rows);
+                case "PRODUCT_MINIMUM_STOCK" -> formatProductMinimumStockResponse(rows);
+                case "PRODUCT_AVAILABLE_QUANTITY" -> formatProductAvailableQuantityResponse(rows);
+                case "PRODUCT_PART_NUMBER" -> formatProductPartNumberResponse(rows);
+                case "PRODUCT_LOW_STOCK_STATUS" -> formatProductLowStockStatusResponse(rows);
                 case "PRODUCT_MOVEMENT_HISTORY", "PRODUCT_MOVEMENTS_BY_DATE_RANGE", "RECENT_INVENTORY_MOVEMENTS" ->
                         formatMovementHistoryResponse(rows);
                 case "PRODUCT_MOVEMENT_SUMMARY" -> formatMovementSummary(rows);
@@ -1711,6 +1721,71 @@ public class ErpAiGraphNodes {
         ).trim();
     }
 
+    private String formatProductMinimumStockResponse(List<?> results) {
+        Map<?, ?> product = singleProductResult(results);
+        if (product == null) {
+            return productResultFailure(results);
+        }
+        return "The minimum stock level for " + value(product, "name")
+                + " is " + value(product, "minimum_stock") + " "
+                + value(product, "unit") + ".";
+    }
+
+    private String formatProductAvailableQuantityResponse(List<?> results) {
+        Map<?, ?> product = singleProductResult(results);
+        if (product == null) {
+            return productResultFailure(results);
+        }
+        return "The available quantity for " + value(product, "name")
+                + " is " + value(product, "qty") + " "
+                + value(product, "unit") + ".";
+    }
+
+    private String formatProductPartNumberResponse(List<?> results) {
+        Map<?, ?> product = singleProductResult(results);
+        if (product == null) {
+            return productResultFailure(results);
+        }
+        return "The part number for " + value(product, "name")
+                + " is " + value(product, "part_no") + ".";
+    }
+
+    private String formatProductLowStockStatusResponse(List<?> results) {
+        Map<?, ?> product = singleProductResult(results);
+        if (product == null) {
+            return productResultFailure(results);
+        }
+        try {
+            BigDecimal available = new BigDecimal(String.valueOf(product.get("qty")));
+            BigDecimal minimum = new BigDecimal(String.valueOf(product.get("minimum_stock")));
+            String productName = value(product, "name");
+            if (available.compareTo(minimum) <= 0) {
+                return productName + " is at or below its minimum stock level. Available: "
+                        + available.toPlainString() + " " + value(product, "unit")
+                        + "; minimum: " + minimum.toPlainString() + " " + value(product, "unit") + ".";
+            }
+            return productName + " is not below its minimum stock level. Available: "
+                    + available.toPlainString() + " " + value(product, "unit")
+                    + "; minimum: " + minimum.toPlainString() + " " + value(product, "unit") + ".";
+        } catch (RuntimeException exception) {
+            return "I couldn't determine the low-stock status because the quantity data is unavailable.";
+        }
+    }
+
+    private Map<?, ?> singleProductResult(List<?> results) {
+        if (results == null || results.size() != 1 || !(results.get(0) instanceof Map<?, ?> product)) {
+            return null;
+        }
+        return product;
+    }
+
+    private String productResultFailure(List<?> results) {
+        if (results != null && results.size() > 1) {
+            return "Multiple products matched. Please provide an exact product code or part number.";
+        }
+        return "No matching product was found.";
+    }
+
     private String formatMovementHistoryResponse(List<?> results) {
         StringBuilder response = new StringBuilder("Inventory movement history:");
         int recordNumber = 0;
@@ -1821,6 +1896,10 @@ public class ErpAiGraphNodes {
                  "PRODUCT_COMPARISON",
                  "PRODUCT_DETAILS",
                  "PRODUCT_STOCK",
+                 "PRODUCT_MINIMUM_STOCK",
+                 "PRODUCT_AVAILABLE_QUANTITY",
+                 "PRODUCT_PART_NUMBER",
+                 "PRODUCT_LOW_STOCK_STATUS",
                  "COUNT_PRODUCTS",
                  "LOW_STOCK_PRODUCTS",
                  "PRODUCT_MOVEMENT_HISTORY",
@@ -1913,8 +1992,9 @@ public class ErpAiGraphNodes {
             case "PURCHASE_SEARCH", "PURCHASE_DETAILS", "PURCHASE_SUMMARY" -> "purchase orders";
             case "CUSTOMER_SEARCH", "CUSTOMER_DETAILS", "CUSTOMER_OUTSTANDING" -> "customer information or balance";
             case "SUPPLIER_SEARCH", "SUPPLIER_DETAILS", "SUPPLIER_SUMMARY" -> "supplier information or spend";
-            case "PRODUCT_STOCK" -> "product stock levels";
-            case "PRODUCT_SEARCH", "PRODUCT_DETAILS" -> "product catalog details";
+            case "PRODUCT_STOCK", "PRODUCT_MINIMUM_STOCK", "PRODUCT_AVAILABLE_QUANTITY",
+                 "PRODUCT_LOW_STOCK_STATUS" -> "product stock levels";
+            case "PRODUCT_SEARCH", "PRODUCT_DETAILS", "PRODUCT_PART_NUMBER" -> "product catalog details";
             case "LOW_STOCK_PRODUCTS" -> "low-stock items";
             case "RETURN_SUMMARY", "SALES_RETURN_SEARCH", "PURCHASE_RETURN_SEARCH" -> "returns and refunds";
             case "EXPENSE_SUMMARY", "EXPENSES_BY_CATEGORY" -> "operating expenses";

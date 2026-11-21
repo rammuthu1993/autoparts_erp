@@ -13,9 +13,6 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
-import javax.sql.DataSource;
-
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 
 import com.autoparts.erp.ai.security.ErpAiContextHolder;
@@ -76,77 +73,35 @@ public class ProductLookupTool {
             log.warn("AI tool searchProducts called with empty search text");
             return List.of();
         }
-        
         String normalizedSearch = searchText.trim();
         String searchPattern = "%" + normalizedSearch + "%";
-
-        Map<String, Object> databaseInfo = jdbcTemplate.queryForMap("""
-            SELECT
-                current_database() AS database_name,
-                current_schema() AS schema_name
-            """);
-
-        Long activeProductCount = jdbcTemplate.queryForObject("""
-            SELECT COUNT(*)
-            FROM products
-            WHERE active = TRUE
-            """, Long.class);
-
-        Long matchingProductCount = jdbcTemplate.queryForObject("""
-            SELECT COUNT(*)
-            FROM products
-            WHERE active = TRUE
-              AND (
-                  LOWER(product_code) LIKE LOWER(?)
-                  OR LOWER(part_no) LIKE LOWER(?)
-                  OR LOWER(name) LIKE LOWER(?)
-              )
-            """,
-            Long.class,
-            searchPattern,
-            searchPattern,
-            searchPattern
-        );
-
-        log.info(
-            "AI product search diagnostics: searchText='{}', database={}, schema={}, activeProducts={}, matchingProducts={}",
-            normalizedSearch,
-            databaseInfo.get("database_name"),
-            databaseInfo.get("schema_name"),
-            activeProductCount,
-            matchingProductCount
-        );
 
         long startTime = System.nanoTime();
 
         log.info("AI tool execution started: searchProducts");
 
         try {
+            String sql = """
+                    SELECT uuid, product_code, part_no, name, qty, unit
+                    FROM products
+                    WHERE active = TRUE
+                      AND (
+                          LOWER(product_code) LIKE LOWER(?)
+                          OR LOWER(part_no) LIKE LOWER(?)
+                          OR LOWER(name) LIKE LOWER(?)
+                          OR LOWER(description) LIKE LOWER(?)
+                      )
+                    ORDER BY product_code
+                    LIMIT 20
+                    """;
 
-        	String sql = """
-        		    SELECT uuid, product_code, part_no, name, qty, unit
-        		    FROM products
-        		    WHERE active = TRUE
-        		      AND (
-        		          LOWER(product_code) LIKE LOWER(?)
-        		          OR LOWER(part_no) LIKE LOWER(?)
-        		          OR LOWER(name) LIKE LOWER(?)
-        		          OR LOWER(description) LIKE LOWER(?)
-        		      )
-        		    ORDER BY product_code
-        		    LIMIT 20
-        		    """;
-
-//        		String searchPattern = "%" + searchText.trim() + "%";
-
-        		List<Map<String, Object>> products =
-        		        jdbcTemplate.queryForList(
-        		                sql,
-        		                searchPattern,
-        		                searchPattern,
-        		                searchPattern,
-        		                searchPattern
-        		        );
+            List<Map<String, Object>> products = jdbcTemplate.queryForList(
+                    sql,
+                    searchPattern,
+                    searchPattern,
+                    searchPattern,
+                    searchPattern
+            );
 
             long duration = getDurationMs(startTime);
 

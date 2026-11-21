@@ -94,7 +94,7 @@ public class AiToolExecutionService {
         } finally {
             if (auditService != null) {
                 long durationMs = (System.nanoTime() - startNanos) / 1_000_000L;
-                auditService.recordExecution(
+                auditService.record(
                         context,
                         operationName,
                         searchText,

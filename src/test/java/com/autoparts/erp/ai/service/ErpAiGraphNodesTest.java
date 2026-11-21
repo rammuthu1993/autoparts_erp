@@ -260,6 +260,10 @@ class ErpAiGraphNodesTest {
             "PRODUCT_SEARCH, TOOL",
             "PRODUCT_DETAILS, TOOL",
             "PRODUCT_STOCK, TOOL",
+            "PRODUCT_MINIMUM_STOCK, TOOL",
+            "PRODUCT_AVAILABLE_QUANTITY, TOOL",
+            "PRODUCT_PART_NUMBER, TOOL",
+            "PRODUCT_LOW_STOCK_STATUS, TOOL",
             "COUNT_PRODUCTS, TOOL",
             "LOW_STOCK_PRODUCTS, TOOL",
             "PRODUCT_MOVEMENT_HISTORY, TOOL",
@@ -580,6 +584,13 @@ class ErpAiGraphNodesTest {
         return nodes.classifyIntent(state, config);
     }
 
+    private Map<String, Object> classify(String message, List<Map<String, String>> history) {
+        var state = new ErpAiGraphState(
+                Map.of("currentMessage", message, "history", history)
+        );
+        return nodes.classifyIntent(state, config);
+    }
+
     @Test
     void shouldClassifyMovementSummaryAndRouteToTool() {
         var result = classify("Show movement summary for GAP-000002");
@@ -823,15 +834,162 @@ class ErpAiGraphNodesTest {
                 "Tool authorization rejection must set ACCESS_DENIED in toolError");
     }
 
-    private Map<String, Object> classify(
-            String message,
-            List<Map<String, String>> history
-    ) {
-        var state = new ErpAiGraphState(Map.of(
-                "currentMessage", message,
-                "history", history
+
+    @Test
+    void shouldResolveMinimumStockFollowUpToPreviousProduct() {
+        List<Map<String, String>> history = List.of(
+                Map.of("role", "USER", "content", "Find products matching brake pad"),
+                Map.of("role", "ASSISTANT", "content",
+                        "Matching products:\nProduct: Brake Pad (Front)\nProduct code: GAP-000001"),
+                Map.of("role", "USER", "content", "what is minimum stock")
+        );
+
+        Map<String, Object> result = classify("what is minimum stock", history);
+
+        assertEquals("PRODUCT_MINIMUM_STOCK", result.get("intent"));
+        assertEquals("GAP-000001", result.get("searchText"));
+    }
+
+    @Test
+    void shouldResolveAvailableQuantityFollowUpToPreviousProduct() {
+        List<Map<String, String>> history = List.of(
+                Map.of("role", "USER", "content", "Find products matching brake pad"),
+                Map.of("role", "ASSISTANT", "content",
+                        "Matching products:\nProduct code: GAP-000001\nAvailable quantity: 51 PCS"),
+                Map.of("role", "USER", "content", "what is available quantity")
+        );
+
+        Map<String, Object> result = classify("what is available quantity", history);
+
+        assertEquals("PRODUCT_AVAILABLE_QUANTITY", result.get("intent"));
+        assertEquals("GAP-000001", result.get("searchText"));
+    }
+
+    @Test
+    void shouldAskWhichProductWhenPreviousAssistantReturnedMultipleProducts() {
+        List<Map<String, String>> history = List.of(
+                Map.of("role", "USER", "content", "Find products matching brake pad"),
+                Map.of("role", "ASSISTANT", "content",
+                        "Matching products:\n1. Brake Pad Front\nProduct code: GAP-000001\n"
+                                + "2. Brake Pad Rear\nProduct code: GAP-000002"),
+                Map.of("role", "USER", "content", "what is minimum stock")
+        );
+
+        Map<String, Object> result = classify("what is minimum stock", history);
+
+        assertEquals("CLARIFICATION", result.get("intent"));
+        assertTrue(String.valueOf(result.get("clarificationMessage"))
+                .contains("more than one product"));
+    }
+
+    @Test
+    void shouldFormatMinimumStockFollowUpWithoutRepeatingFullStockResponse() {
+        List<Map<String, Object>> stock = List.of(Map.of(
+                "name", "Brake Pad (Front)",
+                "product_code", "GAP-000001",
+                "part_no", "BP-FRONT-001",
+                "qty", "51.000",
+                "minimum_stock", "3.000",
+                "unit", "PCS"
         ));
-        return nodes.classifyIntent(state, config);
+        var state = new ErpAiGraphState(Map.of(
+                "intent", "PRODUCT_MINIMUM_STOCK",
+                "toolResult", stock
+        ));
+
+        Map<String, Object> response = nodes.generateResponse(state, config);
+
+        assertEquals(
+                "The minimum stock level for Brake Pad (Front) is 3.000 PCS.",
+                response.get("finalResponse")
+        );
+    }
+
+    @Test
+    void shouldFormatAvailableQuantityFollowUpAsFocusedAnswer() {
+        List<Map<String, Object>> stock = List.of(Map.of(
+                "name", "Brake Pad (Front)",
+                "product_code", "GAP-000001",
+                "part_no", "BP-FRONT-001",
+                "qty", "51.000",
+                "minimum_stock", "3.000",
+                "unit", "PCS"
+        ));
+        var state = new ErpAiGraphState(Map.of(
+                "intent", "PRODUCT_AVAILABLE_QUANTITY",
+                "toolResult", stock
+        ));
+
+        Map<String, Object> response = nodes.generateResponse(state, config);
+
+        assertEquals(
+                "The available quantity for Brake Pad (Front) is 51.000 PCS.",
+                response.get("finalResponse")
+        );
+    }
+
+
+    @Test
+    void shouldFormatPartNumberFollowUpAsFocusedAnswer() {
+        List<Map<String, Object>> stock = List.of(Map.of(
+                "name", "Brake Pad (Front)",
+                "product_code", "GAP-000001",
+                "part_no", "BP-FRONT-001",
+                "qty", "51.000",
+                "minimum_stock", "3.000",
+                "unit", "PCS"
+        ));
+        var state = new ErpAiGraphState(Map.of(
+                "intent", "PRODUCT_PART_NUMBER",
+                "toolResult", stock
+        ));
+
+        Map<String, Object> response = nodes.generateResponse(state, config);
+
+        assertEquals(
+                "The part number for Brake Pad (Front) is BP-FRONT-001.",
+                response.get("finalResponse")
+        );
+    }
+
+    @Test
+    void shouldCalculateProductSpecificLowStockStatusUsingExistingThreshold() {
+        List<Map<String, Object>> stock = List.of(Map.of(
+                "name", "Brake Pad (Front)",
+                "product_code", "GAP-000001",
+                "part_no", "BP-FRONT-001",
+                "qty", "3.000",
+                "minimum_stock", "3.000",
+                "unit", "PCS"
+        ));
+        var state = new ErpAiGraphState(Map.of(
+                "intent", "PRODUCT_LOW_STOCK_STATUS",
+                "toolResult", stock
+        ));
+
+        Map<String, Object> response = nodes.generateResponse(state, config);
+
+        assertEquals(
+                "Brake Pad (Front) is at or below its minimum stock level. Available: 3.000 PCS; minimum: 3.000 PCS.",
+                response.get("finalResponse")
+        );
+    }
+
+
+    @Test
+    void shouldNotReuseProductContextAfterAnUnrelatedConversationTopic() {
+        List<Map<String, String>> history = List.of(
+                Map.of("role", "USER", "content", "Stock for GAP-000001"),
+                Map.of("role", "ASSISTANT", "content",
+                        "Current stock information:\nProduct code: GAP-000001\nMinimum stock level: 3 PCS"),
+                Map.of("role", "USER", "content", "What is GST?"),
+                Map.of("role", "ASSISTANT", "content", "GST is Goods and Services Tax."),
+                Map.of("role", "USER", "content", "what is minimum stock")
+        );
+
+        Map<String, Object> result = classify("what is minimum stock", history);
+
+        assertEquals("CLARIFICATION", result.get("intent"));
     }
 
 }

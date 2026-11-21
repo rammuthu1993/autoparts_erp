@@ -79,6 +79,23 @@ public class ErpAiIntentClassifier {
     private static final Pattern PRODUCT_STOCK_REQUEST =
             Pattern.compile("\\b(?:stock|inventory|quantity|availability)\\b", Pattern.CASE_INSENSITIVE);
 
+    private static final Pattern PRODUCT_MINIMUM_STOCK_REQUEST =
+            Pattern.compile("\\b(?:minimum|min\\.?)\\s+stock(?:\\s+(?:level|quantity))?\\b|\\bstock\\s+minimum\\b",
+                    Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern PRODUCT_AVAILABLE_QUANTITY_REQUEST =
+            Pattern.compile("\\b(?:available|current|remaining)\\s+(?:stock\\s+)?quantity\\b"
+                    + "|\\bquantity\\s+(?:is\\s+)?available\\b"
+                    + "|\\bhow\\s+many\\s+(?:units|pieces|items)\\s+(?:are\\s+)?available\\b",
+                    Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern PRODUCT_PART_NUMBER_REQUEST =
+            Pattern.compile("\\bpart\\s+(?:number|no\\.?)\\b", Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern PRODUCT_LOW_STOCK_STATUS_REQUEST =
+            Pattern.compile("\\b(?:is|are|does|do)\\b.*\\b(?:low\\s+in\\s+stock|low\\s+stock|below\\s+minimum|need(?:s)?\\s+restocking)\\b",
+                    Pattern.CASE_INSENSITIVE);
+
     private static final Pattern PRODUCT_DETAILS_REQUEST =
             Pattern.compile("\\b(?:details?|information|price|description|specifications?|part\\s+number)\\b",
                     Pattern.CASE_INSENSITIVE);
@@ -250,6 +267,7 @@ public class ErpAiIntentClassifier {
                     Pattern.CASE_INSENSITIVE),
             Pattern.compile("^(?:the\\s+)?(?:products?|items?|purchases?|sales?|invoices?|customers?|suppliers?)(?:\\s+(?:named|called|by\\s+name))?\\b\\s*",
                     Pattern.CASE_INSENSITIVE),
+            Pattern.compile("^(?:matching|containing)\\s+", Pattern.CASE_INSENSITIVE),
             Pattern.compile("^(?:for|about|of|a|an|the)\\b\\s*", Pattern.CASE_INSENSITIVE));
 
     public ErpAiIntentResult classify(String message) {
@@ -660,8 +678,32 @@ public class ErpAiIntentClassifier {
         String searchText = extractSearchText(message);
         boolean hasSearchText = StringUtils.hasText(searchText);
 
-        if (LOW_STOCK_REQUEST.matcher(normalized).find()) {
+        // Global low-stock lists must not be mistaken for a request for one product's minimum.
+        if (LOW_STOCK_REQUEST.matcher(normalized).find()
+                && !PRODUCT_LOW_STOCK_STATUS_REQUEST.matcher(normalized).find()) {
             return new ErpAiIntentResult("LOW_STOCK_PRODUCTS", "");
+        }
+
+        // Field-specific product questions must be classified before the generic stock intent.
+        if (PRODUCT_LOW_STOCK_STATUS_REQUEST.matcher(normalized).find()) {
+            return identifier.isEmpty()
+                    ? ErpAiIntentResult.clarification("Please identify the product to check whether it is below minimum stock.")
+                    : new ErpAiIntentResult("PRODUCT_LOW_STOCK_STATUS", identifier);
+        }
+        if (PRODUCT_MINIMUM_STOCK_REQUEST.matcher(normalized).find()) {
+            return identifier.isEmpty()
+                    ? ErpAiIntentResult.clarification("Please provide the product code or part number to retrieve minimum stock.")
+                    : new ErpAiIntentResult("PRODUCT_MINIMUM_STOCK", identifier);
+        }
+        if (PRODUCT_AVAILABLE_QUANTITY_REQUEST.matcher(normalized).find()) {
+            return identifier.isEmpty()
+                    ? ErpAiIntentResult.clarification("Please provide the product code or part number to retrieve available quantity.")
+                    : new ErpAiIntentResult("PRODUCT_AVAILABLE_QUANTITY", identifier);
+        }
+        if (PRODUCT_PART_NUMBER_REQUEST.matcher(normalized).find()) {
+            return identifier.isEmpty()
+                    ? ErpAiIntentResult.clarification("Please provide the product code or part number to retrieve the part number.")
+                    : new ErpAiIntentResult("PRODUCT_PART_NUMBER", identifier);
         }
         if (isProductCountRequest(normalized)) {
             return new ErpAiIntentResult("COUNT_PRODUCTS", "");

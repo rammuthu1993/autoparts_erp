@@ -2440,3 +2440,735 @@ java.lang.IllegalStateException: database password=secret-value
 2026-11-21T10:50:21.272+05:30  INFO 3108 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-2] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI tool execution completed. Intent: PRODUCT_STOCK
 2026-11-21T10:50:21.280+05:30  INFO 3108 --- [autoparts-erp] [http-nio-8080-exec-1] c.a.erp.ai.service.ErpAiAgentService     : AI graph execution completed. Run: 3dd7b872-9c58-4e0e-bc0a-5e0efa08b798
 2026-11-21T10:50:21.280+05:30  INFO 3108 --- [autoparts-erp] [http-nio-8080-exec-1] c.a.erp.ai.service.ErpAiAgentService     : Custom ERP graph execution removed. Conversation: af603d52-8e84-41cd-ac36-32ef0e14a125, Run: 3dd7b872-9c58-4e0e-bc0a-5e0efa08b798
+2026-11-21T12:23:29.510+05:30  INFO 13180 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Starting AutopartsErpApplication using Java 25.0.3 with PID 13180 (D:\Projects\autoparts-erp\target\classes started by Muthukumar Ramasamy in D:\Projects\autoparts-erp)
+2026-11-21T12:23:29.513+05:30  INFO 13180 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : No active profile set, falling back to 1 default profile: "dev"
+2026-11-21T12:23:31.332+05:30  INFO 13180 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-11-21T12:23:31.352+05:30  INFO 13180 --- [autoparts-erp] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-11-21T12:23:31.352+05:30  INFO 13180 --- [autoparts-erp] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
+2026-11-21T12:23:31.430+05:30  INFO 13180 --- [autoparts-erp] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1878 ms
+2026-11-21T12:23:32.077+05:30  INFO 13180 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-11-21T12:23:32.196+05:30  INFO 13180 --- [autoparts-erp] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@2904bc56
+2026-11-21T12:23:32.198+05:30  INFO 13180 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-11-21T12:23:32.216+05:30  INFO 13180 --- [autoparts-erp] [main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/autoparts_erp (PostgreSQL 18.4)
+2026-11-21T12:23:32.292+05:30  INFO 13180 --- [autoparts-erp] [main] o.f.core.internal.command.DbValidate     : Successfully validated 33 migrations (execution time 00:00.037s)
+2026-11-21T12:23:32.344+05:30  INFO 13180 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 34
+2026-11-21T12:23:32.347+05:30  INFO 13180 --- [autoparts-erp] [main] o.f.core.internal.command.DbMigrate      : Schema "public" is up to date. No migration necessary.
+2026-11-21T12:23:32.501+05:30  INFO 13180 --- [autoparts-erp] [main] c.a.erp.ai.service.ErpAiGraphNodes       : AI generation effective settings: model=sarvam-105b, normalMaxOutputTokens=1024, groundedMaxOutputTokens=1024, evaluationMaxOutputTokens=1024, recoveryMaxOutputTokens=1536, recoveryMaxAttempts=2, reasoningEffort=low
+2026-11-21T12:23:32.501+05:30  INFO 13180 --- [autoparts-erp] [main] c.a.erp.ai.service.ErpAiGraphNodes       : SARVAM request-option mapping: maxTokens(normal)=1024, maxTokens(recovery)=1536 — spring.ai property baseline=see spring.ai.openai.chat.max-tokens in application.properties
+2026-11-21T12:23:33.336+05:30  INFO 13180 --- [autoparts-erp] [main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+2026-11-21T12:23:33.336+05:30  WARN 13180 --- [autoparts-erp] [main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
+2026-11-21T12:23:33.984+05:30  INFO 13180 --- [autoparts-erp] [main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 3 endpoints beneath base path '/actuator'
+2026-11-21T12:23:34.051+05:30  INFO 13180 --- [autoparts-erp] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-11-21T12:23:34.057+05:30  INFO 13180 --- [autoparts-erp] [main] c.autoparts.erp.AutopartsErpApplication  : Started AutopartsErpApplication in 4.99 seconds (process running for 5.422)
+2026-11-21T12:23:34.786+05:30  INFO 13180 --- [autoparts-erp] [RMI TCP Connection(5)-10.100.202.202] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-11-21T12:23:34.787+05:30  INFO 13180 --- [autoparts-erp] [RMI TCP Connection(5)-10.100.202.202] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-11-21T12:23:34.788+05:30  INFO 13180 --- [autoparts-erp] [RMI TCP Connection(5)-10.100.202.202] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+2026-11-21T12:23:39.856+05:30  INFO 22484 --- [autoparts-erp] [main] .a.t.PostgresQueryTimeoutIntegrationTest : Starting PostgresQueryTimeoutIntegrationTest using Java 25.0.3 with PID 22484 (started by Muthukumar Ramasamy in D:\Projects\autoparts-erp)
+2026-11-21T12:23:39.856+05:30  INFO 22484 --- [autoparts-erp] [main] .a.t.PostgresQueryTimeoutIntegrationTest : No active profile set, falling back to 1 default profile: "dev"
+2026-11-21T12:23:40.599+05:30  INFO 22484 --- [autoparts-erp] [main] .a.t.PostgresQueryTimeoutIntegrationTest : Started PostgresQueryTimeoutIntegrationTest in 1.031 seconds (process running for 12.771)
+2026-11-21T12:23:40.620+05:30  INFO 22484 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-11-21T12:23:40.657+05:30  INFO 22484 --- [autoparts-erp] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@7fb689fe
+2026-11-21T12:23:40.659+05:30  INFO 22484 --- [autoparts-erp] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-11-21T12:23:41.745+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution started: getProductDetails
+2026-11-21T12:23:41.746+05:30 ERROR 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution failed: getProductDetails, durationMs=1
+
+org.springframework.dao.DataAccessResourceFailureException: Database unavailable
+	at com.autoparts.erp.ai.tools.ProductLookupTool.getProductDetails(ProductLookupTool.java:289) ~[classes/:na]
+	at com.autoparts.erp.ai.tools.ProductLookupTool.getProductDetails(ProductLookupTool.java:248) ~[classes/:na]
+	at com.autoparts.erp.ai.tools.ProductLookupToolTest.lambda$shouldExposeProductDetailsDatabaseFailure$0(ProductLookupToolTest.java:363) ~[test-classes/:na]
+	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:54) ~[junit-jupiter-api-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:35) ~[junit-jupiter-api-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.api.Assertions.assertThrows(Assertions.java:3223) ~[junit-jupiter-api-6.0.3.jar:6.0.3]
+	at com.autoparts.erp.ai.tools.ProductLookupToolTest.shouldExposeProductDetailsDatabaseFailure(ProductLookupToolTest.java:361) ~[test-classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:701) ~[junit-platform-commons-6.0.3.jar:6.0.3]
+	at org.junit.platform.commons.support.ReflectionSupport.invokeMethod(ReflectionSupport.java:502) ~[junit-platform-commons-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.support.MethodReflectionUtils.invoke(MethodReflectionUtils.java:45) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:61) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:124) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:163) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:148) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestMethod(TimeoutExtension.java:86) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:123) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:105) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:99) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:66) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:47) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:39) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:104) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:98) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invokeVoid(InterceptingExecutableInvoker.java:71) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$0(TestMethodTestDescriptor.java:219) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:215) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:157) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:70) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:176) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604) ~[na:na]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604) ~[na:na]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:36) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:52) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:58) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.executeEngine(EngineExecutionOrchestrator.java:246) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.failOrExecuteEngine(EngineExecutionOrchestrator.java:218) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:179) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:108) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:66) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:157) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:65) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:125) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:114) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:58) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.lambda$execute$2(InterceptingLauncher.java:57) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.ClasspathAlignmentCheckingLauncherInterceptor.intercept(ClasspathAlignmentCheckingLauncherInterceptor.java:25) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:56) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:58) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.apache.maven.surefire.api.util.ReflectionUtils.invokeMethodWithArray(ReflectionUtils.java:125) ~[surefire-api-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithCancellationToken(LauncherAdapter.java:68) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:54) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:203) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:168) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:136) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385) ~[surefire-booter-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162) ~[surefire-booter-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507) ~[surefire-booter-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495) ~[surefire-booter-3.5.6.jar:3.5.6]
+
+2026-11-21T12:23:41.750+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution started: getLowStockProducts
+2026-11-21T12:23:41.752+05:30 ERROR 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution failed: getLowStockProducts, durationMs=0
+
+org.springframework.dao.DataAccessResourceFailureException: Database unavailable
+	at com.autoparts.erp.ai.tools.ProductLookupTool.getLowStockProducts(ProductLookupTool.java:357) ~[classes/:na]
+	at com.autoparts.erp.ai.tools.ProductLookupTool.getLowStockProducts(ProductLookupTool.java:328) ~[classes/:na]
+	at com.autoparts.erp.ai.tools.ProductLookupToolTest.lambda$shouldExposeLowStockDatabaseFailure$0(ProductLookupToolTest.java:383) ~[test-classes/:na]
+	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:54) ~[junit-jupiter-api-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:35) ~[junit-jupiter-api-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.api.Assertions.assertThrows(Assertions.java:3223) ~[junit-jupiter-api-6.0.3.jar:6.0.3]
+	at com.autoparts.erp.ai.tools.ProductLookupToolTest.shouldExposeLowStockDatabaseFailure(ProductLookupToolTest.java:381) ~[test-classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:701) ~[junit-platform-commons-6.0.3.jar:6.0.3]
+	at org.junit.platform.commons.support.ReflectionSupport.invokeMethod(ReflectionSupport.java:502) ~[junit-platform-commons-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.support.MethodReflectionUtils.invoke(MethodReflectionUtils.java:45) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:61) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:124) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:163) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:148) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestMethod(TimeoutExtension.java:86) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:123) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:105) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:99) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:66) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:47) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:39) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:104) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:98) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invokeVoid(InterceptingExecutableInvoker.java:71) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$0(TestMethodTestDescriptor.java:219) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:215) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:157) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:70) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:176) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604) ~[na:na]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604) ~[na:na]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:36) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:52) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:58) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.executeEngine(EngineExecutionOrchestrator.java:246) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.failOrExecuteEngine(EngineExecutionOrchestrator.java:218) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:179) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:108) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:66) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:157) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:65) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:125) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:114) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:58) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.lambda$execute$2(InterceptingLauncher.java:57) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.ClasspathAlignmentCheckingLauncherInterceptor.intercept(ClasspathAlignmentCheckingLauncherInterceptor.java:25) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:56) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:58) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.apache.maven.surefire.api.util.ReflectionUtils.invokeMethodWithArray(ReflectionUtils.java:125) ~[surefire-api-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithCancellationToken(LauncherAdapter.java:68) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:54) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:203) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:168) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:136) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385) ~[surefire-booter-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162) ~[surefire-booter-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507) ~[surefire-booter-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495) ~[surefire-booter-3.5.6.jar:3.5.6]
+
+2026-11-21T12:23:41.753+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution started: searchProducts
+2026-11-21T12:23:41.753+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution completed: searchProducts, resultCount=1, durationMs=0
+2026-11-21T12:23:41.761+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution started: getLowStockProducts
+2026-11-21T12:23:41.761+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution completed: getLowStockProducts, resultCount=1, durationMs=0
+2026-11-21T12:23:41.764+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution started: countProducts
+2026-11-21T12:23:41.764+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution completed: countProducts, result=25, durationMs=0
+2026-11-21T12:23:41.766+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution started: searchProducts
+2026-11-21T12:23:41.767+05:30 ERROR 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution failed: searchProducts, durationMs=0
+
+org.springframework.dao.DataAccessResourceFailureException: Database unavailable
+	at com.autoparts.erp.ai.tools.ProductLookupTool.searchProducts(ProductLookupTool.java:98) ~[classes/:na]
+	at com.autoparts.erp.ai.tools.ProductLookupTool.searchProducts(ProductLookupTool.java:65) ~[classes/:na]
+	at com.autoparts.erp.ai.tools.ProductLookupToolTest.lambda$shouldExposeSearchDatabaseFailureAsIllegalStateException$0(ProductLookupToolTest.java:314) ~[test-classes/:na]
+	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:54) ~[junit-jupiter-api-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:35) ~[junit-jupiter-api-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.api.Assertions.assertThrows(Assertions.java:3223) ~[junit-jupiter-api-6.0.3.jar:6.0.3]
+	at com.autoparts.erp.ai.tools.ProductLookupToolTest.shouldExposeSearchDatabaseFailureAsIllegalStateException(ProductLookupToolTest.java:312) ~[test-classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:701) ~[junit-platform-commons-6.0.3.jar:6.0.3]
+	at org.junit.platform.commons.support.ReflectionSupport.invokeMethod(ReflectionSupport.java:502) ~[junit-platform-commons-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.support.MethodReflectionUtils.invoke(MethodReflectionUtils.java:45) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:61) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:124) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:163) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:148) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestMethod(TimeoutExtension.java:86) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:123) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:105) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:99) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:66) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:47) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:39) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:104) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:98) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invokeVoid(InterceptingExecutableInvoker.java:71) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$0(TestMethodTestDescriptor.java:219) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:215) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:157) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:70) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:176) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604) ~[na:na]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604) ~[na:na]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:36) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:52) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:58) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.executeEngine(EngineExecutionOrchestrator.java:246) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.failOrExecuteEngine(EngineExecutionOrchestrator.java:218) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:179) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:108) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:66) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:157) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:65) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:125) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:114) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:58) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.lambda$execute$2(InterceptingLauncher.java:57) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.ClasspathAlignmentCheckingLauncherInterceptor.intercept(ClasspathAlignmentCheckingLauncherInterceptor.java:25) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:56) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:58) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.apache.maven.surefire.api.util.ReflectionUtils.invokeMethodWithArray(ReflectionUtils.java:125) ~[surefire-api-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithCancellationToken(LauncherAdapter.java:68) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:54) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:203) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:168) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:136) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385) ~[surefire-booter-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162) ~[surefire-booter-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507) ~[surefire-booter-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495) ~[surefire-booter-3.5.6.jar:3.5.6]
+
+2026-11-21T12:23:41.767+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution started: countProducts
+2026-11-21T12:23:41.767+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution completed: countProducts, result=0, durationMs=0
+2026-11-21T12:23:41.854+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution started: searchProducts
+2026-11-21T12:23:41.854+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution completed: searchProducts, resultCount=1, durationMs=0
+2026-11-21T12:23:41.859+05:30  WARN 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool searchProducts called with empty search text
+2026-11-21T12:23:41.861+05:30  WARN 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution cancelled
+2026-11-21T12:23:41.861+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution started: getProductDetails
+2026-11-21T12:23:41.861+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution completed: getProductDetails, resultCount=1, durationMs=0
+2026-11-21T12:23:41.861+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution started: getProductStock
+2026-11-21T12:23:41.861+05:30 ERROR 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution failed: getProductStock, durationMs=0
+
+org.springframework.dao.DataAccessResourceFailureException: Database unavailable
+	at com.autoparts.erp.ai.tools.ProductLookupTool.getProductStock(ProductLookupTool.java:431) ~[classes/:na]
+	at com.autoparts.erp.ai.tools.ProductLookupTool.getProductStock(ProductLookupTool.java:396) ~[classes/:na]
+	at com.autoparts.erp.ai.tools.ProductLookupToolTest.lambda$shouldExposeProductStockDatabaseFailure$0(ProductLookupToolTest.java:405) ~[test-classes/:na]
+	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:54) ~[junit-jupiter-api-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:35) ~[junit-jupiter-api-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.api.Assertions.assertThrows(Assertions.java:3223) ~[junit-jupiter-api-6.0.3.jar:6.0.3]
+	at com.autoparts.erp.ai.tools.ProductLookupToolTest.shouldExposeProductStockDatabaseFailure(ProductLookupToolTest.java:403) ~[test-classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:701) ~[junit-platform-commons-6.0.3.jar:6.0.3]
+	at org.junit.platform.commons.support.ReflectionSupport.invokeMethod(ReflectionSupport.java:502) ~[junit-platform-commons-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.support.MethodReflectionUtils.invoke(MethodReflectionUtils.java:45) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:61) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:124) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:163) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:148) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestMethod(TimeoutExtension.java:86) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:123) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:105) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:99) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:66) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:47) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:39) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:104) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:98) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invokeVoid(InterceptingExecutableInvoker.java:71) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$0(TestMethodTestDescriptor.java:219) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:215) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:157) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:70) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:176) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604) ~[na:na]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604) ~[na:na]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:36) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:52) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:58) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.executeEngine(EngineExecutionOrchestrator.java:246) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.failOrExecuteEngine(EngineExecutionOrchestrator.java:218) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:179) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:108) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:66) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:157) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:65) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:125) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:114) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:58) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.lambda$execute$2(InterceptingLauncher.java:57) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.ClasspathAlignmentCheckingLauncherInterceptor.intercept(ClasspathAlignmentCheckingLauncherInterceptor.java:25) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:56) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:58) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.apache.maven.surefire.api.util.ReflectionUtils.invokeMethodWithArray(ReflectionUtils.java:125) ~[surefire-api-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithCancellationToken(LauncherAdapter.java:68) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:54) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:203) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:168) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:136) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385) ~[surefire-booter-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162) ~[surefire-booter-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507) ~[surefire-booter-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495) ~[surefire-booter-3.5.6.jar:3.5.6]
+
+2026-11-21T12:23:41.861+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution started: countProducts
+2026-11-21T12:23:41.861+05:30 ERROR 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution failed: countProducts, durationMs=0
+
+org.springframework.dao.DataAccessResourceFailureException: Database unavailable
+	at com.autoparts.erp.ai.tools.ProductLookupTool.countProducts(ProductLookupTool.java:210) ~[classes/:na]
+	at com.autoparts.erp.ai.tools.ProductLookupTool.countProducts(ProductLookupTool.java:191) ~[classes/:na]
+	at com.autoparts.erp.ai.tools.ProductLookupToolTest.lambda$shouldExposeCountDatabaseFailureAsIllegalStateException$0(ProductLookupToolTest.java:341) ~[test-classes/:na]
+	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:54) ~[junit-jupiter-api-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:35) ~[junit-jupiter-api-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.api.Assertions.assertThrows(Assertions.java:3223) ~[junit-jupiter-api-6.0.3.jar:6.0.3]
+	at com.autoparts.erp.ai.tools.ProductLookupToolTest.shouldExposeCountDatabaseFailureAsIllegalStateException(ProductLookupToolTest.java:339) ~[test-classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:701) ~[junit-platform-commons-6.0.3.jar:6.0.3]
+	at org.junit.platform.commons.support.ReflectionSupport.invokeMethod(ReflectionSupport.java:502) ~[junit-platform-commons-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.support.MethodReflectionUtils.invoke(MethodReflectionUtils.java:45) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:61) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:124) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:163) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:148) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestMethod(TimeoutExtension.java:86) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:123) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:105) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:99) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:66) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:47) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:39) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:104) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:98) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invokeVoid(InterceptingExecutableInvoker.java:71) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$0(TestMethodTestDescriptor.java:219) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:215) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:157) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:70) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:176) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604) ~[na:na]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604) ~[na:na]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:36) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:52) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:58) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.executeEngine(EngineExecutionOrchestrator.java:246) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.failOrExecuteEngine(EngineExecutionOrchestrator.java:218) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:179) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:108) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:66) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:157) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:65) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:125) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:114) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:58) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.lambda$execute$2(InterceptingLauncher.java:57) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.ClasspathAlignmentCheckingLauncherInterceptor.intercept(ClasspathAlignmentCheckingLauncherInterceptor.java:25) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:56) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:58) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.apache.maven.surefire.api.util.ReflectionUtils.invokeMethodWithArray(ReflectionUtils.java:125) ~[surefire-api-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithCancellationToken(LauncherAdapter.java:68) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:54) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:203) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:168) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:136) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385) ~[surefire-booter-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162) ~[surefire-booter-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507) ~[surefire-booter-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495) ~[surefire-booter-3.5.6.jar:3.5.6]
+
+2026-11-21T12:23:41.861+05:30  WARN 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool getProductDetails called with empty search text
+2026-11-21T12:23:41.870+05:30  WARN 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool getProductStock called with empty search text
+2026-11-21T12:23:41.870+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution started: getProductStock
+2026-11-21T12:23:41.870+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution completed: getProductStock, resultCount=1, durationMs=0
+2026-11-21T12:23:41.875+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.PurchaseLookupTool      : AI purchase tool execution started: searchPurchases
+2026-11-21T12:23:41.875+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.PurchaseLookupTool      : AI purchase tool execution completed: searchPurchases, resultCount=1, durationMs=0
+2026-11-21T12:23:41.875+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.PurchaseLookupTool      : AI purchase tool execution started: getPurchaseDetailsHeader
+2026-11-21T12:23:41.875+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.PurchaseLookupTool      : AI purchase tool execution completed: getPurchaseDetailsHeader, resultCount=1, durationMs=0
+2026-11-21T12:23:41.875+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.PurchaseLookupTool      : AI purchase tool execution started: getPurchaseDetailsItems
+2026-11-21T12:23:41.875+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.PurchaseLookupTool      : AI purchase tool execution completed: getPurchaseDetailsItems, resultCount=1, durationMs=0
+2026-11-21T12:23:41.880+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.PurchaseLookupTool      : AI purchase tool execution started: getPurchaseSummary
+2026-11-21T12:23:41.880+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.PurchaseLookupTool      : AI purchase tool execution completed: getPurchaseSummary, resultCount=1, durationMs=0
+2026-11-21T12:23:41.880+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.PurchaseLookupTool      : AI purchase tool execution started: getPurchaseStatus
+2026-11-21T12:23:41.880+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.PurchaseLookupTool      : AI purchase tool execution completed: getPurchaseStatus, resultCount=1, durationMs=0
+2026-11-21T12:23:41.886+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReportLookupTool        : AI report tool execution started: getKpiSales
+2026-11-21T12:23:41.886+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReportLookupTool        : AI report tool execution completed: getKpiSales, resultCount=1, durationMs=0
+2026-11-21T12:23:41.886+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReportLookupTool        : AI report tool execution started: getKpiPurchases
+2026-11-21T12:23:41.886+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReportLookupTool        : AI report tool execution completed: getKpiPurchases, resultCount=1, durationMs=0
+2026-11-21T12:23:41.886+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReportLookupTool        : AI report tool execution started: getKpiExpenses
+2026-11-21T12:23:41.886+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReportLookupTool        : AI report tool execution completed: getKpiExpenses, resultCount=1, durationMs=0
+2026-11-21T12:23:41.886+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReportLookupTool        : AI report tool execution started: getKpiReturns
+2026-11-21T12:23:41.886+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReportLookupTool        : AI report tool execution completed: getKpiReturns, resultCount=1, durationMs=0
+2026-11-21T12:23:41.892+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReportLookupTool        : AI report tool execution started: getInventoryAbcXyzAnalysis
+2026-11-21T12:23:41.892+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReportLookupTool        : AI report tool execution completed: getInventoryAbcXyzAnalysis, resultCount=1, durationMs=0
+2026-11-21T12:23:41.892+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReportLookupTool        : AI report tool execution started: getCustomerRfmAnalysis
+2026-11-21T12:23:41.892+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReportLookupTool        : AI report tool execution completed: getCustomerRfmAnalysis, resultCount=1, durationMs=0
+2026-11-21T12:23:41.892+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReportLookupTool        : AI report tool execution started: getCashVariances
+2026-11-21T12:23:41.892+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReportLookupTool        : AI report tool execution completed: getCashVariances, resultCount=1, durationMs=0
+2026-11-21T12:23:41.892+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReportLookupTool        : AI report tool execution started: getInvoiceMismatches
+2026-11-21T12:23:41.892+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReportLookupTool        : AI report tool execution completed: getInvoiceMismatches, resultCount=1, durationMs=0
+2026-11-21T12:23:41.892+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReturnLookupTool        : AI return tool execution started: searchSalesReturns
+2026-11-21T12:23:41.892+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReturnLookupTool        : AI return tool execution completed: searchSalesReturns, resultCount=1, durationMs=0
+2026-11-21T12:23:41.892+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReturnLookupTool        : AI return tool execution started: getSalesReturnSummary
+2026-11-21T12:23:41.892+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReturnLookupTool        : AI return tool execution completed: getSalesReturnSummary, resultCount=1, durationMs=0
+2026-11-21T12:23:41.892+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReturnLookupTool        : AI return tool execution started: getPurchaseReturnSummary
+2026-11-21T12:23:41.892+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReturnLookupTool        : AI return tool execution completed: getPurchaseReturnSummary, resultCount=1, durationMs=0
+2026-11-21T12:23:41.892+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReturnLookupTool        : AI return tool execution started: searchPurchaseReturns
+2026-11-21T12:23:41.892+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReturnLookupTool        : AI return tool execution completed: searchPurchaseReturns, resultCount=1, durationMs=0
+2026-11-21T12:23:41.892+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReturnLookupTool        : AI return tool execution started: getPurchaseReturnDetailsHeader
+2026-11-21T12:23:41.892+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReturnLookupTool        : AI return tool execution completed: getPurchaseReturnDetailsHeader, resultCount=1, durationMs=0
+2026-11-21T12:23:41.892+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReturnLookupTool        : AI return tool execution started: getPurchaseReturnDetailsItems
+2026-11-21T12:23:41.892+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReturnLookupTool        : AI return tool execution completed: getPurchaseReturnDetailsItems, resultCount=1, durationMs=0
+2026-11-21T12:23:41.892+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReturnLookupTool        : AI return tool execution started: getPurchaseReturnDetailsCredits
+2026-11-21T12:23:41.892+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReturnLookupTool        : AI return tool execution completed: getPurchaseReturnDetailsCredits, resultCount=1, durationMs=0
+2026-11-21T12:23:41.911+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReturnLookupTool        : AI return tool execution started: getSalesReturnDetailsHeader
+2026-11-21T12:23:41.911+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReturnLookupTool        : AI return tool execution completed: getSalesReturnDetailsHeader, resultCount=1, durationMs=0
+2026-11-21T12:23:41.911+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReturnLookupTool        : AI return tool execution started: getSalesReturnDetailsItems
+2026-11-21T12:23:41.911+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReturnLookupTool        : AI return tool execution completed: getSalesReturnDetailsItems, resultCount=1, durationMs=0
+2026-11-21T12:23:41.911+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReturnLookupTool        : AI return tool execution started: getSalesReturnDetailsRefunds
+2026-11-21T12:23:41.911+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReturnLookupTool        : AI return tool execution completed: getSalesReturnDetailsRefunds, resultCount=1, durationMs=0
+2026-11-21T12:23:41.911+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReturnLookupTool        : AI return tool execution started: searchSalesReturns
+2026-11-21T12:23:41.911+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.ReturnLookupTool        : AI return tool execution completed: searchSalesReturns, resultCount=1, durationMs=0
+2026-11-21T12:23:41.911+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SalesLookupTool         : AI sales tool execution started: getSalesSummary
+2026-11-21T12:23:41.924+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SalesLookupTool         : AI sales tool execution completed: getSalesSummary, resultCount=1, durationMs=0
+2026-11-21T12:23:41.924+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SalesLookupTool         : AI sales tool execution started: searchSales
+2026-11-21T12:23:41.924+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SalesLookupTool         : AI sales tool execution completed: searchSales, resultCount=1, durationMs=0
+2026-11-21T12:23:41.924+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SalesLookupTool         : AI sales tool execution started: getSalesByCustomer
+2026-11-21T12:23:41.924+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SalesLookupTool         : AI sales tool execution completed: getSalesByCustomer, resultCount=1, durationMs=0
+2026-11-21T12:23:41.924+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SalesLookupTool         : AI sales tool execution started: getSalesByDateRange
+2026-11-21T12:23:41.924+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SalesLookupTool         : AI sales tool execution completed: getSalesByDateRange, resultCount=1, durationMs=0
+2026-11-21T12:23:41.924+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SalesLookupTool         : AI sales tool execution started: getSaleStatus
+2026-11-21T12:23:41.924+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SalesLookupTool         : AI sales tool execution completed: getSaleStatus, resultCount=1, durationMs=0
+2026-11-21T12:23:41.924+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SalesLookupTool         : AI sales tool execution started: getSaleDetailsHeader
+2026-11-21T12:23:41.928+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SalesLookupTool         : AI sales tool execution completed: getSaleDetailsHeader, resultCount=1, durationMs=0
+2026-11-21T12:23:41.928+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SalesLookupTool         : AI sales tool execution started: getSaleDetailsItems
+2026-11-21T12:23:41.928+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SalesLookupTool         : AI sales tool execution completed: getSaleDetailsItems, resultCount=1, durationMs=0
+2026-11-21T12:23:41.928+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SalesLookupTool         : AI sales tool execution started: getSaleDetailsPayments
+2026-11-21T12:23:41.928+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SalesLookupTool         : AI sales tool execution completed: getSaleDetailsPayments, resultCount=1, durationMs=0
+2026-11-21T12:23:41.929+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SupplierLookupTool      : AI supplier tool execution started: getSupplierPurchaseSummary
+2026-11-21T12:23:41.931+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SupplierLookupTool      : AI supplier tool execution completed: getSupplierPurchaseSummary, resultCount=1, durationMs=0
+2026-11-21T12:23:41.931+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SupplierLookupTool      : AI supplier tool execution started: getSupplierPurchaseHistory
+2026-11-21T12:23:41.931+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SupplierLookupTool      : AI supplier tool execution completed: getSupplierPurchaseHistory, resultCount=1, durationMs=0
+2026-11-21T12:23:41.931+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SupplierLookupTool      : AI supplier tool execution started: getSupplierPurchaseSummary
+2026-11-21T12:23:41.931+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SupplierLookupTool      : AI supplier tool execution completed: getSupplierPurchaseSummary, resultCount=1, durationMs=0
+2026-11-21T12:23:41.931+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SupplierLookupTool      : AI supplier tool execution started: getSupplierPurchaseSummary
+2026-11-21T12:23:41.931+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SupplierLookupTool      : AI supplier tool execution completed: getSupplierPurchaseSummary, resultCount=1, durationMs=0
+2026-11-21T12:23:41.940+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SupplierLookupTool      : AI supplier tool execution started: searchSuppliers
+2026-11-21T12:23:41.940+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SupplierLookupTool      : AI supplier tool execution completed: searchSuppliers, resultCount=1, durationMs=0
+2026-11-21T12:23:41.940+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SupplierLookupTool      : AI supplier tool execution started: getSupplierDetails
+2026-11-21T12:23:41.940+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.erp.ai.tools.SupplierLookupTool      : AI supplier tool execution completed: getSupplierDetails, resultCount=1, durationMs=0
+2026-11-21T12:23:41.959+05:30 ERROR 22484 --- [autoparts-erp] [main] c.a.e.c.e.GlobalExceptionHandler         : Unhandled request failure. incidentId=d2a6f827-ddca-4afc-84d6-ffb51e371dad, path=/api/v1/ai/chat
+
+java.lang.IllegalStateException: database password=secret-value
+	at com.autoparts.erp.common.exception.GlobalExceptionHandlerTest.unexpectedExceptionDoesNotExposeInternalMessage(GlobalExceptionHandlerTest.java:102) ~[test-classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:701) ~[junit-platform-commons-6.0.3.jar:6.0.3]
+	at org.junit.platform.commons.support.ReflectionSupport.invokeMethod(ReflectionSupport.java:502) ~[junit-platform-commons-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.support.MethodReflectionUtils.invoke(MethodReflectionUtils.java:45) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:61) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:124) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:163) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:148) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestMethod(TimeoutExtension.java:86) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:123) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:105) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:99) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:66) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:47) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:39) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:104) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:98) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invokeVoid(InterceptingExecutableInvoker.java:71) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$0(TestMethodTestDescriptor.java:219) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:215) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:157) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:70) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:176) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604) ~[na:na]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604) ~[na:na]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:36) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:52) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:58) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.executeEngine(EngineExecutionOrchestrator.java:246) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.failOrExecuteEngine(EngineExecutionOrchestrator.java:218) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:179) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:108) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:66) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:157) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:65) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:125) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:114) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:58) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.lambda$execute$2(InterceptingLauncher.java:57) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.ClasspathAlignmentCheckingLauncherInterceptor.intercept(ClasspathAlignmentCheckingLauncherInterceptor.java:25) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:56) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:58) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.apache.maven.surefire.api.util.ReflectionUtils.invokeMethodWithArray(ReflectionUtils.java:125) ~[surefire-api-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithCancellationToken(LauncherAdapter.java:68) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:54) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:203) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:168) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:136) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385) ~[surefire-booter-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162) ~[surefire-booter-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507) ~[surefire-booter-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495) ~[surefire-booter-3.5.6.jar:3.5.6]
+
+2026-11-21T12:23:41.970+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.e.i.s.InventoryServiceImpl           : Stock changed. Product ID: 1, movement: OPENING_STOCK, change: 5.000, before: 0.000, after: 5.000
+2026-11-21T12:23:41.970+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.e.i.s.InventoryServiceImpl           : Stock changed. Product ID: 1, movement: PURCHASE_RECEIPT, change: 2.500, before: 10.000, after: 12.500
+2026-11-21T12:23:41.979+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.e.i.s.InventoryServiceImpl           : Stock changed. Product ID: 1, movement: SALE, change: -3.000, before: 10.000, after: 7.000
+2026-11-21T12:23:41.979+05:30  WARN 22484 --- [autoparts-erp] [main] c.a.e.i.s.InventoryServiceImpl           : Insufficient stock for product ID 1. Available: 2.000, change: -3.000
+2026-11-21T12:23:42.100+05:30  WARN 22484 --- [autoparts-erp] [main] c.a.e.auth.serviceimpl.AuthServiceImpl   : Login attempt failed.
+2026-11-21T12:23:42.102+05:30  INFO 22484 --- [autoparts-erp] [main] c.a.e.auth.serviceimpl.AuthServiceImpl   : Login succeeded.
+2026-11-21T12:23:43.680+05:30  WARN 13180 --- [autoparts-erp] [http-nio-8080-exec-5] c.a.e.s.CustomAuthenticationEntryPoint   : Request rejected because authentication is missing or invalid
+2026-11-21T12:23:46.429+05:30  INFO 13180 --- [autoparts-erp] [http-nio-8080-exec-7] c.a.e.auth.serviceimpl.AuthServiceImpl   : Login succeeded.
+2026-11-21T12:23:47.128+05:30  INFO 22484 --- [autoparts-erp] [SpringApplicationShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-11-21T12:23:47.128+05:30  INFO 22484 --- [autoparts-erp] [SpringApplicationShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-11-21T12:24:05.030+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI incoming message: conversation=4b0ed24f-c686-48b4-97f1-2c321c595b74, message='Stock for GAP-000001'
+2026-11-21T12:24:05.049+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI final classification: conversation=4b0ed24f-c686-48b4-97f1-2c321c595b74, intent=PRODUCT_STOCK, searchText='GAP-000001', source=DETERMINISTIC
+2026-11-21T12:24:05.049+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI intent classified. Intent: PRODUCT_STOCK, Source: DETERMINISTIC, Confidence: 1.0, Conversation: 4b0ed24f-c686-48b4-97f1-2c321c595b74
+2026-11-21T12:24:05.062+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI tool execution started. Tool intent: PRODUCT_STOCK
+2026-11-21T12:24:05.063+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution started: getProductStock
+2026-11-21T12:24:05.064+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution completed: getProductStock, resultCount=1, durationMs=3
+2026-11-21T12:24:05.064+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI tool execution completed. Intent: PRODUCT_STOCK
+2026-11-21T12:24:05.096+05:30  INFO 13180 --- [autoparts-erp] [http-nio-8080-exec-9] c.a.erp.ai.service.ErpAiAgentService     : AI graph execution completed. Run: 0bf0699f-c0d8-40df-b919-a91882a0a687
+2026-11-21T12:24:05.096+05:30  INFO 13180 --- [autoparts-erp] [http-nio-8080-exec-9] c.a.erp.ai.service.ErpAiAgentService     : Custom ERP graph execution removed. Conversation: 4b0ed24f-c686-48b4-97f1-2c321c595b74, Run: 0bf0699f-c0d8-40df-b919-a91882a0a687
+2026-11-21T12:24:46.414+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI incoming message: conversation=fc9d6549-de15-40ae-ba30-d0936613a662, message='What is minimum stock?'
+2026-11-21T12:24:46.416+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI final classification: conversation=fc9d6549-de15-40ae-ba30-d0936613a662, intent=CLARIFICATION, searchText='', source=DETERMINISTIC
+2026-11-21T12:24:46.416+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI intent classified. Intent: CLARIFICATION, Source: DETERMINISTIC, Confidence: 1.0, Conversation: fc9d6549-de15-40ae-ba30-d0936613a662
+2026-11-21T12:24:46.418+05:30  INFO 13180 --- [autoparts-erp] [http-nio-8080-exec-2] c.a.erp.ai.service.ErpAiAgentService     : AI graph execution completed. Run: 31636361-2e31-4181-83ed-407fbcb59085
+2026-11-21T12:24:46.419+05:30  INFO 13180 --- [autoparts-erp] [http-nio-8080-exec-2] c.a.erp.ai.service.ErpAiAgentService     : Custom ERP graph execution removed. Conversation: fc9d6549-de15-40ae-ba30-d0936613a662, Run: 31636361-2e31-4181-83ed-407fbcb59085
+2026-11-21T12:25:33.863+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI incoming message: conversation=4b0ed24f-c686-48b4-97f1-2c321c595b74, message='What is minimum stock?'
+2026-11-21T12:25:33.871+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI final classification: conversation=4b0ed24f-c686-48b4-97f1-2c321c595b74, intent=PRODUCT_MINIMUM_STOCK, searchText='GAP-000001', source=DETERMINISTIC
+2026-11-21T12:25:33.871+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI intent classified. Intent: PRODUCT_MINIMUM_STOCK, Source: DETERMINISTIC, Confidence: 1.0, Conversation: 4b0ed24f-c686-48b4-97f1-2c321c595b74
+2026-11-21T12:25:33.873+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI tool execution started. Tool intent: PRODUCT_MINIMUM_STOCK
+2026-11-21T12:25:33.873+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution started: getProductStock
+2026-11-21T12:25:33.877+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution completed: getProductStock, resultCount=1, durationMs=1
+2026-11-21T12:25:33.877+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI tool execution completed. Intent: PRODUCT_MINIMUM_STOCK
+2026-11-21T12:25:33.889+05:30  INFO 13180 --- [autoparts-erp] [http-nio-8080-exec-1] c.a.erp.ai.service.ErpAiAgentService     : AI graph execution completed. Run: 8119f916-a0e5-4fc4-9b50-c778243e1a6e
+2026-11-21T12:25:33.889+05:30  INFO 13180 --- [autoparts-erp] [http-nio-8080-exec-1] c.a.erp.ai.service.ErpAiAgentService     : Custom ERP graph execution removed. Conversation: 4b0ed24f-c686-48b4-97f1-2c321c595b74, Run: 8119f916-a0e5-4fc4-9b50-c778243e1a6e
+2026-11-21T12:26:16.924+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI incoming message: conversation=4b0ed24f-c686-48b4-97f1-2c321c595b74, message='What is available quantity?'
+2026-11-21T12:26:16.925+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI final classification: conversation=4b0ed24f-c686-48b4-97f1-2c321c595b74, intent=PRODUCT_AVAILABLE_QUANTITY, searchText='GAP-000001', source=DETERMINISTIC
+2026-11-21T12:26:16.925+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI intent classified. Intent: PRODUCT_AVAILABLE_QUANTITY, Source: DETERMINISTIC, Confidence: 1.0, Conversation: 4b0ed24f-c686-48b4-97f1-2c321c595b74
+2026-11-21T12:26:16.927+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI tool execution started. Tool intent: PRODUCT_AVAILABLE_QUANTITY
+2026-11-21T12:26:16.927+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution started: getProductStock
+2026-11-21T12:26:16.929+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution completed: getProductStock, resultCount=1, durationMs=1
+2026-11-21T12:26:16.929+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-1] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI tool execution completed. Intent: PRODUCT_AVAILABLE_QUANTITY
+2026-11-21T12:26:16.935+05:30  INFO 13180 --- [autoparts-erp] [http-nio-8080-exec-4] c.a.erp.ai.service.ErpAiAgentService     : AI graph execution completed. Run: fd15aeaf-8d9e-4fbe-9e1f-8dcaf2c44061
+2026-11-21T12:26:16.935+05:30  INFO 13180 --- [autoparts-erp] [http-nio-8080-exec-4] c.a.erp.ai.service.ErpAiAgentService     : Custom ERP graph execution removed. Conversation: 4b0ed24f-c686-48b4-97f1-2c321c595b74, Run: fd15aeaf-8d9e-4fbe-9e1f-8dcaf2c44061
+2026-11-21T12:27:18.678+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-2] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI incoming message: conversation=4b0ed24f-c686-48b4-97f1-2c321c595b74, message='What is its part number?'
+2026-11-21T12:27:18.678+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-2] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI final classification: conversation=4b0ed24f-c686-48b4-97f1-2c321c595b74, intent=PRODUCT_PART_NUMBER, searchText='GAP-000001', source=DETERMINISTIC
+2026-11-21T12:27:18.678+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-2] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI intent classified. Intent: PRODUCT_PART_NUMBER, Source: DETERMINISTIC, Confidence: 1.0, Conversation: 4b0ed24f-c686-48b4-97f1-2c321c595b74
+2026-11-21T12:27:18.678+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-2] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI tool execution started. Tool intent: PRODUCT_PART_NUMBER
+2026-11-21T12:27:18.694+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-2] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution started: getProductStock
+2026-11-21T12:27:18.697+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-2] c.a.erp.ai.tools.ProductLookupTool       : AI tool execution completed: getProductStock, resultCount=1, durationMs=2
+2026-11-21T12:27:18.697+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-2] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI tool execution completed. Intent: PRODUCT_PART_NUMBER
+2026-11-21T12:27:18.699+05:30  INFO 13180 --- [autoparts-erp] [http-nio-8080-exec-8] c.a.erp.ai.service.ErpAiAgentService     : AI graph execution completed. Run: 26633a1f-5e6b-4f29-9aa8-ee3f6ca971c4
+2026-11-21T12:27:18.699+05:30  INFO 13180 --- [autoparts-erp] [http-nio-8080-exec-8] c.a.erp.ai.service.ErpAiAgentService     : Custom ERP graph execution removed. Conversation: 4b0ed24f-c686-48b4-97f1-2c321c595b74, Run: 26633a1f-5e6b-4f29-9aa8-ee3f6ca971c4
+2026-11-21T12:28:56.496+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-3] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI incoming message: conversation=933d8f2a-d385-4882-a5df-b7a0b5010898, message='compare prouct GAP-000001 and GAP-000002'
+2026-11-21T12:28:56.496+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-3] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI final classification: conversation=933d8f2a-d385-4882-a5df-b7a0b5010898, intent=PRODUCT_COMPARISON, searchText='GAP-000001', source=DETERMINISTIC
+2026-11-21T12:28:56.496+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-3] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI intent classified. Intent: PRODUCT_COMPARISON, Source: DETERMINISTIC, Confidence: 1.0, Conversation: 933d8f2a-d385-4882-a5df-b7a0b5010898
+2026-11-21T12:28:56.496+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-3] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI tool execution started. Tool intent: PRODUCT_COMPARISON
+2026-11-21T12:28:56.498+05:30  INFO 13180 --- [autoparts-erp] [ForkJoinPool.commonPool-worker-3] c.a.erp.ai.service.ErpAiGraphNodes       : ERP AI tool execution completed. Intent: PRODUCT_COMPARISON
+2026-11-21T12:28:56.510+05:30  INFO 13180 --- [autoparts-erp] [http-nio-8080-exec-5] c.a.erp.ai.service.ErpAiAgentService     : AI graph execution completed. Run: f3f59718-f856-4cd6-bcae-cc6b998c0da9
+2026-11-21T12:28:56.510+05:30  INFO 13180 --- [autoparts-erp] [http-nio-8080-exec-5] c.a.erp.ai.service.ErpAiAgentService     : Custom ERP graph execution removed. Conversation: 933d8f2a-d385-4882-a5df-b7a0b5010898, Run: f3f59718-f856-4cd6-bcae-cc6b998c0da9

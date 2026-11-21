@@ -351,4 +351,38 @@ class ErpAiHybridIntentRouterTest {
         assertNotEquals("GENERAL", res2.intent());
         assertEquals("CLARIFICATION", res2.intent());
     }
+
+    @Test
+    void shouldPreserveMinimumStockIntentWhileWaitingForProductIdentifier() {
+        ErpAiIntentResult clarification = router.route(
+                "what is minimum stock", List.of(), conversationId, userContext);
+
+        assertEquals("CLARIFICATION", clarification.intent());
+        var pending = clarificationStore.findAndValidate(conversationId, "user-alice");
+        assertTrue(pending.isPresent());
+        assertEquals("PRODUCT_MINIMUM_STOCK", pending.orElseThrow().pendingIntent());
+
+        ErpAiIntentResult resolved = router.route(
+                "GAP-000001", List.of(), conversationId, userContext);
+
+        assertEquals("PRODUCT_MINIMUM_STOCK", resolved.intent());
+        assertEquals("GAP-000001", resolved.searchText());
+        assertTrue(clarificationStore.findAndValidate(conversationId, "user-alice").isEmpty());
+    }
+
+    @Test
+    void shouldPreserveAvailableQuantityIntentWhileWaitingForProductIdentifier() {
+        router.route("what is available quantity", List.of(), conversationId, userContext);
+
+        var pending = clarificationStore.findAndValidate(conversationId, "user-alice");
+        assertTrue(pending.isPresent());
+        assertEquals("PRODUCT_AVAILABLE_QUANTITY", pending.orElseThrow().pendingIntent());
+
+        ErpAiIntentResult resolved = router.route(
+                "GAP-000001", List.of(), conversationId, userContext);
+
+        assertEquals("PRODUCT_AVAILABLE_QUANTITY", resolved.intent());
+        assertEquals("GAP-000001", resolved.searchText());
+    }
+
 }

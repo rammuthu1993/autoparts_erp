@@ -6,11 +6,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Resolves explicit references such as "its stock" against the most recent
- * unambiguous product mentioned by the user in the same conversation.
+ * Resolves product-scoped follow-up questions against the most recent
+ * unambiguous product in the same conversation.
  *
- * This resolver is deliberately deterministic: it never asks the LLM to
- * invent or guess a product identifier.
+ * Product identity is recovered from explicit identifiers in user messages or
+ * from labeled product-code fields in deterministic ERP responses. Arbitrary
+ * assistant prose is never treated as an entity identifier. This resolver is
+ * deliberately deterministic and never asks the LLM to invent product IDs.
  */
 public final class ErpAiConversationContextResolver {
 
@@ -28,16 +30,20 @@ public final class ErpAiConversationContextResolver {
     private static final Pattern PRODUCT_INFORMATION_REQUEST = Pattern.compile(
             "\\b(?:stock|inventory|quantity|availability|details?|information|price|"
                     + "description|specifications?|part\\s+number|movement|movements|"
-                    + "transaction\\s+history|adjustment\\s+history)\\b",
+                    + "transaction\\s+history|adjustment\\s+history|minimum\\s+stock|available\\s+quantity|"
+                    + "low\\s+in\\s+stock|below\\s+minimum|restocking)\\b",
             Pattern.CASE_INSENSITIVE
     );
 
     private static final Pattern GLOBAL_REQUEST = Pattern.compile(
-            "\\b(?:low\\s+stock|below\\s+(?:the\\s+)?minimum|restock(?:ing)?|"
-                    + "out\\s+of\\s+stock|all\\s+products|every\\s+product|"
-                    + "all\\s+inventory\\s+movements|recent\\s+movements|"
-                    + "all\\s+(?:inventory\\s+)?adjustments)\\b",
+            "\\b(?:low\\s+stock\\s+products?|products?\\s+(?:below|under)\\s+(?:the\\s+)?minimum|"
+                    + "all\\s+products|every\\s+product|all\\s+inventory\\s+movements|"
+                    + "recent\\s+movements|all\\s+(?:inventory\\s+)?adjustments)\\b",
             Pattern.CASE_INSENSITIVE
+    );
+
+    private static final Pattern LABELED_PRODUCT_CODE = Pattern.compile(
+            "(?im)\\bproduct\\s+code\\s*:\\s*((?=[A-Z0-9-]*[A-Z])(?=[A-Z0-9-]*\\d)[A-Z0-9]+(?:-[A-Z0-9]+)*)"
     );
 
     private static final Pattern CONTEXT_RESET = Pattern.compile(
@@ -99,9 +105,11 @@ public final class ErpAiConversationContextResolver {
         boolean hasProductInformationCue = PRODUCT_INFORMATION_REQUEST.matcher(message).find();
 
         boolean productScopedIntent = switch (classification.intent()) {
-            case "PRODUCT_SEARCH", "PRODUCT_DETAILS", "PRODUCT_STOCK", "PRODUCT_MOVEMENT_HISTORY",
-                    "PRODUCT_MOVEMENT_SUMMARY", "PRODUCT_MOVEMENTS_BY_DATE_RANGE",
-                    "INVENTORY_ADJUSTMENTS" -> true;
+            case "PRODUCT_SEARCH", "PRODUCT_DETAILS", "PRODUCT_STOCK",
+                    "PRODUCT_MINIMUM_STOCK", "PRODUCT_AVAILABLE_QUANTITY",
+                    "PRODUCT_PART_NUMBER", "PRODUCT_LOW_STOCK_STATUS",
+                    "PRODUCT_MOVEMENT_HISTORY", "PRODUCT_MOVEMENT_SUMMARY",
+                    "PRODUCT_MOVEMENTS_BY_DATE_RANGE", "INVENTORY_ADJUSTMENTS" -> true;
             case "CLARIFICATION" -> hasProductInformationCue;
             default -> false;
         };
@@ -136,12 +144,29 @@ public final class ErpAiConversationContextResolver {
 
         for (int i = startIndex; i >= 0; i--) {
             Map<String, String> entry = history.get(i);
-            if (entry == null || !"USER".equalsIgnoreCase(entry.get("role"))) {
+            if (entry == null) {
                 continue;
             }
 
+            String role = entry.get("role");
             String content = entry.get("content");
             if (content == null || content.isBlank()) {
+                continue;
+            }
+
+            if ("ASSISTANT".equalsIgnoreCase(role)) {
+                // Only consume explicit product-code labels from deterministic ERP responses.
+                List<String> responseIdentifiers = extractLabeledProductCodes(content);
+                if (responseIdentifiers.size() > 1) {
+                    return ContextCandidate.ambiguousCandidate();
+                }
+                if (responseIdentifiers.size() == 1) {
+                    return ContextCandidate.of(responseIdentifiers.get(0));
+                }
+                continue;
+            }
+
+            if (!"USER".equalsIgnoreCase(role)) {
                 continue;
             }
 
@@ -156,9 +181,27 @@ public final class ErpAiConversationContextResolver {
             if (identifiers.size() == 1) {
                 return ContextCandidate.of(identifiers.get(0));
             }
+
+            // Do not carry an old product into a new, unrelated conversation topic.
+            if (!PRODUCT_REFERENCE.matcher(content).find()
+                    && !PRODUCT_INFORMATION_REQUEST.matcher(content).find()) {
+                return ContextCandidate.none();
+            }
         }
 
         return ContextCandidate.none();
+    }
+
+    private static List<String> extractLabeledProductCodes(String response) {
+        java.util.ArrayList<String> identifiers = new java.util.ArrayList<>();
+        Matcher matcher = LABELED_PRODUCT_CODE.matcher(response);
+        while (matcher.find()) {
+            String identifier = matcher.group(1).trim().toUpperCase(java.util.Locale.ROOT);
+            if (!identifiers.contains(identifier)) {
+                identifiers.add(identifier);
+            }
+        }
+        return List.copyOf(identifiers);
     }
 
     private static List<String> extractIdentifiers(String message) {
