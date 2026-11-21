@@ -1,0 +1,186 @@
+--- a/src/main/java/com/autoparts/erp/ai/config/AiToolJdbcConfiguration.java
++++ b/src/main/java/com/autoparts/erp/ai/config/AiToolJdbcConfiguration.java
+@@ -16,6 +16,7 @@
+ import org.springframework.context.annotation.Primary;
+ import org.springframework.context.annotation.Profile;
+ import org.springframework.jdbc.core.JdbcTemplate;
++import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+ 
+ @Configuration
+ @EnableConfigurationProperties(DataSourceProperties.class)
+@@ -53,40 +54,29 @@
+             @Value("${app.ai.datasource.username}") String username,
+             @Value("${app.ai.datasource.password}") String password) {
+ 
+-        HikariDataSource dataSource = DataSourceBuilder.create()
+-                .type(HikariDataSource.class)
+-                .driverClassName("org.postgresql.Driver")
+-                .url(url)
+-                .username(username)
+-                .password(password)
+-                .build();
+-
+-        dataSource.setPoolName("ai-tool-readonly-pool");
+-        dataSource.setMaximumPoolSize(3);
+-        dataSource.setMinimumIdle(0);
+-        dataSource.setConnectionTimeout(5_000);
+-        dataSource.setValidationTimeout(3_000);
+-        dataSource.setMaxLifetime(1_500_000);
+-        dataSource.setReadOnly(true);
+-
+-        return dataSource;
++        return createReadOnlyDataSource(url, username, password, "ai-tool-readonly-pool");
+     }
+ 
+     /**
+-     * Development:
+-     * Reuse the primary application DataSource directly.
+-     *
+-     * IMPORTANT:
+-     * Do not create an aiToolDataSource alias in development.
++     * Development and test profiles use a dedicated AI reader connection too.
++     * Credentials are required; never silently fall back to the primary account.
+      */
++    @Bean(name = "aiToolDataSource", destroyMethod = "close")
++    @Profile("!prod")
++    public HikariDataSource developmentAiToolDataSource(
++            @Value("${app.ai.datasource.url}") String url,
++            @Value("${app.ai.datasource.username}") String username,
++            @Value("${app.ai.datasource.password}") String password) {
++        return createReadOnlyDataSource(url, username, password, "ai-tool-readonly-pool");
++    }
++
+     @Bean(name = "aiToolJdbcTemplate")
+     @Profile("!prod")
+     public JdbcTemplate developmentAiToolJdbcTemplate(
+-            @Qualifier("dataSource") DataSource applicationDataSource,
++            @Qualifier("aiToolDataSource") DataSource aiToolDataSource,
+             @Value("${app.ai.datasource.query-timeout-seconds:15}") int queryTimeoutSeconds,
+             @Value("${app.ai.datasource.max-rows:500}") int maxRows) {
+-
+-        return createAiToolJdbcTemplate(applicationDataSource, queryTimeoutSeconds, maxRows);
++        return createAiToolJdbcTemplate(aiToolDataSource, queryTimeoutSeconds, maxRows);
+     }
+ 
+     /**
+@@ -101,6 +91,40 @@
+             @Value("${app.ai.datasource.max-rows:500}") int maxRows) {
+ 
+         return createAiToolJdbcTemplate(aiToolDataSource, queryTimeoutSeconds, maxRows);
++    }
++
++    /** Preserve the primary template for write-capable application repositories. */
++    @Bean(name = "namedParameterJdbcTemplate")
++    @Primary
++    public NamedParameterJdbcTemplate applicationNamedParameterJdbcTemplate(
++            @Qualifier("dataSource") DataSource applicationDataSource) {
++        return new NamedParameterJdbcTemplate(applicationDataSource);
++    }
++
++    /** Named-parameter template dedicated to read-only AI knowledge retrieval. */
++    @Bean(name = "aiToolNamedParameterJdbcTemplate")
++    public NamedParameterJdbcTemplate aiToolNamedParameterJdbcTemplate(
++            @Qualifier("aiToolDataSource") DataSource aiToolDataSource) {
++        return new NamedParameterJdbcTemplate(aiToolDataSource);
++    }
++
++    private HikariDataSource createReadOnlyDataSource(
++            String url, String username, String password, String poolName) {
++        HikariDataSource dataSource = DataSourceBuilder.create()
++                .type(HikariDataSource.class)
++                .driverClassName("org.postgresql.Driver")
++                .url(url)
++                .username(username)
++                .password(password)
++                .build();
++        dataSource.setPoolName(poolName);
++        dataSource.setMaximumPoolSize(3);
++        dataSource.setMinimumIdle(0);
++        dataSource.setConnectionTimeout(5_000);
++        dataSource.setValidationTimeout(3_000);
++        dataSource.setMaxLifetime(1_500_000);
++        dataSource.setReadOnly(true);
++        return dataSource;
+     }
+ 
+     private JdbcTemplate createAiToolJdbcTemplate(
+--- a/src/main/java/com/autoparts/erp/ai/rag/retrieval/PostgresFtsRetrievalEngine.java
++++ b/src/main/java/com/autoparts/erp/ai/rag/retrieval/PostgresFtsRetrievalEngine.java
+@@ -12,6 +12,7 @@
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.beans.factory.annotation.Qualifier;
+ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+ import org.springframework.stereotype.Component;
+@@ -91,7 +92,7 @@
+ 
+     @Autowired
+     public PostgresFtsRetrievalEngine(
+-            NamedParameterJdbcTemplate namedJdbcTemplate,
++            @Qualifier("aiToolNamedParameterJdbcTemplate") NamedParameterJdbcTemplate namedJdbcTemplate,
+             KnowledgeQueryPreprocessor queryPreprocessor
+     ) {
+         this.namedJdbcTemplate = namedJdbcTemplate;
+--- a/src/main/resources/application-dev.properties
++++ b/src/main/resources/application-dev.properties
+@@ -3,3 +3,9 @@
+ spring.flyway.baseline-on-migrate=true
+ spring.flyway.baseline-version=1
+ app.security.cors.allowed-origins=${APP_CORS_ALLOWED_ORIGINS:http://localhost:4200,http://localhost:5173}
++
++# Dedicated read-only AI datasource for local development and tests.
++# Set these in config/application-secrets.properties or the process environment.
++app.ai.datasource.url=${AI_TOOL_DB_URL}
++app.ai.datasource.username=${AI_TOOL_DB_USERNAME}
++app.ai.datasource.password=${AI_TOOL_DB_PASSWORD}
+--- a/src/test/java/com/autoparts/erp/ai/config/AiToolJdbcConfigurationTest.java
++++ b/src/test/java/com/autoparts/erp/ai/config/AiToolJdbcConfigurationTest.java
+@@ -12,10 +12,21 @@
+     private final AiToolJdbcConfiguration configuration = new AiToolJdbcConfiguration();
+ 
+     @Test
+-    void developmentTemplateReusesPrimaryDataSourceAndAppliesConfiguredLimits() {
+-        try (HikariDataSource application = new HikariDataSource()) {
+-            JdbcTemplate template = configuration.developmentAiToolJdbcTemplate(application, 7, 125);
+-            assertSame(application, template.getDataSource());
++    void developmentAiDataSourceUsesDedicatedCredentialsAndIsReadOnly() {
++        try (HikariDataSource ai = configuration.developmentAiToolDataSource(
++                "jdbc:postgresql://localhost:5432/autoparts_erp", "autoparts_ai_reader", "test-only")) {
++            assertEquals("autoparts_ai_reader", ai.getUsername());
++            assertTrue(ai.isReadOnly());
++            assertEquals(3, ai.getMaximumPoolSize());
++        }
++    }
++
++    @Test
++    void developmentTemplateUsesDedicatedAiDataSourceAndAppliesConfiguredLimits() {
++        try (HikariDataSource ai = configuration.developmentAiToolDataSource(
++                "jdbc:postgresql://localhost:5432/autoparts_erp", "autoparts_ai_reader", "test-only")) {
++            JdbcTemplate template = configuration.developmentAiToolJdbcTemplate(ai, 7, 125);
++            assertSame(ai, template.getDataSource());
+             assertEquals(7, template.getQueryTimeout());
+             assertEquals(125, template.getMaxRows());
+         }
+@@ -33,6 +44,20 @@
+             assertEquals(3, ai.getMaximumPoolSize());
+             assertEquals(11, template.getQueryTimeout());
+             assertEquals(75, template.getMaxRows());
++        }
++    }
++
++
++    @Test
++    void namedParameterTemplatesKeepApplicationAndAiDataSourcesSeparated() {
++        try (HikariDataSource application = new HikariDataSource();
++             HikariDataSource ai = new HikariDataSource()) {
++            var applicationTemplate = configuration.applicationNamedParameterJdbcTemplate(application);
++            var aiTemplate = configuration.aiToolNamedParameterJdbcTemplate(ai);
++            assertSame(application, applicationTemplate.getJdbcTemplate().getDataSource());
++            assertSame(ai, aiTemplate.getJdbcTemplate().getDataSource());
++            assertNotSame(applicationTemplate.getJdbcTemplate().getDataSource(),
++                    aiTemplate.getJdbcTemplate().getDataSource());
+         }
+     }
+ 

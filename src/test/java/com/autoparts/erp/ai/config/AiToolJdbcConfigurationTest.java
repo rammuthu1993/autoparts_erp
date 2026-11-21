@@ -12,10 +12,21 @@ class AiToolJdbcConfigurationTest {
     private final AiToolJdbcConfiguration configuration = new AiToolJdbcConfiguration();
 
     @Test
-    void developmentTemplateReusesPrimaryDataSourceAndAppliesConfiguredLimits() {
-        try (HikariDataSource application = new HikariDataSource()) {
-            JdbcTemplate template = configuration.developmentAiToolJdbcTemplate(application, 7, 125);
-            assertSame(application, template.getDataSource());
+    void developmentAiDataSourceUsesDedicatedCredentialsAndIsReadOnly() {
+        try (HikariDataSource ai = configuration.developmentAiToolDataSource(
+                "jdbc:postgresql://localhost:5432/autoparts_erp", "autoparts_ai_reader", "test-only")) {
+            assertEquals("autoparts_ai_reader", ai.getUsername());
+            assertTrue(ai.isReadOnly());
+            assertEquals(3, ai.getMaximumPoolSize());
+        }
+    }
+
+    @Test
+    void developmentTemplateUsesDedicatedAiDataSourceAndAppliesConfiguredLimits() {
+        try (HikariDataSource ai = configuration.developmentAiToolDataSource(
+                "jdbc:postgresql://localhost:5432/autoparts_erp", "autoparts_ai_reader", "test-only")) {
+            JdbcTemplate template = configuration.developmentAiToolJdbcTemplate(ai, 7, 125);
+            assertSame(ai, template.getDataSource());
             assertEquals(7, template.getQueryTimeout());
             assertEquals(125, template.getMaxRows());
         }
@@ -33,6 +44,20 @@ class AiToolJdbcConfigurationTest {
             assertEquals(3, ai.getMaximumPoolSize());
             assertEquals(11, template.getQueryTimeout());
             assertEquals(75, template.getMaxRows());
+        }
+    }
+
+
+    @Test
+    void namedParameterTemplatesKeepApplicationAndAiDataSourcesSeparated() {
+        try (HikariDataSource application = new HikariDataSource();
+             HikariDataSource ai = new HikariDataSource()) {
+            var applicationTemplate = configuration.applicationNamedParameterJdbcTemplate(application);
+            var aiTemplate = configuration.aiToolNamedParameterJdbcTemplate(ai);
+            assertSame(application, applicationTemplate.getJdbcTemplate().getDataSource());
+            assertSame(ai, aiTemplate.getJdbcTemplate().getDataSource());
+            assertNotSame(applicationTemplate.getJdbcTemplate().getDataSource(),
+                    aiTemplate.getJdbcTemplate().getDataSource());
         }
     }
 

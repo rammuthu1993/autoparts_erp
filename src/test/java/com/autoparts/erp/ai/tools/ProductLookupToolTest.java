@@ -106,9 +106,11 @@ class ProductLookupToolTest {
         assertTrue(sql.contains("lower(product_code) like lower(?)"));
         assertTrue(sql.contains("lower(part_no) like lower(?)"));
         assertTrue(sql.contains("lower(name) like lower(?)"));
+        assertTrue(sql.contains("lower(description) like lower(?)"));
 
         assertArrayEquals(
-                new Object[]{
+                new Object[] {
+                        "%PRD001%",
                         "%PRD001%",
                         "%PRD001%",
                         "%PRD001%"

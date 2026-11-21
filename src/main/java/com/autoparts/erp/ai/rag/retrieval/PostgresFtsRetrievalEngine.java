@@ -12,6 +12,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -91,7 +92,7 @@ public class PostgresFtsRetrievalEngine implements KnowledgeRetrievalEngine {
 
     @Autowired
     public PostgresFtsRetrievalEngine(
-            NamedParameterJdbcTemplate namedJdbcTemplate,
+            @Qualifier("aiToolNamedParameterJdbcTemplate") NamedParameterJdbcTemplate namedJdbcTemplate,
             KnowledgeQueryPreprocessor queryPreprocessor
     ) {
         this.namedJdbcTemplate = namedJdbcTemplate;

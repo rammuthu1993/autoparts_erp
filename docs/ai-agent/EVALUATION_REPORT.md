@@ -1,87 +1,100 @@
-# Stage 5 — Evaluation Report (Kickoff / In Progress)
+﻿# Stage 5 â€” Consolidated Evaluation Report
 
-**Report version:** 0.1
-**Date:** 2026-11-21
-**Status:** Evaluation scaffolding added; project-level Maven verification and production measurements pending.
+**Report version:** 0.2
+**Audit date:** 2026-11-21
+**Status:** Automated evaluation assets are present; recorded regression is green; operational and production gates remain open.
 
-## 1. Scope
+## 1. Baseline evidence from the uploaded project
 
-Stage 5 evaluates the ERP AI assistant across the ten business domains in the implementation plan, then verifies security, concurrency, latency, token usage, and release readiness. This report deliberately separates deterministic automated tests from live-provider, live-database, and representative-load measurements.
+The uploaded archive contains Maven Surefire text reports for the latest recorded project build:
 
-## 2. Evaluation assets added
+| Metric | Recorded result |
+|---|---:|
+| Tests | 852 |
+| Failures | 0 |
+| Errors | 0 |
+| Skipped | 0 |
 
-| Asset | Purpose | Scope / status |
-|---|---|---|
-| `src/test/resources/ai-evaluation/erp-ai-domain-evaluation.json` | Curated intent dataset | 150 scenarios, 15 per domain |
-| `ErpAiDomainEvaluationTest` | Dataset integrity and deterministic classifier evaluation | Added; Maven execution pending |
-| `ErpAiConcurrencyLoadTest` | Burst test for global execution admission | 40 simultaneous attempts; configured capacity 10; Maven execution pending |
-| `ErpAiSqlInjectionDefenseTest` | Verify product identifier input remains a JDBC bind parameter | Added; Maven execution pending |
-| `EVALUATION_REPORT.md` | Record evidence, gaps, and release gates | This document |
+These are pre-existing build artifacts in the ZIP. They are not a fresh Maven execution performed during this review. The review environment has Java 21 and no Maven executable, while this project declares Java 25. A fresh Java 25 run is therefore required on the user's Windows environment.
 
-The ten dataset domains are Product & Inventory, Purchases, Sales, Customers, Suppliers, Returns, Financials, Reports, Audit Logs, and Knowledge. Entity-list requests without a search criterion are expected to clarify rather than silently return an unbounded result. Customer purchase-history phrasing is expected to resolve to the customer domain. Supplier purchasing queries are expected to use the supplier-filtered purchase operation.
+The archive also contains the following Phase 5-focused report entries:
 
-## 3. Preliminary deterministic classifier check
+| Test suite | Recorded tests | Failures / errors |
+|---|---:|---:|
+| `ErpAiDomainEvaluationTest` | 152 | 0 / 0 |
+| `ErpAiConcurrencyLoadTest` | 1 | 0 / 0 |
+| `ErpAiSqlInjectionDefenseTest` | 1 | 0 / 0 |
+| `ErpAiSecurityAuthorizationTest` | 8 | 0 / 0 |
+| `ErpAiAsyncSecurityIsolationTest` | 4 | 0 / 0 |
+| `PromptInjectionDefenseTest` | 10 | 0 / 0 |
+| `KnowledgeRetrievalEvaluationTest` | 29 | 0 / 0 |
 
-The 150 dataset queries were executed against the current `ErpAiIntentClassifier` source in an isolated JDK 21 harness with lightweight stubs for the Spring stereotype and `StringUtils` dependencies. Result: **150/150 expected intents matched**. Seven read-only mutation examples also matched `UNSUPPORTED` in that harness.
+The suite counts above are included in the 852 recorded tests and must not be added to that total again.
 
-This is a preliminary source-level check only. It is **not** a Maven/JUnit run, does not exercise the complete Spring application, and does not prove live database or LLM answer quality. The project targets Java 25; the available isolated harness runtime was Java 21.
+## 2. Existing implementation confirmed in source
 
-## 4. Security evidence and remaining work
+The uploaded project already contains substantial work for the eleven workstreams:
 
-Existing project tests include:
+1. **Domain evaluation:** a 150-scenario JSON dataset and dynamic classifier tests, including deterministic read-only mutation rejection.
+2. **Conversation evaluation:** conversation context resolution, pending clarification storage, comparison follow-ups, entity carry-forward, and ambiguity tests.
+3. **Security:** immutable execution context, backend role enforcement, async isolation tests, and SQL parameter-binding coverage.
+4. **Prompt injection:** untrusted knowledge-context handling, context-tag sanitization, history exclusion from grounded prompts, and citation validation.
+5. **Retrieval:** PostgreSQL FTS retrieval engine, query preprocessing, access-control filtering, ranking/evaluation tests, and live grounded-answer evaluation infrastructure.
+6. **Concurrency:** per-user request limiting, per-JVM execution admission, timeout/cancellation handling, and burst/concurrency tests.
+7. **Performance:** Micrometer timers exist for request, provider, node, and tool duration. Representative HTTP/provider/database p95 evidence is not present.
+8. **Token measurement:** Spring AI usage metadata is recorded where returned by the provider. Missing provider usage metadata must remain explicitly unknown; the history-budget byte heuristic is not exact token counting.
+9. **Evaluation reporting:** a live grounded-answer evaluator already produces per-case and aggregate quality/usage information. The existing report is updated by this overlay to distinguish recorded tests from unmeasured operational gates.
+10. **Production readiness:** existing Stage 4 controls and deployment notes exist, but database-role, migration, audit persistence, metrics access, and deployment checks remain open.
+11. **Regression:** 852 recorded Surefire tests pass in the supplied archive; a fresh Java 25 full regression remains required.
 
-- `ErpAiSecurityAuthorizationTest` — role enforcement and zero-JDBC authorization guards.
-- `ErpAiAsyncSecurityIsolationTest` — cashier/manager context isolation through the graph path, including concurrent requests.
-- `PromptInjectionDefenseTest` — retrieved knowledge is placed in an untrusted prompt section rather than trusted system instructions.
-- `CitationValidatorTest` — exact citation validation.
+## 3. Phase 5 gates still open
 
-The new SQL injection test verifies that a hostile product identifier is passed as a JDBC parameter and is not interpolated into SQL. All of these tests still need to be run together on the user's Java 25 project environment. Further adversarial cases are required for prompt-injection attempts against transactional tools, cross-user conversation ownership, role combinations across every protected domain tool, and empty/unauthorized RAG retrieval.
+The following work cannot honestly be marked complete from source inspection or mocked tests alone:
 
-## 5. Concurrency and performance
+- Fresh Java 25 `clean test` execution on the target Windows environment.
+- Live PostgreSQL verification of the dedicated AI reader role, grants, row-level/tenant boundaries if applicable, and the existing Flyway migration history.
+- Successful, denied, failed, and cancelled tool audit-row verification against the actual database.
+- Authenticated Actuator metrics verification in the intended deployment profile.
+- Representative HTTP-level multi-user load testing through the actual application and provider path.
+- Separate p95 measurements for database/tool, provider, and end-to-end chat latency.
+- Live Sarvam grounded-answer evaluation using an explicitly authorized run and real provider usage metadata.
+- Multi-instance rate-limit/concurrency coordination before horizontal scaling; current controls are per JVM.
+- Production migration reconciliation for the documented V29/V30 dependency before a fresh production deployment.
 
-`ErpAiConcurrencyLoadTest` stresses the existing per-JVM global admission semaphore with 40 simultaneous attempts against a capacity of 10. Its intended assertions are 10 admitted, 30 rejected, peak active permits of 10, and full permit recovery after completion. It is an admission-control stress test, **not** a representative end-to-end HTTP/graph/provider load benchmark.
+Do not infer any of these from a passing unit test or the recorded 852-test baseline.
 
-No Stage 5 SLA measurement is claimed yet:
+## 4. Architecture constraints preserved
 
-| Metric | Provisional target | Current evidence |
-|---|---:|---|
-| Database / tool query latency p95 | < 1,500 ms | Not measured under representative load |
-| LLM provider latency p95 | < 2,500 ms | Not measured under representative load |
-| End-to-end chat latency p95 | < 4,000 ms | Not measured under representative load |
-| Intent classification accuracy | > 95% | Preliminary deterministic harness 150/150; full JUnit suite pending |
-| Authorization leak rate | 0.0% | Existing automated security tests available; consolidated rerun pending |
-| SQL injection vulnerability | 0.0% | Parameter-binding test added; execution pending |
-| Concurrent active graph runs | 10 | Semaphore stress test added; execution pending |
-| Token budget | < 2,500 tokens/request | History budget is an approximate UTF-8-byte heuristic; provider token usage depends on returned metadata; representative measurement pending |
+This review and overlay do not replace or reconfigure:
 
-Provider, tool, and end-to-end timings must be reported separately. Do not combine them into a single latency number or infer SLA compliance from unit-test timings.
+- LangGraph4j 1.9.7 orchestration.
+- Spring AI integration.
+- Spring JDBC / PostgreSQL data access.
+- Existing graph state, execution context, tool authorization, timeout, cancellation, and audit architecture.
 
-## 6. Commands for project verification
+No Flyway migration is included in this overlay. Do not run Flyway `clean` or `repair` to bypass the documented V29/V30 reconciliation dependency.
 
-Run from `D:\Projects\autoparts-erp` after applying the patch:
+## 5. Verification
+
+From the Windows project root:
 
 ```powershell
-.\mvnw.cmd "-Dtest=ErpAiDomainEvaluationTest,ErpAiConcurrencyLoadTest,ErpAiSqlInjectionDefenseTest,ErpAiSecurityAuthorizationTest,ErpAiAsyncSecurityIsolationTest,PromptInjectionDefenseTest" test
+# Full focused + full regression; requires Java 25.
+.\scripts\phase5-verify.ps1
+
+# Only focused deterministic Phase 5 tests.
+.\scripts\phase5-verify.ps1 -FocusedOnly
+
+# Or run manually:
+java -version
+.\mvnw.cmd -version
 .\mvnw.cmd clean test
 ```
 
-Then perform the non-test operational checks:
+The script validates Java 25, runs focused deterministic tests, then runs the full clean Maven regression unless `-FocusedOnly` is supplied. It aggregates Surefire XML results into `target/phase5-verification-summary.txt`.
 
-1. Verify V34 is applied in the intended development database; do not edit applied migrations and do not run Flyway `clean` or `repair`.
-2. Verify audit rows for success, authorization denial, failure, and cancellation.
-3. Run `docs/sql/verify-ai-tool-role.sql` as the dedicated AI reader and confirm least privilege, no inherited write permissions, and the column-only `users` grant.
-4. Verify authenticated Actuator access and the AI metrics endpoint.
-5. Verify HTTP 429 includes `Retry-After`.
-6. Run a non-production multi-user load test through the HTTP API with a deterministic/mock provider and report the three latency tiers separately.
-7. Run live-provider grounded-answer evaluation separately from deterministic mocked tests.
+## 6. Production readiness decision
 
-## 7. Release blockers and known limitations
+**NOT APPROVED / NOT YET MEASURED.**
 
-- Stage 4 operational verification remains pending: V34, production AI-reader grants, audit persistence, and Actuator metrics.
-- Stage 3C Phase 4 retrieval-preprocessing/fallback/ranking work remains queued in the implementation ledger.
-- The Stage 3C live-provider grounded-answer quality evaluation remains separate from mocked regression.
-- Production migration reconciliation for the existing V29/V30 `ai_agent_runs` history is a mandatory fresh-database deployment dependency.
-- Rate limiting and global concurrency admission are in-memory/per-JVM. Multi-instance deployment requires shared coordination before claiming cluster-wide enforcement.
-- Conversation history token budgeting is approximate; exact token compliance requires the configured model's tokenizer or authoritative provider usage metadata.
-
-**Production readiness decision: NOT APPROVED / NOT YET MEASURED.** Stage 5 is in progress. No production SLA or security sign-off is claimed by this kickoff report.
+The source and recorded regression show substantial implementation and automated coverage. Production approval remains blocked on the operational, live-provider, representative-load, database-security, and migration gates above. This report intentionally does not manufacture latency, token, cost, security-leak, or provider-quality measurements.

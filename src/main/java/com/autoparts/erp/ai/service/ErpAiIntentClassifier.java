@@ -199,11 +199,11 @@ public class ErpAiIntentClassifier {
 
     // Stage 2D Regex Patterns: Financials
     private static final Pattern CASH_REGISTER_STATUS_REQUEST = Pattern.compile(
-            "\\b(?:cash\\s+registers?\\s+(?:status|drawer|sessions?)|open\\s+(?:cash\\s+)?registers?|cash\\s+in\\s+drawer|drawer\\s+balance|active\\s+registers?)\\b",
+            "\\b(?:cash\\s+registers?\\s+(?:status|drawer|sessions?)|open\\s+(?:cash\\s+)?registers?|which\\s+cash\\s+registers?\\s+(?:are\\s+)?open|cash\\s+in\\s+drawer|drawer\\s+balance|active\\s+registers?)\\b",
             Pattern.CASE_INSENSITIVE);
 
     private static final Pattern CASH_DISCREPANCIES_REQUEST = Pattern.compile(
-            "\\b(?:cash\\s+(?:register\\s+)?discrepanc(?:y|ies)|register\\s+discrepanc(?:y|ies)|cash\\s+shortage|register\\s+surplus|cash\\s+differences?|session\\s+discrepanc(?:y|ies))\\b",
+            "\\b(?:cash\\s+(?:register\\s+)?discrepanc(?:y|ies)|register\\s+discrepanc(?:y|ies)|cash\\s+shortages?|register\\s+surplus(?:es)?|cash\\s+differences?|session\\s+discrepanc(?:y|ies))\\b",
             Pattern.CASE_INSENSITIVE);
 
     private static final Pattern DAILY_CLOSING_REQUEST = Pattern.compile(
@@ -241,11 +241,11 @@ public class ErpAiIntentClassifier {
 
     // Stage 2D Regex Patterns: Audit Logs
     private static final Pattern AUDIT_LOG_REQUEST = Pattern.compile(
-            "\\b(?:audit\\s+logs?|system\\s+audit(?:\\s+trail)?|security\\s+logs?|recent\\s+audit\\s+events?)\\b",
+            "\\b(?:audit\\s+logs?|audit\\s+trail|audit\\s+events?|system\\s+audit(?:\\s+trail)?|security\\s+logs?|recent\\s+audit\\s+events?)\\b",
             Pattern.CASE_INSENSITIVE);
 
     private static final Pattern AI_TOOL_RUNS_REQUEST = Pattern.compile(
-            "\\b(?:ai\\s+tool\\s+(?:runs?|logs?)|ai\\s+diagnostic(?:\\s+logs?)?|tool\\s+execution\\s+logs?)\\b",
+            "\\b(?:ai\\s+tool\\s+(?:runs?|logs?|executions?)|ai\\s+diagnostic(?:\\s+logs?)?|tool\\s+execution\\s+logs?)\\b",
             Pattern.CASE_INSENSITIVE);
 
     private static final Pattern KNOWLEDGE_REQUEST = Pattern.compile(
@@ -267,7 +267,7 @@ public class ErpAiIntentClassifier {
                     Pattern.CASE_INSENSITIVE),
             Pattern.compile("^(?:the\\s+)?(?:products?|items?|purchases?|sales?|invoices?|customers?|suppliers?)(?:\\s+(?:named|called|by\\s+name))?\\b\\s*",
                     Pattern.CASE_INSENSITIVE),
-            Pattern.compile("^(?:matching|containing)\\s+", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("^(?:matching|containing|with)\\b\\s*", Pattern.CASE_INSENSITIVE),
             Pattern.compile("^(?:for|about|of|a|an|the)\\b\\s*", Pattern.CASE_INSENSITIVE));
 
     public ErpAiIntentResult classify(String message) {
@@ -401,6 +401,24 @@ public class ErpAiIntentClassifier {
         if (SALES_RETURN_SEARCH_REQUEST.matcher(message).find()) {
             String search = extractSearchText(message);
             return new ErpAiIntentResult("SALES_RETURN_SEARCH", search);
+        }
+
+        // Customer purchase-history phrasing belongs to the customer domain,
+        // not the generic purchase search branch below.
+        if (CUSTOMER_SALES_HISTORY_REQUEST.matcher(message).find()
+                && normalized.contains("customer")) {
+            String customerQuery = extractCustomerCode(message);
+            if (customerQuery == null) {
+                customerQuery = extractPhoneNumber(message);
+            }
+            if (customerQuery == null) {
+                customerQuery = extractEntityQuery(message, "customer");
+            }
+            if (customerQuery.isEmpty()) {
+                return ErpAiIntentResult.clarification(
+                        "Please provide the customer name, phone, or customer code.");
+            }
+            return new ErpAiIntentResult("CUSTOMER_SALES_HISTORY", customerQuery);
         }
 
         // -------------------------------------------------------------
@@ -783,7 +801,7 @@ public class ErpAiIntentClassifier {
         if (CASH_REGISTER_STATUS_REQUEST.matcher(message).find()) {
             return false;
         }
-        if (Pattern.compile("\\b(?:named|called|create|make|record|add|update|delete|generate|register|process|open|close|post)\\s+(?:a\\s+)?(?:new\\s+)?(?:purchase|sale|sales|invoice|customer|supplier|vendor|return|refund|credit|expense|register|session|closingmatching|containing|with)\\b", Pattern.CASE_INSENSITIVE).matcher(message).find()) {
+        if (Pattern.compile("\\b(?:named|called|create|make|record|add|update|delete|generate|register|process|open|close|post|adjust)\\s+(?:a\\s+)?(?:new\\s+)?(?:purchase|sale|sales|invoice|customer|supplier|vendor|return|refund|credit|expense|register|session|closing|product|products|item|items|inventory|stock|quantity|payment|payments|price|prices|role|user)\\b", Pattern.CASE_INSENSITIVE).matcher(message).find()) {
             return true;
         }
         return containsAny(message,

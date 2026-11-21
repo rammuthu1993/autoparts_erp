@@ -60,8 +60,8 @@ class ErpAiSecurityAuthorizationTest {
     @Test
     @DisplayName("ProductLookupTool: Cashier is permitted for search, count, details, stock, low-stock, comparison")
     void shouldAllowCashierSalesAccessOnProductTools() {
-        when(jdbcTemplate.queryForList(anyString(), anyString(), anyString(), anyString()))
-                .thenReturn(List.of(Map.of("product_code", "OIL-001")));
+		when(jdbcTemplate.queryForList(anyString(), anyString(), anyString(), anyString(), anyString()))
+				.thenReturn(List.of(Map.of("product_code", "OIL-001")));
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class))).thenReturn(42L);
         when(jdbcTemplate.queryForList(anyString())).thenReturn(List.of(Map.of("product_code", "LOW-001")));
 
@@ -77,7 +77,13 @@ class ErpAiSecurityAuthorizationTest {
         assertFalse(lowStockResult.isEmpty());
 
         // Verify queries executed
-        verify(jdbcTemplate, atLeastOnce()).queryForList(anyString(), anyString(), anyString(), anyString());
+        verify(jdbcTemplate).queryForList(
+                anyString(),
+                anyString(),
+                anyString(),
+                anyString(),
+                anyString()
+        );
         verify(jdbcTemplate).queryForObject(anyString(), eq(Long.class));
     }
 

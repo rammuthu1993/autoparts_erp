@@ -16,6 +16,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 @Configuration
 @EnableConfigurationProperties(DataSourceProperties.class)
@@ -53,40 +54,29 @@ public class AiToolJdbcConfiguration {
             @Value("${app.ai.datasource.username}") String username,
             @Value("${app.ai.datasource.password}") String password) {
 
-        HikariDataSource dataSource = DataSourceBuilder.create()
-                .type(HikariDataSource.class)
-                .driverClassName("org.postgresql.Driver")
-                .url(url)
-                .username(username)
-                .password(password)
-                .build();
-
-        dataSource.setPoolName("ai-tool-readonly-pool");
-        dataSource.setMaximumPoolSize(3);
-        dataSource.setMinimumIdle(0);
-        dataSource.setConnectionTimeout(5_000);
-        dataSource.setValidationTimeout(3_000);
-        dataSource.setMaxLifetime(1_500_000);
-        dataSource.setReadOnly(true);
-
-        return dataSource;
+        return createReadOnlyDataSource(url, username, password, "ai-tool-readonly-pool");
     }
 
     /**
-     * Development:
-     * Reuse the primary application DataSource directly.
-     *
-     * IMPORTANT:
-     * Do not create an aiToolDataSource alias in development.
+     * Development and test profiles use a dedicated AI reader connection too.
+     * Credentials are required; never silently fall back to the primary account.
      */
+    @Bean(name = "aiToolDataSource", destroyMethod = "close")
+    @Profile("!prod")
+    public HikariDataSource developmentAiToolDataSource(
+            @Value("${app.ai.datasource.url}") String url,
+            @Value("${app.ai.datasource.username}") String username,
+            @Value("${app.ai.datasource.password}") String password) {
+        return createReadOnlyDataSource(url, username, password, "ai-tool-readonly-pool");
+    }
+
     @Bean(name = "aiToolJdbcTemplate")
     @Profile("!prod")
     public JdbcTemplate developmentAiToolJdbcTemplate(
-            @Qualifier("dataSource") DataSource applicationDataSource,
+            @Qualifier("aiToolDataSource") DataSource aiToolDataSource,
             @Value("${app.ai.datasource.query-timeout-seconds:15}") int queryTimeoutSeconds,
             @Value("${app.ai.datasource.max-rows:500}") int maxRows) {
-
-        return createAiToolJdbcTemplate(applicationDataSource, queryTimeoutSeconds, maxRows);
+        return createAiToolJdbcTemplate(aiToolDataSource, queryTimeoutSeconds, maxRows);
     }
 
     /**
@@ -101,6 +91,40 @@ public class AiToolJdbcConfiguration {
             @Value("${app.ai.datasource.max-rows:500}") int maxRows) {
 
         return createAiToolJdbcTemplate(aiToolDataSource, queryTimeoutSeconds, maxRows);
+    }
+
+    /** Preserve the primary template for write-capable application repositories. */
+    @Bean(name = "namedParameterJdbcTemplate")
+    @Primary
+    public NamedParameterJdbcTemplate applicationNamedParameterJdbcTemplate(
+            @Qualifier("dataSource") DataSource applicationDataSource) {
+        return new NamedParameterJdbcTemplate(applicationDataSource);
+    }
+
+    /** Named-parameter template dedicated to read-only AI knowledge retrieval. */
+    @Bean(name = "aiToolNamedParameterJdbcTemplate")
+    public NamedParameterJdbcTemplate aiToolNamedParameterJdbcTemplate(
+            @Qualifier("aiToolDataSource") DataSource aiToolDataSource) {
+        return new NamedParameterJdbcTemplate(aiToolDataSource);
+    }
+
+    private HikariDataSource createReadOnlyDataSource(
+            String url, String username, String password, String poolName) {
+        HikariDataSource dataSource = DataSourceBuilder.create()
+                .type(HikariDataSource.class)
+                .driverClassName("org.postgresql.Driver")
+                .url(url)
+                .username(username)
+                .password(password)
+                .build();
+        dataSource.setPoolName(poolName);
+        dataSource.setMaximumPoolSize(3);
+        dataSource.setMinimumIdle(0);
+        dataSource.setConnectionTimeout(5_000);
+        dataSource.setValidationTimeout(3_000);
+        dataSource.setMaxLifetime(1_500_000);
+        dataSource.setReadOnly(true);
+        return dataSource;
     }
 
     private JdbcTemplate createAiToolJdbcTemplate(
