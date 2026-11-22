@@ -5,6 +5,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.UserMessage;
 import com.autoparts.erp.ai.security.ErpAiExecutionContext;
 
 /**
@@ -45,7 +46,7 @@ public record AiRequestContext(
         }
         for (int i = messages.size() - 1; i >= 0; i--) {
             Message msg = messages.get(i);
-            if (msg instanceof org.springframework.ai.chat.messages.UserMessage) {
+            if (msg instanceof UserMessage) {
                 return msg.getText() != null ? msg.getText() : "";
             }
         }

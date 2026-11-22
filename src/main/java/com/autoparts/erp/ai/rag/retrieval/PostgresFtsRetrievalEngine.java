@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -291,7 +292,7 @@ public class PostgresFtsRetrievalEngine implements KnowledgeRetrievalEngine {
                 );
                 return new Candidate(chunk, rs.getInt("chunk_index"), tier, rs.getDouble("relevance_score"));
             });
-        } catch (org.springframework.dao.DataAccessException e) {
+        } catch (DataAccessException e) {
             log.error("PostgreSQL FTS {} tier failed for query '{}': {}", tier, queryText, e.getMessage(), e);
             throw new KnowledgeRetrievalException(
                     "Database query failed during " + tier + " knowledge retrieval: " + e.getMessage(), e);

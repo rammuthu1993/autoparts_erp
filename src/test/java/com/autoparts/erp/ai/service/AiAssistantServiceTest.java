@@ -1,4 +1,5 @@
 package com.autoparts.erp.ai.service;
+import com.autoparts.erp.ai.dto.AiChatResponse;
 import com.autoparts.erp.ai.enums.AiAgentRunStatus;
 import com.autoparts.erp.ai.exception.AiAgentExecutionTimeoutException;
 import com.autoparts.erp.ai.exception.AiExecutionInProgressException;
@@ -833,7 +834,7 @@ class AiAssistantServiceTest {
         verify(erpAiAgentService).chat(eq(conversationId), eq(runId), anyList(), eq(validContext));
     }
 
-    private com.autoparts.erp.ai.dto.AiChatResponse chatWithTrustedContext(
+    private AiChatResponse chatWithTrustedContext(
             UUID conversationId,
             String message,
             String userSubject

@@ -3,6 +3,7 @@ package com.autoparts.erp.ai.rag.ingestion;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import com.autoparts.erp.ai.rag.model.KnowledgeDocument;
 import com.autoparts.erp.ai.security.ErpAiExecutionContext;
 import com.autoparts.erp.ai.security.ToolAuthorizationException;
 
@@ -454,11 +456,11 @@ class KnowledgeDocumentIngestionTest {
     @Test
     @DisplayName("Test F: Legacy documents default to PENDING_APPROVAL and are not automatically approved")
     void testF_legacyDocumentsNotAutomaticallyApproved() {
-        com.autoparts.erp.ai.rag.model.KnowledgeDocument legacyDoc =
-                new com.autoparts.erp.ai.rag.model.KnowledgeDocument(
+        KnowledgeDocument legacyDoc =
+                new KnowledgeDocument(
                         UUID.randomUUID(), "LEGACY-01", "Legacy Policy", "POLICY", "TEXT",
                         1, "PUBLIC", true, "legacy.txt", "hash123", 1024L,
-                        Map.of(), "system", java.time.Instant.now(), java.time.Instant.now()
+                        Map.of(), "system", Instant.now(), Instant.now()
                 );
 
         assertEquals("PENDING_APPROVAL", legacyDoc.approvalStatus(),

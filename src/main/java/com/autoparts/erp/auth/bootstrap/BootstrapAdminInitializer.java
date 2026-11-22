@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -35,7 +36,7 @@ public class BootstrapAdminInitializer implements ApplicationRunner {
             JdbcTemplate jdbcTemplate,
             PasswordEncoder passwordEncoder,
             TransactionTemplate transactionTemplate,
-            org.springframework.core.env.Environment environment
+            Environment environment
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.passwordEncoder = passwordEncoder;

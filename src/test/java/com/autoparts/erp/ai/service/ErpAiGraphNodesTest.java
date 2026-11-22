@@ -47,6 +47,7 @@ import org.springframework.ai.openai.OpenAiChatOptions;
 import com.autoparts.erp.ai.exception.AiProviderResponseException;
 import com.autoparts.erp.ai.rag.model.RetrievedChunk;
 import com.autoparts.erp.ai.security.ErpAiExecutionContext;
+import com.autoparts.erp.ai.security.ToolAuthorizationException;
 import com.autoparts.erp.ai.tools.ProductLookupTool;
 import com.autoparts.erp.ai.tools.InventoryHistoryLookupTool;
 
@@ -820,7 +821,7 @@ class ErpAiGraphNodesTest {
                 .build();
 
         when(productLookupTool.searchProducts(eq("GAP-000002"), any(ErpAiExecutionContext.class)))
-                .thenThrow(new com.autoparts.erp.ai.security.ToolAuthorizationException("Access denied"));
+                .thenThrow(new ToolAuthorizationException("Access denied"));
 
         var state = new ErpAiGraphState(Map.of(
                 "intent", "PRODUCT_SEARCH",

@@ -14,6 +14,7 @@ import com.autoparts.erp.product.repositoryimpl.ProductRepositoryImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -282,13 +283,13 @@ class BatchACatalogInventoryIntegrationTest extends BaseRepositoryIntegrationTes
         } finally {
             // Clean up created records
             getJdbcTemplate().update("DELETE FROM inventory_movements WHERE product_id = :id",
-                    new org.springframework.jdbc.core.namedparam.MapSqlParameterSource("id", product.id()));
+                    new MapSqlParameterSource("id", product.id()));
             getJdbcTemplate().update("DELETE FROM products WHERE id = :id",
-                    new org.springframework.jdbc.core.namedparam.MapSqlParameterSource("id", product.id()));
+                    new MapSqlParameterSource("id", product.id()));
             getJdbcTemplate().update("DELETE FROM product_brands WHERE id = :id",
-                    new org.springframework.jdbc.core.namedparam.MapSqlParameterSource("id", brand.id()));
+                    new MapSqlParameterSource("id", brand.id()));
             getJdbcTemplate().update("DELETE FROM product_categories WHERE id = :id",
-                    new org.springframework.jdbc.core.namedparam.MapSqlParameterSource("id", cat.id()));
+                    new MapSqlParameterSource("id", cat.id()));
         }
     }
 }

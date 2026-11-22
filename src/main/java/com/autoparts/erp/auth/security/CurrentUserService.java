@@ -3,6 +3,7 @@ package com.autoparts.erp.auth.security;
 
 import com.autoparts.erp.auth.model.UserAccount;
 import com.autoparts.erp.auth.repository.UserRepository;
+import com.autoparts.erp.security.AuthenticatedUserDetails;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -41,7 +43,7 @@ public class CurrentUserService {
         }
 
         // Fast path 1: extract user_id claim directly from validated Jwt token
-        if (authentication.getPrincipal() instanceof org.springframework.security.oauth2.jwt.Jwt jwt) {
+        if (authentication.getPrincipal() instanceof Jwt jwt) {
             Object userIdClaim = jwt.getClaim("user_id");
             if (userIdClaim instanceof Number number) {
                 return number.longValue();
@@ -54,7 +56,7 @@ public class CurrentUserService {
         }
 
         // Fast path 2: extract from AuthenticatedUserDetails when available
-        if (authentication.getPrincipal() instanceof com.autoparts.erp.security.AuthenticatedUserDetails userDetails
+        if (authentication.getPrincipal() instanceof AuthenticatedUserDetails userDetails
                 && userDetails.getUserId() != null) {
             return userDetails.getUserId();
         }

@@ -1,6 +1,7 @@
 package com.autoparts.erp.ai.service;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -16,11 +17,13 @@ import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
+import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
 import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -65,11 +68,11 @@ public class ErpAiGraphNodes {
     private final KnowledgeRetrievalService knowledgeRetrievalService;
     private final CitationValidator citationValidator;
     private final String systemPrompt;
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     private AiResilienceService aiResilienceService;
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     private AiMetricsService aiMetricsService;
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     private AiToolAuditService aiToolAuditService;
     @Value("${spring.ai.openai.chat.options.model:sarvam-105b}")
     private String configuredModel = "sarvam-105b";
@@ -2596,7 +2599,7 @@ public class ErpAiGraphNodes {
         return accumulated + additional;
     }
 
-    private static String readFinishReason(org.springframework.ai.chat.model.Generation generation) {
+    private static String readFinishReason(Generation generation) {
         if (generation.getMetadata() != null && StringUtils.hasText(generation.getMetadata().getFinishReason())) {
             return generation.getMetadata().getFinishReason();
         }
@@ -2716,9 +2719,9 @@ public class ErpAiGraphNodes {
 
     private String loadSystemPrompt() {
         try {
-            var resource = new org.springframework.core.io.ClassPathResource("prompts/erp-system-prompt.st");
+            var resource = new ClassPathResource("prompts/erp-system-prompt.st");
             try (var inputStream = resource.getInputStream()) {
-                return new String(inputStream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
             }
         } catch (Exception exception) {
             throw new IllegalStateException("Unable to load ERP AI system prompt", exception);

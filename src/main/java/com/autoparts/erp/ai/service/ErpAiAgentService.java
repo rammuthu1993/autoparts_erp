@@ -79,10 +79,10 @@ public class ErpAiAgentService {
             new AtomicBoolean(false);
 
     private final ScheduledExecutorService timeoutScheduler;
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     private AiRateLimiterService aiRateLimiterService =
             new AiRateLimiterService(20, 60, 10, 10000, System::nanoTime);
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     private AiMetricsService aiMetricsService = new AiMetricsService();
 
     // --------------------------------------------------

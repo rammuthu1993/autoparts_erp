@@ -22,6 +22,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import com.autoparts.erp.ai.dto.AiChatResponse;
 import com.autoparts.erp.ai.dto.AiConversationResponse;
@@ -44,12 +45,12 @@ public class AiAssistantService {
     private final ErpAiAgentService erpAiAgentService;
     private final AiRepository aiRepository;
     private final TransactionTemplate transactionTemplate;
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     private AiRateLimiterService aiRateLimiterService =
             new AiRateLimiterService(20, 60, 10, 10000, System::nanoTime);
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     private AiMetricsService aiMetricsService = new AiMetricsService();
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     private AiConversationHistoryBudget historyBudget = new AiConversationHistoryBudget();
     private static final Logger log =
             LoggerFactory.getLogger(AiAssistantService.class);

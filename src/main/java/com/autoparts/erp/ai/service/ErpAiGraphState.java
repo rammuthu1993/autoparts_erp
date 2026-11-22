@@ -3,6 +3,7 @@ package com.autoparts.erp.ai.service;
 import java.util.List;
 import java.util.Map;
 
+import com.autoparts.erp.ai.rag.model.RetrievedChunk;
 import org.bsc.langgraph4j.state.AgentState;
 import org.bsc.langgraph4j.state.Channel;
 import org.bsc.langgraph4j.state.Channels;
@@ -36,7 +37,7 @@ public class ErpAiGraphState extends AgentState {
             Map.entry("isMultiIntent", Channels.<Boolean>base((o, n) -> n)),
             Map.entry("secondaryIntent", Channels.<String>base((o, n) -> n)),
             Map.entry("pendingSlotName", Channels.<String>base((o, n) -> n)),
-            Map.entry("retrievedChunks", Channels.<List<com.autoparts.erp.ai.rag.model.RetrievedChunk>>base((o, n) -> n)),
+            Map.entry("retrievedChunks", Channels.<List<RetrievedChunk>>base((o, n) -> n)),
             Map.entry("hybridOutcome", Channels.<String>base((o, n) -> n))
     );
 
@@ -126,10 +127,10 @@ public class ErpAiGraphState extends AgentState {
     }
 
     @SuppressWarnings("unchecked")
-    public List<com.autoparts.erp.ai.rag.model.RetrievedChunk> retrievedChunks() {
+    public List<RetrievedChunk> retrievedChunks() {
         Object chunks = object("retrievedChunks");
         if (chunks instanceof List<?> list) {
-            return (List<com.autoparts.erp.ai.rag.model.RetrievedChunk>) list;
+            return (List<RetrievedChunk>) list;
         }
         return List.of();
     }

@@ -60,9 +60,9 @@ public class ErpAiLlmClassifier {
     private final ChatModel chatModel;
     private final ObjectMapper objectMapper;
     private final String classifierPrompt;
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    @Autowired(required = false)
     private AiResilienceService aiResilienceService;
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    @Autowired(required = false)
     private AiMetricsService aiMetricsService;
     @Value("${spring.ai.openai.chat.options.model:sarvam-105b}")
     private String configuredModel = "sarvam-105b";

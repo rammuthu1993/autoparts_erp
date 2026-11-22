@@ -2,10 +2,37 @@ package com.autoparts.erp.repository;
 
 import com.autoparts.erp.ai.config.AiToolJdbcConfiguration;
 import com.autoparts.erp.ai.tools.*;
+import com.autoparts.erp.audit.repositoryimpl.AuditLogRepositoryImpl;
+import com.autoparts.erp.auth.repositoryimpl.RefreshTokenRepositoryImpl;
+import com.autoparts.erp.auth.repositoryimpl.UserManagementRepositoryImpl;
+import com.autoparts.erp.auth.repositoryimpl.UserRepositoryImpl;
+import com.autoparts.erp.cashregister.repositoryimpl.CashRegisterRepositoryImpl;
+import com.autoparts.erp.customer.ledger.repositoryimpl.CustomerLedgerRepositoryImpl;
+import com.autoparts.erp.customer.repositoryimpl.CustomerRepositoryImpl;
+import com.autoparts.erp.dailyclosing.repositoryimpl.DailyClosingRepositoryImpl;
+import com.autoparts.erp.expense.category.repositoryimpl.ExpenseCategoryRepositoryImpl;
+import com.autoparts.erp.expense.ledger.repositoryimpl.ExpenseLedgerRepositoryImpl;
+import com.autoparts.erp.expense.management.repositoryimpl.ExpenseRepositoryImpl;
+import com.autoparts.erp.inventory.repositoryimpl.InventoryRepositoryImpl;
+import com.autoparts.erp.masters.brand.repositoryimpl.ProductBrandRepositoryImpl;
+import com.autoparts.erp.masters.category.repositoryimpl.ProductCategoryRepositoryImpl;
+import com.autoparts.erp.product.repositoryimpl.ProductRepositoryImpl;
+import com.autoparts.erp.purchase.ledger.repositoryimpl.PurchaseLedgerRepositoryImpl;
+import com.autoparts.erp.purchase.payment.repositoryimpl.PurchasePaymentRepositoryImpl;
+import com.autoparts.erp.purchase.repositoryimpl.PurchaseRepositoryImpl;
+import com.autoparts.erp.purchase.returns.repositoryimpl.PurchaseReturnRepositoryImpl;
+import com.autoparts.erp.sales.ledger.repositoryimpl.SalesLedgerRepositoryImpl;
+import com.autoparts.erp.sales.repositoryimpl.SalesRepositoryImpl;
+import com.autoparts.erp.sales.repositoryimpl.SalesReturnRepositoryImpl;
+import com.autoparts.erp.supplier.ledger.repositoryimpl.SupplierLedgerRepositoryImpl;
+import com.autoparts.erp.supplier.repositoryimpl.SupplierRepositoryImpl;
+import com.autoparts.erp.tax.repositoryimpl.ProductTaxMappingRepositoryImpl;
+import com.autoparts.erp.tax.repositoryimpl.TaxRateRepositoryImpl;
 import com.zaxxer.hikari.HikariDataSource;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.annotation.AnnotatedElementUtils;
@@ -43,7 +70,7 @@ class DatasourceIsolationIntegrationTest extends BaseRepositoryIntegrationTest {
 
         // 1. Primary DataSource
         Method appDsMethod = configClass.getMethod("applicationDataSource",
-                org.springframework.boot.jdbc.autoconfigure.DataSourceProperties.class);
+                DataSourceProperties.class);
         assertTrue(AnnotatedElementUtils.hasAnnotation(appDsMethod, Primary.class),
                 "applicationDataSource must be marked @Primary");
         Bean appDsBean = AnnotatedElementUtils.findMergedAnnotation(appDsMethod, Bean.class);
@@ -111,32 +138,32 @@ class DatasourceIsolationIntegrationTest extends BaseRepositoryIntegrationTest {
     @DisplayName("Architecture: All 25 ERP repositories inject primary NamedParameterJdbcTemplate without AI qualifier")
     void testErpRepositoriesDoNotAcceptAiToolDatasource() {
         List<Class<?>> erpRepositories = List.of(
-                com.autoparts.erp.product.repositoryimpl.ProductRepositoryImpl.class,
-                com.autoparts.erp.masters.brand.repositoryimpl.ProductBrandRepositoryImpl.class,
-                com.autoparts.erp.masters.category.repositoryimpl.ProductCategoryRepositoryImpl.class,
-                com.autoparts.erp.inventory.repositoryimpl.InventoryRepositoryImpl.class,
-                com.autoparts.erp.supplier.repositoryimpl.SupplierRepositoryImpl.class,
-                com.autoparts.erp.supplier.ledger.repositoryimpl.SupplierLedgerRepositoryImpl.class,
-                com.autoparts.erp.purchase.repositoryimpl.PurchaseRepositoryImpl.class,
-                com.autoparts.erp.purchase.payment.repositoryimpl.PurchasePaymentRepositoryImpl.class,
-                com.autoparts.erp.purchase.returns.repositoryimpl.PurchaseReturnRepositoryImpl.class,
-                com.autoparts.erp.purchase.ledger.repositoryimpl.PurchaseLedgerRepositoryImpl.class,
-                com.autoparts.erp.customer.repositoryimpl.CustomerRepositoryImpl.class,
-                com.autoparts.erp.customer.ledger.repositoryimpl.CustomerLedgerRepositoryImpl.class,
-                com.autoparts.erp.sales.repositoryimpl.SalesRepositoryImpl.class,
-                com.autoparts.erp.sales.repositoryimpl.SalesReturnRepositoryImpl.class,
-                com.autoparts.erp.sales.ledger.repositoryimpl.SalesLedgerRepositoryImpl.class,
-                com.autoparts.erp.cashregister.repositoryimpl.CashRegisterRepositoryImpl.class,
-                com.autoparts.erp.tax.repositoryimpl.TaxRateRepositoryImpl.class,
-                com.autoparts.erp.tax.repositoryimpl.ProductTaxMappingRepositoryImpl.class,
-                com.autoparts.erp.expense.management.repositoryimpl.ExpenseRepositoryImpl.class,
-                com.autoparts.erp.expense.category.repositoryimpl.ExpenseCategoryRepositoryImpl.class,
-                com.autoparts.erp.expense.ledger.repositoryimpl.ExpenseLedgerRepositoryImpl.class,
-                com.autoparts.erp.dailyclosing.repositoryimpl.DailyClosingRepositoryImpl.class,
-                com.autoparts.erp.audit.repositoryimpl.AuditLogRepositoryImpl.class,
-                com.autoparts.erp.auth.repositoryimpl.UserRepositoryImpl.class,
-                com.autoparts.erp.auth.repositoryimpl.UserManagementRepositoryImpl.class,
-                com.autoparts.erp.auth.repositoryimpl.RefreshTokenRepositoryImpl.class
+                ProductRepositoryImpl.class,
+                ProductBrandRepositoryImpl.class,
+                ProductCategoryRepositoryImpl.class,
+                InventoryRepositoryImpl.class,
+                SupplierRepositoryImpl.class,
+                SupplierLedgerRepositoryImpl.class,
+                PurchaseRepositoryImpl.class,
+                PurchasePaymentRepositoryImpl.class,
+                PurchaseReturnRepositoryImpl.class,
+                PurchaseLedgerRepositoryImpl.class,
+                CustomerRepositoryImpl.class,
+                CustomerLedgerRepositoryImpl.class,
+                SalesRepositoryImpl.class,
+                SalesReturnRepositoryImpl.class,
+                SalesLedgerRepositoryImpl.class,
+                CashRegisterRepositoryImpl.class,
+                TaxRateRepositoryImpl.class,
+                ProductTaxMappingRepositoryImpl.class,
+                ExpenseRepositoryImpl.class,
+                ExpenseCategoryRepositoryImpl.class,
+                ExpenseLedgerRepositoryImpl.class,
+                DailyClosingRepositoryImpl.class,
+                AuditLogRepositoryImpl.class,
+                UserRepositoryImpl.class,
+                UserManagementRepositoryImpl.class,
+                RefreshTokenRepositoryImpl.class
         );
 
         for (Class<?> repoClass : erpRepositories) {

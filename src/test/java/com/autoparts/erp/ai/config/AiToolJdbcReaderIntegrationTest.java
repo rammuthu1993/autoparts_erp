@@ -3,6 +3,7 @@ package com.autoparts.erp.ai.config;
 import com.zaxxer.hikari.HikariDataSource;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
@@ -55,7 +56,7 @@ class AiToolJdbcReaderIntegrationTest {
             );
             fts.retrieve("spark plug ignition coil", Set.of("PUBLIC"), 5);
             assertThrows(
-                    org.springframework.dao.DataAccessException.class,
+                    DataAccessException.class,
                     () -> template.queryForList(
                             "SELECT id FROM ai_conversations LIMIT 1"
                     )

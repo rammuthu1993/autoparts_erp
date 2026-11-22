@@ -11,6 +11,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -215,8 +217,8 @@ class PromptInjectionDefenseTest {
         List<Message> messages = capturedPrompt.getInstructions();
         // One trusted system message; retrieved content and question stay in a user message.
         assertEquals(2, messages.size(), "Prompt must contain one system instruction and one user data message");
-        assertInstanceOf(org.springframework.ai.chat.messages.SystemMessage.class, messages.get(0));
-        assertInstanceOf(org.springframework.ai.chat.messages.UserMessage.class, messages.get(1));
+        assertInstanceOf(SystemMessage.class, messages.get(0));
+        assertInstanceOf(UserMessage.class, messages.get(1));
         assertTrue(messages.get(1).getText().contains("BEGIN_UNTRUSTED_KNOWLEDGE_CONTEXT"));
 
         // Verify none of the hostile history content leaked into prompt messages
