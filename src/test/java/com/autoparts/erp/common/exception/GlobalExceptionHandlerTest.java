@@ -2,6 +2,8 @@
 package com.autoparts.erp.common.exception;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.concurrent.CancellationException;
 
@@ -98,6 +100,114 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void invalidReportDateRangeReturnsHttp400() {
+        var response = handler.handleClientValidationException(
+                new ClientValidationException("fromDate must be before or equal to toDate"),
+                request()
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("fromDate must be before or equal to toDate", response.getBody().message());
+        assertEquals("Bad Request", response.getBody().error());
+    }
+
+    @Test
+    void invalidReportTargetInputReturnsHttp400() {
+        var response = handler.handleClientValidationException(
+                new ClientValidationException("Target dimensions do not match the selected metric"),
+                request()
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Target dimensions do not match the selected metric", response.getBody().message());
+        assertEquals("Bad Request", response.getBody().error());
+    }
+
+    @Test
+    void invalidCashMovementInputReturnsHttp400() {
+        var response = handler.handleClientValidationException(
+                new ClientValidationException("Cash movement amount must be greater than zero"),
+                request()
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Cash movement amount must be greater than zero", response.getBody().message());
+        assertEquals("Bad Request", response.getBody().error());
+    }
+
+    @Test
+    void invalidExpensePaginationInputReturnsHttp400() {
+        var response = handler.handleClientValidationException(
+                new ClientValidationException("Page size must be between 1 and 100"),
+                request()
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Page size must be between 1 and 100", response.getBody().message());
+        assertEquals("Bad Request", response.getBody().error());
+    }
+
+    @Test
+    void invalidKnowledgeDocumentCodeReturnsHttp400() {
+        var response = handler.handleClientValidationException(
+                new ClientValidationException("documentCode must be 3-100 alphanumeric, underscore, or hyphen characters"),
+                request()
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("documentCode must be 3-100 alphanumeric, underscore, or hyphen characters", response.getBody().message());
+        assertEquals("Bad Request", response.getBody().error());
+    }
+
+    @Test
+    void invalidChatMessageLengthReturnsHttp400() {
+        var response = handler.handleClientValidationException(
+                new ClientValidationException("Chat message cannot exceed 8000 characters"),
+                request()
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Chat message cannot exceed 8000 characters", response.getBody().message());
+        assertEquals("Bad Request", response.getBody().error());
+    }
+
+    @Test
+    void invalidToolDateRangeReturnsHttp400() {
+        var response = handler.handleClientValidationException(
+                new ClientValidationException("End date must not be before start date."),
+                request()
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("End date must not be before start date.", response.getBody().message());
+        assertEquals("Bad Request", response.getBody().error());
+    }
+
+    @Test
+    void mapsBlankClientValidationExceptionToDefaultBadRequest() {
+        var response = handler.handleClientValidationException(
+                new ClientValidationException(""),
+                request()
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Invalid request arguments.", response.getBody().message());
+        assertEquals("Bad Request", response.getBody().error());
+    }
+
+    @Test
+    void unexpectedIllegalArgumentExceptionDoesNotLeakInternalMessage() {
+        var response = handler.handleUnexpectedException(
+                new IllegalArgumentException("internal invariant failed: column_index=-1"),
+                request()
+        );
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        assertFalse(response.getBody().message().contains("column_index"));
+        assertTrue(response.getBody().message().contains("Reference:"));
+    }
+
+    @Test
     void unexpectedExceptionDoesNotExposeInternalMessage() {
         var response = handler.handleUnexpectedException(
                 new IllegalStateException("database password=secret-value"),
@@ -105,9 +215,9 @@ class GlobalExceptionHandlerTest {
         );
 
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
-        org.junit.jupiter.api.Assertions.assertFalse(
+        assertFalse(
                 response.getBody().message().contains("secret-value"));
-        org.junit.jupiter.api.Assertions.assertTrue(
+        assertTrue(
                 response.getBody().message().contains("Reference:"));
     }
 }

@@ -33,6 +33,22 @@ public interface ProductRepository {
 
     List<Product> findAll();
 
+    List<Product> findPaged(
+            int offset,
+            int limit,
+            String search,
+            Long categoryId,
+            Long brandId,
+            String sortBy,
+            String sortDir
+    );
+
+    long countPaged(
+            String search,
+            Long categoryId,
+            Long brandId
+    );
+
     Optional<Product> findByUuid(UUID uuid);
 
     boolean update(

@@ -1,6 +1,7 @@
 package com.autoparts.erp.product.controller;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.product.dto.ProductCreateRequest;
 import com.autoparts.erp.product.dto.ProductResponse;
 import com.autoparts.erp.product.dto.ProductUpdateRequest;
@@ -45,6 +46,19 @@ public class ProductController {
     @GetMapping
     public ResponseEntity<List<ProductResponse>> findAll() {
         return ResponseEntity.ok(productService.findAll());
+    }
+
+    @GetMapping("/paged")
+    public ResponseEntity<PageResponse<ProductResponse>> findPaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Long brandId,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
+    ) {
+        return ResponseEntity.ok(productService.findPaged(page, size, search, categoryId, brandId, sortBy, sortDir));
     }
 
     @GetMapping("/{uuid}")

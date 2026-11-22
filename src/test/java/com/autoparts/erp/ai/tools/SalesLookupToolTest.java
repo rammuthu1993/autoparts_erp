@@ -3,6 +3,7 @@ package com.autoparts.erp.ai.tools;
 import com.autoparts.erp.ai.security.ErpAiContextHolder;
 import com.autoparts.erp.ai.security.ErpAiExecutionContext;
 import com.autoparts.erp.ai.security.ToolAuthorizationException;
+import com.autoparts.erp.common.exception.ClientValidationException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -146,16 +147,16 @@ class SalesLookupToolTest {
     @Test
     @DisplayName("Date range validation rejects invalid dates and inverted ranges")
     void shouldValidateDateRanges() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(ClientValidationException.class,
                 () -> salesLookupTool.getSalesByDateRange(null, "2026-01-31", managerContext));
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(ClientValidationException.class,
                 () -> salesLookupTool.getSalesByDateRange("2026-01-01", null, managerContext));
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(ClientValidationException.class,
                 () -> salesLookupTool.getSalesByDateRange("2026-02-01", "2026-01-01", managerContext));
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(ClientValidationException.class,
                 () -> salesLookupTool.getSalesSummary("2026-02-01", "2026-01-01", managerContext));
 
         verifyNoInteractions(jdbcTemplate);

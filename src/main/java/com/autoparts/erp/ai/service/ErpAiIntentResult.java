@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Set;
 
 import com.autoparts.erp.ai.enums.ClassificationSource;
+import com.autoparts.erp.common.exception.ClientValidationException;
 
 public record ErpAiIntentResult(
         String intent,
@@ -108,11 +109,11 @@ public record ErpAiIntentResult(
         }
 
         if (limit != null && (limit < 1 || limit > 50)) {
-            throw new IllegalArgumentException("Inventory result limit must be between 1 and 50.");
+            throw new ClientValidationException("Inventory result limit must be between 1 and 50.");
         }
         if ("PRODUCT_COMPARISON".equals(intent)
                 && (productIdentifiers.size() < 2 || productIdentifiers.size() > 5)) {
-            throw new IllegalArgumentException("Product comparison requires between 2 and 5 unique product identifiers.");
+            throw new ClientValidationException("Product comparison requires between 2 and 5 unique product identifiers.");
         }
     }
 

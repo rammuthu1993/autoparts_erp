@@ -2,6 +2,7 @@ package com.autoparts.erp.customer.controller;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
+import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.customer.dto.CustomerCreateRequest;
 import com.autoparts.erp.customer.dto.CustomerResponse;
 import com.autoparts.erp.customer.dto.CustomerUpdateRequest;
@@ -40,6 +41,21 @@ public class CustomerController {
     public ResponseEntity<List<CustomerResponse>> findAll() {
 
         return ResponseEntity.ok(customerService.findAll());
+    }
+
+    @GetMapping("/paged")
+    public ResponseEntity<PageResponse<CustomerResponse>> findPaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String city,
+            @RequestParam(required = false) String state,
+            @RequestParam(defaultValue = "customerName") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir
+    ) {
+        return ResponseEntity.ok(
+                customerService.findPaged(page, size, search, city, state, sortBy, sortDir)
+        );
     }
 
     @GetMapping("/{uuid}")

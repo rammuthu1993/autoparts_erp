@@ -3,6 +3,7 @@ package com.autoparts.erp.common.exception;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.UUID;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -253,12 +254,24 @@ public class GlobalExceptionHandler {
                 .body(error);
     }
 
+    @ExceptionHandler(ClientValidationException.class)
+    public ResponseEntity<ApiError> handleClientValidationException(
+            ClientValidationException exception, HttpServletRequest request) {
+        String message = exception.getMessage();
+        if (message == null || message.isBlank()) {
+            message = "Invalid request arguments.";
+        }
+        log.warn("Client argument validation rejected: path={}, message={}",
+                request.getRequestURI(), message);
+        return buildError(HttpStatus.BAD_REQUEST, "Bad Request", message, request);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleUnexpectedException(
             Exception exception,
             HttpServletRequest request) {
 
-        String incidentId = java.util.UUID.randomUUID().toString();
+        String incidentId = UUID.randomUUID().toString();
         log.error("Unhandled request failure. incidentId={}, path={}",
                 incidentId, request.getRequestURI(), exception);
 

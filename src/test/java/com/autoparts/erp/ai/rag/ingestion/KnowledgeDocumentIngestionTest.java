@@ -23,6 +23,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import com.autoparts.erp.ai.rag.model.KnowledgeDocument;
 import com.autoparts.erp.ai.security.ErpAiExecutionContext;
 import com.autoparts.erp.ai.security.ToolAuthorizationException;
+import com.autoparts.erp.common.exception.ClientValidationException;
 
 import tools.jackson.databind.ObjectMapper;
 
@@ -83,7 +84,7 @@ class KnowledgeDocumentIngestionTest {
     void shouldRejectInvalidPdfMagicBytes() {
         byte[] fakePdf = "INVALID_PDF_HEADER_CONTENT".getBytes(StandardCharsets.UTF_8);
         assertFalse(pdfParser.supports("PDF", fakePdf));
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> pdfParser.extractText(fakePdf));
+        ClientValidationException ex = assertThrows(ClientValidationException.class, () -> pdfParser.extractText(fakePdf));
         assertTrue(ex.getMessage().contains("missing %PDF- header magic bytes"));
     }
 
@@ -91,7 +92,7 @@ class KnowledgeDocumentIngestionTest {
     @DisplayName("IngestionRequest enforces 10 MB maximum file limit")
     void shouldRejectFilesExceeding10MbLimit() {
         byte[] largeBytes = new byte[10 * 1024 * 1024 + 1];
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+        ClientValidationException ex = assertThrows(ClientValidationException.class, () ->
                 new KnowledgeIngestionService.IngestionRequest(
                         "POL-RET-01",
                         "Return Policy",
@@ -124,7 +125,7 @@ class KnowledgeDocumentIngestionTest {
     void shouldRejectBinaryFilesWithNullBytes() {
         byte[] binaryWithNull = new byte[]{'H', 'e', 'l', 'l', 'o', 0x00, 'W', 'o', 'r', 'l', 'd'};
         assertFalse(textParser.supports("TEXT", binaryWithNull));
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> textParser.extractText(binaryWithNull));
+        ClientValidationException ex = assertThrows(ClientValidationException.class, () -> textParser.extractText(binaryWithNull));
         assertTrue(ex.getMessage().contains("non-UTF-8 bytes or binary null characters"));
     }
 
@@ -212,7 +213,7 @@ class KnowledgeDocumentIngestionTest {
     @Test
     @DisplayName("IngestionRequest rejects unsupported documentType")
     void shouldRejectUnsupportedDocumentType() {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+        ClientValidationException ex = assertThrows(ClientValidationException.class, () ->
                 new KnowledgeIngestionService.IngestionRequest(
                         "POL-RET-03",
                         "Secret Policy",
@@ -231,7 +232,7 @@ class KnowledgeDocumentIngestionTest {
     @Test
     @DisplayName("IngestionRequest rejects unsupported contentFormat")
     void shouldRejectUnsupportedContentFormat() {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+        ClientValidationException ex = assertThrows(ClientValidationException.class, () ->
                 new KnowledgeIngestionService.IngestionRequest(
                         "POL-RET-04",
                         "Word Doc Policy",
@@ -250,7 +251,7 @@ class KnowledgeDocumentIngestionTest {
     @Test
     @DisplayName("IngestionRequest rejects extension mismatch with contentFormat")
     void shouldRejectExtensionMismatch() {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+        ClientValidationException ex = assertThrows(ClientValidationException.class, () ->
                 new KnowledgeIngestionService.IngestionRequest(
                         "POL-RET-05",
                         "Policy Mismatch",
@@ -269,7 +270,7 @@ class KnowledgeDocumentIngestionTest {
     @Test
     @DisplayName("IngestionRequest rejects path traversal in fileName")
     void shouldRejectPathTraversalInFileName() {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+        ClientValidationException ex = assertThrows(ClientValidationException.class, () ->
                 new KnowledgeIngestionService.IngestionRequest(
                         "POL-RET-06",
                         "Policy Traversal",
@@ -288,7 +289,7 @@ class KnowledgeDocumentIngestionTest {
     @Test
     @DisplayName("IngestionRequest rejects invalid documentCode characters")
     void shouldRejectInvalidDocumentCode() {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+        ClientValidationException ex = assertThrows(ClientValidationException.class, () ->
                 new KnowledgeIngestionService.IngestionRequest(
                         "PO", // too short (< 3 chars)
                         "Short Code",
@@ -307,7 +308,7 @@ class KnowledgeDocumentIngestionTest {
     @Test
     @DisplayName("IngestionRequest rejects unsupported requiredRole")
     void shouldRejectUnsupportedRequiredRole() {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+        ClientValidationException ex = assertThrows(ClientValidationException.class, () ->
                 new KnowledgeIngestionService.IngestionRequest(
                         "POL-RET-07",
                         "Role Policy",

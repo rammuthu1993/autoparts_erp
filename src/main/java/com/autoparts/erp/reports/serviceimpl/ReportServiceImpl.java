@@ -8,6 +8,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
+import com.autoparts.erp.common.exception.ClientValidationException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,12 +37,12 @@ public class ReportServiceImpl implements ReportService {
             LocalDate toDate) {
 
         if (fromDate == null || toDate == null) {
-            throw new IllegalArgumentException(
+            throw new ClientValidationException(
                     "fromDate and toDate are required");
         }
 
         if (fromDate.isAfter(toDate)) {
-            throw new IllegalArgumentException(
+            throw new ClientValidationException(
                     "fromDate must be before or equal to toDate");
         }
 

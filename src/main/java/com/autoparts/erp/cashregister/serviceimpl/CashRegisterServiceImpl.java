@@ -21,6 +21,7 @@ import com.autoparts.erp.auth.security.annotation.AdminOnly;
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.audit.service.AuditLogService;
+import com.autoparts.erp.common.exception.ClientValidationException;
 import com.autoparts.erp.cashregister.dto.*;
 import com.autoparts.erp.cashregister.enums.*;
 import com.autoparts.erp.cashregister.model.*;
@@ -606,7 +607,7 @@ public class CashRegisterServiceImpl implements CashRegisterService {
                 sourceType == null ||
                 sourceUuid == null) {
 
-            throw new IllegalArgumentException(
+            throw new ClientValidationException(
                     "Movement type, source type and source UUID are required"
             );
         }
@@ -614,14 +615,14 @@ public class CashRegisterServiceImpl implements CashRegisterService {
         if (amount == null ||
                 amount.compareTo(BigDecimal.ZERO) <= 0) {
 
-            throw new IllegalArgumentException(
+            throw new ClientValidationException(
                     "Cash movement amount must be greater than zero"
             );
         }
 
         if (sourceType == CashMovementSourceType.MANUAL) {
 
-            throw new IllegalArgumentException(
+            throw new ClientValidationException(
                     "MANUAL movements must use the manual cash movement workflow"
             );
         }

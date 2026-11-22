@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import com.autoparts.erp.common.exception.ClientValidationException;
 import com.autoparts.erp.reports.dto.DataQualityReportResponse.Issue;
 import com.autoparts.erp.reports.dto.CustomerAnalyticsResponse.CustomerMetric;
 import com.autoparts.erp.reports.dto.FinancialReconciliationResponse.Discrepancy;
@@ -298,7 +299,7 @@ public class AdvancedReportRepositoryImpl implements AdvancedReportRepository {
                 .addValue("notes", notes)
                 .addValue("username", username));
         if (updated != 1) {
-            throw new IllegalArgumentException(
+            throw new ClientValidationException(
                     "Authenticated user could not be resolved");
         }
     }
@@ -907,7 +908,7 @@ public class AdvancedReportRepositoryImpl implements AdvancedReportRepository {
                 (rs, rowNum) -> rs.getObject("uuid", UUID.class));
 
         if (createdIds.isEmpty()) {
-            throw new IllegalArgumentException(
+            throw new ClientValidationException(
                     "Target was not created. Verify the authenticated user and active product/category reference.");
         }
 

@@ -20,6 +20,7 @@ import org.springframework.util.StringUtils;
 import com.autoparts.erp.ai.security.ErpAiContextHolder;
 import com.autoparts.erp.ai.security.ErpAiExecutionContext;
 import com.autoparts.erp.ai.security.ToolAuthorizationException;
+import com.autoparts.erp.common.exception.ClientValidationException;
 
 /**
  * Read-only AI tool for querying Sales invoices, items, customer receipts, and sales revenue.
@@ -167,13 +168,13 @@ public class SalesLookupTool {
         checkSalesAccess(context);
 
         if (!StringUtils.hasText(startDate) || !StringUtils.hasText(endDate)) {
-            throw new IllegalArgumentException("Start date and end date are required.");
+            throw new ClientValidationException("Start date and end date are required.");
         }
 
         LocalDate from = LocalDate.parse(startDate.trim());
         LocalDate to = LocalDate.parse(endDate.trim());
         if (to.isBefore(from)) {
-            throw new IllegalArgumentException("End date must not be before start date.");
+            throw new ClientValidationException("End date must not be before start date.");
         }
 
         String sql = """
@@ -244,7 +245,7 @@ public class SalesLookupTool {
         LocalDate to = StringUtils.hasText(endDate) ? LocalDate.parse(endDate.trim()) : null;
 
         if (from != null && to != null && to.isBefore(from)) {
-            throw new IllegalArgumentException("End date must not be before start date.");
+            throw new ClientValidationException("End date must not be before start date.");
         }
 
         String sql = """

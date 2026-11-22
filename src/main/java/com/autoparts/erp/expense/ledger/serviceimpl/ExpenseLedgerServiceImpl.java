@@ -1,5 +1,6 @@
 package com.autoparts.erp.expense.ledger.serviceimpl;
 
+import com.autoparts.erp.common.exception.ClientValidationException;
 import com.autoparts.erp.expense.ledger.dto.ExpenseLedgerResponse;
 import com.autoparts.erp.expense.ledger.dto.ExpenseLedgerSummary;
 import com.autoparts.erp.expense.ledger.repository.ExpenseLedgerRepository;
@@ -39,19 +40,19 @@ public class ExpenseLedgerServiceImpl implements ExpenseLedgerService {
 
         if (fromDate != null && toDate != null
             && fromDate.isAfter(toDate)) {
-            throw new IllegalArgumentException(
+            throw new ClientValidationException(
                 "From date cannot be after to date"
             );
         }
 
         if (page < 0) {
-            throw new IllegalArgumentException(
+            throw new ClientValidationException(
                 "Page must be zero or greater"
             );
         }
 
         if (size < 1 || size > MAX_PAGE_SIZE) {
-            throw new IllegalArgumentException(
+            throw new ClientValidationException(
                 "Page size must be between 1 and " + MAX_PAGE_SIZE
             );
         }

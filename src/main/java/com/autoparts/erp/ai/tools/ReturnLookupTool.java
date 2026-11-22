@@ -19,6 +19,7 @@ import org.springframework.util.StringUtils;
 import com.autoparts.erp.ai.security.ErpAiContextHolder;
 import com.autoparts.erp.ai.security.ErpAiExecutionContext;
 import com.autoparts.erp.ai.security.ToolAuthorizationException;
+import com.autoparts.erp.common.exception.ClientValidationException;
 
 /**
  * Read-only AI tool for querying Sales Returns, Customer Refunds, Purchase Returns, and Supplier Credits.
@@ -278,7 +279,7 @@ public class ReturnLookupTool {
         LocalDate to = StringUtils.hasText(endDate) ? LocalDate.parse(endDate.trim()) : null;
 
         if (from != null && to != null && to.isBefore(from)) {
-            throw new IllegalArgumentException("End date must not be before start date.");
+            throw new ClientValidationException("End date must not be before start date.");
         }
 
         String salesReturnSql = """

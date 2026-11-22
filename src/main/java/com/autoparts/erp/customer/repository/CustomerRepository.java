@@ -12,6 +12,22 @@ public interface CustomerRepository {
 
     List<Customer> findAll();
 
+    List<Customer> findPaged(
+            int offset,
+            int limit,
+            String search,
+            String city,
+            String state,
+            String sortBy,
+            String sortDir
+    );
+
+    long countPaged(
+            String search,
+            String city,
+            String state
+    );
+
     Optional<Customer> findByUuid(UUID uuid);
 
     Optional<Customer> findById(Long id);

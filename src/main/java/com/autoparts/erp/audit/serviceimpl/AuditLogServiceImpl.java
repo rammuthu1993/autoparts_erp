@@ -4,6 +4,8 @@ package com.autoparts.erp.audit.serviceimpl;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,8 @@ import com.autoparts.erp.auth.security.CurrentUserService;
 
 @Service
 public class AuditLogServiceImpl implements AuditLogService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuditLogServiceImpl.class);
 
     private final AuditLogRepository auditLogRepository;
     private final CurrentUserService currentUserService;
@@ -44,30 +48,102 @@ public class AuditLogServiceImpl implements AuditLogService {
             Map<String, Object> oldValues,
             Map<String, Object> newValues
     ) {
-
         Authentication authentication =
                 SecurityContextHolder.getContext().getAuthentication();
 
-        if (authentication == null
-                || !authentication.isAuthenticated()
-                || authentication.getName() == null
-                || "anonymousUser".equals(authentication.getName())) {
+        Long userId = null;
+        String username;
+        String actorType;
 
-            throw new IllegalStateException(
-                    "Cannot create an audit log without an authenticated user"
-            );
+        if (authentication != null
+                && authentication.isAuthenticated()
+                && authentication.getName() != null
+                && !"anonymousUser".equals(authentication.getName())) {
+
+            actorType = "USER";
+            username = authentication.getName();
+            try {
+                userId = currentUserService.getCurrentUserId();
+            } catch (Exception ex) {
+                log.warn("Failed to resolve user ID for authenticated user [{}]: {}", username, ex.getMessage());
+                userId = null;
+            }
+        } else {
+            actorType = "SYSTEM";
+            username = "SYSTEM";
         }
 
-        Long userId = currentUserService.getCurrentUserId();
+        logWithActor(
+                actorType,
+                userId,
+                username,
+                action,
+                entityType,
+                entityId,
+                description,
+                oldValues,
+                newValues
+        );
+    }
 
-        String username = authentication.getName();
+    @Override
+    @Transactional
+    public void logSystem(
+            String systemIdentifier,
+            String action,
+            String entityType,
+            String entityId,
+            String description,
+            Map<String, Object> oldValues,
+            Map<String, Object> newValues
+    ) {
+        String identifier = (systemIdentifier != null && !systemIdentifier.isBlank())
+                ? systemIdentifier.trim()
+                : "SYSTEM";
+
+        logWithActor(
+                "SYSTEM",
+                null,
+                identifier,
+                action,
+                entityType,
+                entityId,
+                description,
+                oldValues,
+                newValues
+        );
+    }
+
+    @Override
+    @Transactional
+    public void logWithActor(
+            String actorType,
+            Long actorUserId,
+            String actorUsername,
+            String action,
+            String entityType,
+            String entityId,
+            String description,
+            Map<String, Object> oldValues,
+            Map<String, Object> newValues
+    ) {
+        if (action == null || action.isBlank()) {
+            throw new IllegalArgumentException("Audit action must not be blank");
+        }
+        if (entityType == null || entityType.isBlank()) {
+            throw new IllegalArgumentException("Audit entityType must not be blank");
+        }
+
+        String safeUsername = (actorUsername != null && !actorUsername.isBlank())
+                ? actorUsername.trim()
+                : (actorType != null ? actorType : "SYSTEM");
 
         String oldJson = toJson(oldValues);
         String newJson = toJson(newValues);
 
         auditLogRepository.insert(
-                userId,
-                username,
+                actorUserId,
+                safeUsername,
                 action,
                 entityType,
                 entityId,

@@ -19,6 +19,7 @@ import org.springframework.util.StringUtils;
 import com.autoparts.erp.ai.security.ErpAiContextHolder;
 import com.autoparts.erp.ai.security.ErpAiExecutionContext;
 import com.autoparts.erp.ai.security.ToolAuthorizationException;
+import com.autoparts.erp.common.exception.ClientValidationException;
 
 /**
  * Read-only AI tool for Cash Registers, Operational Expenses, Daily Closings, and Cash Discrepancies.
@@ -114,7 +115,7 @@ public class FinancialLookupTool {
         LocalDate to = StringUtils.hasText(endDate) ? LocalDate.parse(endDate.trim()) : null;
 
         if (from != null && to != null && to.isBefore(from)) {
-            throw new IllegalArgumentException("End date must not be before start date.");
+            throw new ClientValidationException("End date must not be before start date.");
         }
 
         String totalsSql = """
@@ -169,7 +170,7 @@ public class FinancialLookupTool {
         LocalDate to = StringUtils.hasText(endDate) ? LocalDate.parse(endDate.trim()) : null;
 
         if (from != null && to != null && to.isBefore(from)) {
-            throw new IllegalArgumentException("End date must not be before start date.");
+            throw new ClientValidationException("End date must not be before start date.");
         }
 
         String searchPattern = "%" + (StringUtils.hasText(categoryQuery) ? categoryQuery.trim() : "") + "%";
@@ -242,7 +243,7 @@ public class FinancialLookupTool {
         LocalDate to = StringUtils.hasText(endDate) ? LocalDate.parse(endDate.trim()) : null;
 
         if (from != null && to != null && to.isBefore(from)) {
-            throw new IllegalArgumentException("End date must not be before start date.");
+            throw new ClientValidationException("End date must not be before start date.");
         }
 
         String sql = """

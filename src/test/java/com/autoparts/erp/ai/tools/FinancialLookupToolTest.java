@@ -3,6 +3,7 @@ package com.autoparts.erp.ai.tools;
 import com.autoparts.erp.ai.security.ErpAiContextHolder;
 import com.autoparts.erp.ai.security.ErpAiExecutionContext;
 import com.autoparts.erp.ai.security.ToolAuthorizationException;
+import com.autoparts.erp.common.exception.ClientValidationException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -153,9 +154,9 @@ class FinancialLookupToolTest {
     }
 
     @Test
-    @DisplayName("Invalid date range in getExpenseSummary throws IllegalArgumentException without JDBC")
+    @DisplayName("Invalid date range in getExpenseSummary throws ClientValidationException without JDBC")
     void shouldThrowOnInvalidDateRangeInExpenseSummary() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(ClientValidationException.class,
                 () -> financialLookupTool.getExpenseSummary("2026-02-01", "2026-01-01", managerContext));
         verifyNoInteractions(jdbcTemplate);
     }

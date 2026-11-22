@@ -13,6 +13,22 @@ public interface SupplierRepository {
 
     List<Supplier> findAll();
 
+    List<Supplier> findPaged(
+            int offset,
+            int limit,
+            String search,
+            String city,
+            String state,
+            String sortBy,
+            String sortDir
+    );
+
+    long countPaged(
+            String search,
+            String city,
+            String state
+    );
+
     Optional<Supplier> findByUuid(UUID uuid);
 
     boolean update(UUID uuid, Supplier supplier);

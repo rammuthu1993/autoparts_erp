@@ -2,6 +2,7 @@
 package com.autoparts.erp.supplier.controller;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.supplier.dto.SupplierCreateRequest;
 import com.autoparts.erp.supplier.dto.SupplierResponse;
 import com.autoparts.erp.supplier.dto.SupplierUpdateRequest;
@@ -36,6 +37,21 @@ public class SupplierController {
     @GetMapping
     public ResponseEntity<List<SupplierResponse>> findAll() {
         return ResponseEntity.ok(supplierService.findAll());
+    }
+
+    @GetMapping("/paged")
+    public ResponseEntity<PageResponse<SupplierResponse>> findPaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String city,
+            @RequestParam(required = false) String state,
+            @RequestParam(defaultValue = "supplierName") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir
+    ) {
+        return ResponseEntity.ok(
+                supplierService.findPaged(page, size, search, city, state, sortBy, sortDir)
+        );
     }
 
     @GetMapping("/{uuid}")

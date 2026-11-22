@@ -16,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import com.autoparts.erp.common.exception.ClientValidationException;
 import com.autoparts.erp.reports.dto.DataQualityReportResponse.Issue;
 import com.autoparts.erp.reports.dto.ReportTargetRequest;
 import com.autoparts.erp.reports.dto.ScenarioAnalysisRequest;
@@ -84,14 +85,14 @@ class AdvancedReportServiceImplTests {
                 2L,
                 amount("1000"));
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(ClientValidationException.class,
                 () -> service.createTarget(request, "admin"));
         verify(repository, never()).createTarget(Mockito.any(), Mockito.anyString());
     }
 
     @Test
     void dateRangeMustBeOrdered() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(ClientValidationException.class,
                 () -> service.getReconciliationReport(
                         LocalDate.of(2026, 2, 1),
                         LocalDate.of(2026, 1, 1)));

@@ -17,6 +17,7 @@ import org.springframework.stereotype.Repository;
 
 import com.autoparts.erp.auth.model.ManagedUser;
 import com.autoparts.erp.auth.repository.UserManagementRepository;
+import com.autoparts.erp.common.exception.ClientValidationException;
 
 @Repository
 public class UserManagementRepositoryImpl
@@ -287,7 +288,7 @@ public class UserManagementRepositoryImpl
                 roleIds.put(roleName, roleId);
 
             } catch (EmptyResultDataAccessException ex) {
-                throw new IllegalArgumentException(
+                throw new ClientValidationException(
                         "Role does not exist: " + roleName
                 );
             }

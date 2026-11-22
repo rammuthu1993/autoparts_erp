@@ -9,6 +9,8 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -153,6 +155,17 @@ public class ProductRepositoryImpl implements ProductRepository {
                         "Created product could not be retrieved"));
     }
 
+    private static final Map<String, String> SORT_ALLOWLIST = Map.of(
+            "id", "p.id",
+            "name", "p.name",
+            "productCode", "p.product_code",
+            "partNo", "p.part_no",
+            "sellingPrice", "p.selling_price",
+            "purchasePrice", "p.purchase_price",
+            "qty", "p.qty",
+            "createdAt", "p.created_at"
+    );
+
     @Override
     public List<Product> findAll() {
         return jdbcTemplate.query(
@@ -160,6 +173,76 @@ public class ProductRepositoryImpl implements ProductRepository {
                 new MapSqlParameterSource(),
                 rowMapper
         );
+    }
+
+    @Override
+    public List<Product> findPaged(
+            int offset,
+            int limit,
+            String search,
+            Long categoryId,
+            Long brandId,
+            String sortBy,
+            String sortDir
+    ) {
+        StringBuilder sql = new StringBuilder(SELECT_PRODUCT).append(" WHERE p.active = TRUE ");
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        applyProductFilters(sql, params, search, categoryId, brandId);
+
+        String sortColumn = SORT_ALLOWLIST.getOrDefault(sortBy, "p.id");
+        String direction = "ASC".equalsIgnoreCase(sortDir) ? "ASC" : "DESC";
+        sql.append(" ORDER BY ").append(sortColumn).append(" ").append(direction);
+        if (!"p.id".equals(sortColumn)) {
+            sql.append(", p.id DESC");
+        }
+        sql.append(" LIMIT :limit OFFSET :offset");
+
+        params.addValue("limit", Math.max(1, Math.min(limit, 100)));
+        params.addValue("offset", Math.max(0, offset));
+
+        return jdbcTemplate.query(sql.toString(), params, rowMapper);
+    }
+
+    @Override
+    public long countPaged(String search, Long categoryId, Long brandId) {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM products p WHERE p.active = TRUE ");
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        applyProductFilters(sql, params, search, categoryId, brandId);
+
+        Long count = jdbcTemplate.queryForObject(sql.toString(), params, Long.class);
+        return count != null ? count : 0L;
+    }
+
+    private void applyProductFilters(
+            StringBuilder sql,
+            MapSqlParameterSource params,
+            String search,
+            Long categoryId,
+            Long brandId
+    ) {
+        if (categoryId != null) {
+            sql.append(" AND p.category_id = :categoryId ");
+            params.addValue("categoryId", categoryId);
+        }
+        if (brandId != null) {
+            sql.append(" AND p.brand_id = :brandId ");
+            params.addValue("brandId", brandId);
+        }
+        if (search != null && !search.isBlank()) {
+            sql.append("""
+                 AND (
+                     LOWER(p.name) LIKE :searchPattern
+                     OR LOWER(p.part_no) LIKE :searchPattern
+                     OR LOWER(p.product_code) LIKE :searchPattern
+                     OR p.barcode = :exactSearch
+                 )
+            """);
+            String trimmed = search.trim();
+            params.addValue("searchPattern", "%" + trimmed.toLowerCase(Locale.ROOT) + "%");
+            params.addValue("exactSearch", trimmed);
+        }
     }
 
     @Override

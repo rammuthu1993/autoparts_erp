@@ -8,6 +8,8 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.stereotype.Component;
 
+import com.autoparts.erp.common.exception.ClientValidationException;
+
 /**
  * PDF parser implementation utilizing Apache PDFBox 3.x.
  *
@@ -41,12 +43,12 @@ public class PdfDocumentParser implements DocumentParser {
     @Override
     public String extractText(byte[] content) throws IOException {
         if (!hasPdfMagicBytes(content)) {
-            throw new IllegalArgumentException("Invalid PDF document: missing %PDF- header magic bytes");
+            throw new ClientValidationException("Invalid PDF document: missing %PDF- header magic bytes");
         }
 
         try (PDDocument document = Loader.loadPDF(content)) {
             if (document.isEncrypted()) {
-                throw new IllegalArgumentException("Encrypted PDF documents are not supported for knowledge ingestion");
+                throw new ClientValidationException("Encrypted PDF documents are not supported for knowledge ingestion");
             }
             PDFTextStripper stripper = new PDFTextStripper();
             stripper.setSortByPosition(true);

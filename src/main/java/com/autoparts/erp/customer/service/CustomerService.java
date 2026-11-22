@@ -1,5 +1,6 @@
 package com.autoparts.erp.customer.service;
 
+import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.customer.dto.CustomerCreateRequest;
 import com.autoparts.erp.customer.dto.CustomerResponse;
 import com.autoparts.erp.customer.dto.CustomerUpdateRequest;
@@ -12,6 +13,16 @@ public interface CustomerService {
     CustomerResponse create(CustomerCreateRequest request);
 
     List<CustomerResponse> findAll();
+
+    PageResponse<CustomerResponse> findPaged(
+            int page,
+            int size,
+            String search,
+            String city,
+            String state,
+            String sortBy,
+            String sortDir
+    );
 
     CustomerResponse findByUuid(UUID uuid);
 

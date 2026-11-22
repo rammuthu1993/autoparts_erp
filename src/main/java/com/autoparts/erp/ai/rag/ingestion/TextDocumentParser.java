@@ -9,6 +9,8 @@ import java.nio.charset.StandardCharsets;
 
 import org.springframework.stereotype.Component;
 
+import com.autoparts.erp.common.exception.ClientValidationException;
+
 /**
  * Text and Markdown document parser.
  *
@@ -53,10 +55,10 @@ public class TextDocumentParser implements DocumentParser {
     @Override
     public String extractText(byte[] content) throws IOException {
         if (content == null || content.length == 0) {
-            throw new IllegalArgumentException("Document content cannot be empty");
+            throw new ClientValidationException("Document content cannot be empty");
         }
         if (!isCleanUtf8(content)) {
-            throw new IllegalArgumentException("Invalid text document: content contains non-UTF-8 bytes or binary null characters");
+            throw new ClientValidationException("Invalid text document: content contains non-UTF-8 bytes or binary null characters");
         }
         return new String(content, StandardCharsets.UTF_8);
     }

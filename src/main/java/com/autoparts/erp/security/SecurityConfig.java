@@ -33,19 +33,25 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import com.autoparts.erp.security.ratelimit.AuthRateLimitFilter;
+
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
 
     private final CustomAuthenticationEntryPoint authenticationEntryPoint;
     private final CustomAccessDeniedHandler accessDeniedHandler;
+    private final AuthRateLimitFilter authRateLimitFilter;
 
     public SecurityConfig(
             CustomAuthenticationEntryPoint authenticationEntryPoint,
-            CustomAccessDeniedHandler accessDeniedHandler
+            CustomAccessDeniedHandler accessDeniedHandler,
+            AuthRateLimitFilter authRateLimitFilter
     ) {
         this.authenticationEntryPoint = authenticationEntryPoint;
         this.accessDeniedHandler = accessDeniedHandler;
+        this.authRateLimitFilter = authRateLimitFilter;
     }
 
     // =========================================================
@@ -107,6 +113,11 @@ public class SecurityConfig {
             .addFilterBefore(
                 new SecurityCorrelationFilter(),
                 SecurityContextHolderFilter.class
+            )
+
+            .addFilterAfter(
+                authRateLimitFilter,
+                SecurityCorrelationFilter.class
             )
 
             .authorizeHttpRequests(auth -> auth
@@ -267,5 +278,13 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    @Bean
+    public FilterRegistrationBean<AuthRateLimitFilter> preventDoubleAuthRateLimitFilterRegistration(
+            AuthRateLimitFilter filter) {
+        FilterRegistrationBean<AuthRateLimitFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 }

@@ -17,5 +17,27 @@ public interface AuditLogService {
             Map<String, Object> newValues
     );
 
+    void logSystem(
+            String systemIdentifier,
+            String action,
+            String entityType,
+            String entityId,
+            String description,
+            Map<String, Object> oldValues,
+            Map<String, Object> newValues
+    );
+
+    void logWithActor(
+            String actorType,
+            Long actorUserId,
+            String actorUsername,
+            String action,
+            String entityType,
+            String entityId,
+            String description,
+            Map<String, Object> oldValues,
+            Map<String, Object> newValues
+    );
+
     List<AuditLog> getRecentLogs(int limit, int offset);
 }

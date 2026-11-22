@@ -18,6 +18,7 @@ import org.springframework.util.StringUtils;
 import com.autoparts.erp.ai.security.ErpAiContextHolder;
 import com.autoparts.erp.ai.security.ErpAiExecutionContext;
 import com.autoparts.erp.ai.security.ToolAuthorizationException;
+import com.autoparts.erp.common.exception.ClientValidationException;
 
 @Component
 public class InventoryHistoryLookupTool {
@@ -116,13 +117,13 @@ public class InventoryHistoryLookupTool {
         checkAdminOrManagerAccess(context);
         if (!StringUtils.hasText(productIdentifier)
                 || !StringUtils.hasText(startDate) || !StringUtils.hasText(endDate)) {
-            throw new IllegalArgumentException("Product identifier, start date and end date are required.");
+            throw new ClientValidationException("Product identifier, start date and end date are required.");
         }
 
         LocalDate from = parseDate(startDate);
         LocalDate to = parseDate(endDate);
         if (to.isBefore(from)) {
-            throw new IllegalArgumentException("End date must not be before start date.");
+            throw new ClientValidationException("End date must not be before start date.");
         }
 
         return query("getProductMovementsByDateRange", """
@@ -241,12 +242,12 @@ public class InventoryHistoryLookupTool {
         try {
             return LocalDate.parse(value.trim());
         } catch (java.time.format.DateTimeParseException ex) {
-            throw new IllegalArgumentException("Dates must use YYYY-MM-DD format.", ex);
+            throw new ClientValidationException("Dates must use YYYY-MM-DD format.", ex);
         }
     }
 
     private int normalizeLimit(int requested) {
-        if (requested < 1) throw new IllegalArgumentException("Limit must be at least 1.");
+        if (requested < 1) throw new ClientValidationException("Limit must be at least 1.");
         return Math.min(requested, MAX_LIMIT);
     }
 

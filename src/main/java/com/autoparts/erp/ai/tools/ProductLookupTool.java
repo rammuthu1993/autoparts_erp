@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import com.autoparts.erp.ai.security.ErpAiContextHolder;
 import com.autoparts.erp.ai.security.ErpAiExecutionContext;
 import com.autoparts.erp.ai.security.ToolAuthorizationException;
+import com.autoparts.erp.common.exception.ClientValidationException;
 
 @Component
 public class ProductLookupTool {
@@ -141,7 +142,7 @@ public class ProductLookupTool {
         checkSalesAccess(context);
 
         if (identifiers == null || identifiers.size() < 2 || identifiers.size() > 5) {
-            throw new IllegalArgumentException("Compare between 2 and 5 products.");
+            throw new ClientValidationException("Compare between 2 and 5 products.");
         }
 
         List<String> values = identifiers.stream()
@@ -151,7 +152,7 @@ public class ProductLookupTool {
                 .distinct()
                 .toList();
         if (values.size() < 2 || values.size() != identifiers.size()) {
-            throw new IllegalArgumentException("Product identifiers must be non-empty and unique.");
+            throw new ClientValidationException("Product identifiers must be non-empty and unique.");
         }
 
         String placeholders = String.join(",", Collections.nCopies(values.size(), "?"));

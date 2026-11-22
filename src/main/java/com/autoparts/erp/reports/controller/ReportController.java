@@ -1,5 +1,6 @@
 package com.autoparts.erp.reports.controller;
 
+import com.autoparts.erp.common.exception.ClientValidationException;
 import com.autoparts.erp.reports.dto.DashboardSummaryResponse;
 import com.autoparts.erp.reports.service.ReportService;
 
@@ -33,7 +34,7 @@ public class ReportController {
             LocalDate toDate) {
 
         if (fromDate.isAfter(toDate)) {
-            throw new IllegalArgumentException(
+            throw new ClientValidationException(
                     "fromDate must be before or equal to toDate");
         }
 

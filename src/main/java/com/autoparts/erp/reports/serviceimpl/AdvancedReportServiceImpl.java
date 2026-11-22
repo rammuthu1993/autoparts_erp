@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Value;
 
 import com.autoparts.erp.auth.security.annotation.AdminOnly;
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
+import com.autoparts.erp.common.exception.ClientValidationException;
 import com.autoparts.erp.reports.dto.DataQualityReportResponse;
 import com.autoparts.erp.reports.dto.CustomerAnalyticsResponse;
 import com.autoparts.erp.reports.dto.FinancialReconciliationResponse;
@@ -95,10 +96,10 @@ public class AdvancedReportServiceImpl implements AdvancedReportService {
             String username) {
         if (issueKey == null || !issueKey.matches(
                 "[A-Z_]+:[A-Z_]+:[0-9]+")) {
-            throw new IllegalArgumentException("Invalid issue key");
+            throw new ClientValidationException("Invalid issue key");
         }
         if (username == null || username.isBlank()) {
-            throw new IllegalArgumentException(
+            throw new ClientValidationException(
                     "Authenticated username is required");
         }
         repository.updateIssueResolution(
@@ -164,7 +165,7 @@ public class AdvancedReportServiceImpl implements AdvancedReportService {
     @SalesAccess
     public ScenarioAnalysisResponse simulate(ScenarioAnalysisRequest request) {
         if (request == null) {
-            throw new IllegalArgumentException("Scenario assumptions are required");
+            throw new ClientValidationException("Scenario assumptions are required");
         }
         validateDateRange(request.fromDate(), request.toDate());
 
@@ -278,11 +279,11 @@ public class AdvancedReportServiceImpl implements AdvancedReportService {
     @AdminOnly
     public UUID createTarget(ReportTargetRequest request, String username) {
         if (request == null) {
-            throw new IllegalArgumentException("Target configuration is required");
+            throw new ClientValidationException("Target configuration is required");
         }
         validateDateRange(request.periodStart(), request.periodEnd());
         if (request.metricKey() == null || request.metricKey().isBlank()) {
-            throw new IllegalArgumentException("Target metric key is required");
+            throw new ClientValidationException("Target metric key is required");
         }
         boolean validDimensions = switch (request.metricKey()) {
             case "MONTHLY_SALES", "EXPENSE_BUDGET" ->
@@ -294,11 +295,11 @@ public class AdvancedReportServiceImpl implements AdvancedReportService {
             default -> false;
         };
         if (!validDimensions) {
-            throw new IllegalArgumentException(
+            throw new ClientValidationException(
                             "Target dimensions do not match the selected metric");
         }
         if (username == null || username.isBlank()) {
-            throw new IllegalArgumentException(
+            throw new ClientValidationException(
                             "Authenticated username is required");
         }
         return repository.createTarget(request, username);
@@ -379,15 +380,15 @@ public class AdvancedReportServiceImpl implements AdvancedReportService {
             LocalDate fromDate,
             LocalDate toDate) {
         if (fromDate == null || toDate == null) {
-            throw new IllegalArgumentException(
+            throw new ClientValidationException(
                     "fromDate and toDate are required");
         }
         if (fromDate.isAfter(toDate)) {
-            throw new IllegalArgumentException(
+            throw new ClientValidationException(
                     "fromDate must be before or equal to toDate");
         }
         if (toDate.equals(LocalDate.MAX)) {
-            throw new IllegalArgumentException(
+            throw new ClientValidationException(
                     "toDate is too large to calculate an exclusive end timestamp");
         }
     }

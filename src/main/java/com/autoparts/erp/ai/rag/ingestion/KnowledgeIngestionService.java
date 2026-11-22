@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.autoparts.erp.ai.security.ErpAiExecutionContext;
+import com.autoparts.erp.common.exception.ClientValidationException;
 
 import tools.jackson.databind.ObjectMapper;
 
@@ -109,61 +110,61 @@ public class KnowledgeIngestionService {
 
         public IngestionRequest {
             if (!StringUtils.hasText(documentCode)) {
-                throw new IllegalArgumentException("documentCode is required");
+                throw new ClientValidationException("documentCode is required");
             }
             documentCode = documentCode.trim().toUpperCase(Locale.ROOT);
             if (!DOCUMENT_CODE_PATTERN.matcher(documentCode).matches()) {
-                throw new IllegalArgumentException("documentCode must be 3-100 alphanumeric, underscore, or hyphen characters: " + documentCode);
+                throw new ClientValidationException("documentCode must be 3-100 alphanumeric, underscore, or hyphen characters: " + documentCode);
             }
 
             if (!StringUtils.hasText(title)) {
-                throw new IllegalArgumentException("title is required");
+                throw new ClientValidationException("title is required");
             }
             title = title.trim();
 
             if (!StringUtils.hasText(documentType)) {
-                throw new IllegalArgumentException("documentType is required");
+                throw new ClientValidationException("documentType is required");
             }
             documentType = documentType.trim().toUpperCase(Locale.ROOT);
             if (!VALID_DOCUMENT_TYPES.contains(documentType)) {
-                throw new IllegalArgumentException("Unsupported documentType: " + documentType + ". Allowed: " + VALID_DOCUMENT_TYPES);
+                throw new ClientValidationException("Unsupported documentType: " + documentType + ". Allowed: " + VALID_DOCUMENT_TYPES);
             }
 
             if (!StringUtils.hasText(contentFormat)) {
-                throw new IllegalArgumentException("contentFormat is required");
+                throw new ClientValidationException("contentFormat is required");
             }
             contentFormat = contentFormat.trim().toUpperCase(Locale.ROOT);
             if (!VALID_CONTENT_FORMATS.contains(contentFormat)) {
-                throw new IllegalArgumentException("Unsupported contentFormat: " + contentFormat + ". Allowed: " + VALID_CONTENT_FORMATS);
+                throw new ClientValidationException("Unsupported contentFormat: " + contentFormat + ". Allowed: " + VALID_CONTENT_FORMATS);
             }
 
             if (fileBytes == null || fileBytes.length == 0) {
-                throw new IllegalArgumentException("fileBytes cannot be empty");
+                throw new ClientValidationException("fileBytes cannot be empty");
             }
             if (fileBytes.length > MAX_FILE_SIZE_BYTES) {
-                throw new IllegalArgumentException("File size exceeds 10 MB maximum limit: " + fileBytes.length + " bytes");
+                throw new ClientValidationException("File size exceeds 10 MB maximum limit: " + fileBytes.length + " bytes");
             }
 
             // Magic bytes and content integrity
             if ("PDF".equals(contentFormat)) {
                 if (!PdfDocumentParser.hasPdfMagicBytes(fileBytes)) {
-                    throw new IllegalArgumentException("Invalid PDF document: missing %PDF- header magic bytes");
+                    throw new ClientValidationException("Invalid PDF document: missing %PDF- header magic bytes");
                 }
             } else if ("TEXT".equals(contentFormat) || "MARKDOWN".equals(contentFormat)) {
                 if (!TextDocumentParser.isCleanUtf8(fileBytes)) {
-                    throw new IllegalArgumentException("Invalid text document: content contains non-UTF-8 bytes or binary null characters");
+                    throw new ClientValidationException("Invalid text document: content contains non-UTF-8 bytes or binary null characters");
                 }
             }
 
             requiredRole = StringUtils.hasText(requiredRole) ? requiredRole.trim().toUpperCase(Locale.ROOT) : "PUBLIC";
             if (!VALID_ROLES.contains(requiredRole)) {
-                throw new IllegalArgumentException("Unsupported requiredRole: " + requiredRole + ". Allowed: " + VALID_ROLES);
+                throw new ClientValidationException("Unsupported requiredRole: " + requiredRole + ". Allowed: " + VALID_ROLES);
             }
 
             if (StringUtils.hasText(fileName)) {
                 fileName = fileName.trim();
                 if (fileName.contains("..") || fileName.contains("/") || fileName.contains("\\")) {
-                    throw new IllegalArgumentException("fileName must not contain path traversal characters: " + fileName);
+                    throw new ClientValidationException("fileName must not contain path traversal characters: " + fileName);
                 }
             } else {
                 fileName = "document." + contentFormat.toLowerCase(Locale.ROOT);
@@ -178,7 +179,7 @@ public class KnowledgeIngestionService {
                 default -> false;
             };
             if (!validExtension) {
-                throw new IllegalArgumentException("File extension of '" + fileName + "' does not match contentFormat '" + contentFormat + "'");
+                throw new ClientValidationException("File extension of '" + fileName + "' does not match contentFormat '" + contentFormat + "'");
             }
 
             metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
@@ -193,7 +194,7 @@ public class KnowledgeIngestionService {
             approvedAt = null;
 
             if (effectiveFrom != null && effectiveUntil != null && effectiveUntil.isBefore(effectiveFrom)) {
-                throw new IllegalArgumentException("effectiveUntil must not be before effectiveFrom");
+                throw new ClientValidationException("effectiveUntil must not be before effectiveFrom");
             }
         }
     }
@@ -227,11 +228,11 @@ public class KnowledgeIngestionService {
             extractedText = parser.extractText(request.fileBytes());
         } catch (IOException e) {
             log.error("Failed to extract text from document: {}", request.fileName(), e);
-            throw new IllegalArgumentException("Document text extraction failed: " + e.getMessage(), e);
+            throw new ClientValidationException("Document text extraction failed: " + e.getMessage(), e);
         }
 
         if (!StringUtils.hasText(extractedText)) {
-            throw new IllegalArgumentException("Extracted document text is empty: " + request.fileName());
+            throw new ClientValidationException("Extracted document text is empty: " + request.fileName());
         }
 
         // 3. Compute raw file hash
@@ -260,7 +261,7 @@ public class KnowledgeIngestionService {
         // 5. Generate boundary-aware chunks
         List<DocumentChunker.ChunkDraft> chunkDrafts = chunker.chunk(extractedText, request.title());
         if (chunkDrafts.isEmpty()) {
-            throw new IllegalArgumentException("Document produced 0 content chunks: " + request.fileName());
+            throw new ClientValidationException("Document produced 0 content chunks: " + request.fileName());
         }
 
         // 6. Calculate next version number
@@ -352,7 +353,7 @@ public class KnowledgeIngestionService {
                 return parser;
             }
         }
-        throw new IllegalArgumentException("No parser registered capable of processing format '" + format + "'");
+        throw new ClientValidationException("No parser registered capable of processing format '" + format + "'");
     }
 
     private void acquireDocumentLock(String documentCode) {
@@ -396,7 +397,7 @@ public class KnowledgeIngestionService {
                 documentId
         );
         if (updated == 0) {
-            throw new IllegalArgumentException("Document not found with ID: " + documentId);
+            throw new ClientValidationException("Document not found with ID: " + documentId);
         }
         log.info("Document {} approved by {}", documentId, context.userSubject());
     }
@@ -408,7 +409,7 @@ public class KnowledgeIngestionService {
     @Transactional
     public void approveDocumentByCode(String documentCode, ErpAiExecutionContext context) {
         if (!StringUtils.hasText(documentCode)) {
-            throw new IllegalArgumentException("documentCode must not be null or blank");
+            throw new ClientValidationException("documentCode must not be null or blank");
         }
         Objects.requireNonNull(context, "context must not be null");
         context.requireAnyRole("ROLE_ADMIN", "ROLE_MANAGER");
@@ -428,7 +429,7 @@ public class KnowledgeIngestionService {
                 documentCode.trim().toUpperCase(Locale.ROOT)
         );
         if (updated == 0) {
-            throw new IllegalArgumentException("Active document not found with code: " + documentCode);
+            throw new ClientValidationException("Active document not found with code: " + documentCode);
         }
         log.info("Document code {} approved by {}", documentCode, context.userSubject());
     }
@@ -458,7 +459,7 @@ public class KnowledgeIngestionService {
                 documentId
         );
         if (updated == 0) {
-            throw new IllegalArgumentException("Document not found with ID: " + documentId);
+            throw new ClientValidationException("Document not found with ID: " + documentId);
         }
         log.info("Document {} rejected by {}", documentId, context.userSubject());
     }
@@ -470,7 +471,7 @@ public class KnowledgeIngestionService {
     @Transactional
     public void rejectDocumentByCode(String documentCode, ErpAiExecutionContext context) {
         if (!StringUtils.hasText(documentCode)) {
-            throw new IllegalArgumentException("documentCode must not be null or blank");
+            throw new ClientValidationException("documentCode must not be null or blank");
         }
         Objects.requireNonNull(context, "context must not be null");
         context.requireAnyRole("ROLE_ADMIN", "ROLE_MANAGER");
@@ -490,7 +491,7 @@ public class KnowledgeIngestionService {
                 documentCode.trim().toUpperCase(Locale.ROOT)
         );
         if (updated == 0) {
-            throw new IllegalArgumentException("Active document not found with code: " + documentCode);
+            throw new ClientValidationException("Active document not found with code: " + documentCode);
         }
         log.info("Document code {} rejected by {}", documentCode, context.userSubject());
     }

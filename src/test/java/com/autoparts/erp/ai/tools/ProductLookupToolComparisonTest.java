@@ -21,6 +21,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import com.autoparts.erp.common.exception.ClientValidationException;
+
 import com.autoparts.erp.ai.security.ErpAiContextHolder;
 import com.autoparts.erp.ai.security.ErpAiExecutionContext;
 
@@ -61,13 +63,13 @@ class ProductLookupToolComparisonTest {
 
     @Test
     void rejectsComparisonWithFewerThanTwoIdentifiers() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(ClientValidationException.class,
                 () -> tool.getProductsByIdentifiers(List.of("GAP-000001")));
     }
 
     @Test
     void rejectsMoreThanFiveIdentifiers() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(ClientValidationException.class,
                 () -> tool.getProductsByIdentifiers(
                         List.of("A-001", "A-002", "A-003", "A-004", "A-005", "A-006")));
     }

@@ -9,6 +9,8 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -99,6 +101,15 @@ public class CustomerRepositoryImpl implements CustomerRepository {
         return jdbcTemplate.queryForObject(sql, params, ROW_MAPPER);
     }
 
+    private static final Map<String, String> CUSTOMER_SORT_ALLOWLIST = Map.of(
+            "id", "id",
+            "customerName", "customer_name",
+            "customerCode", "customer_code",
+            "phone", "phone",
+            "city", "city",
+            "createdAt", "created_at"
+    );
+
     @Override
     public List<Customer> findAll() {
 
@@ -112,6 +123,73 @@ public class CustomerRepositoryImpl implements CustomerRepository {
                 new MapSqlParameterSource(),
                 ROW_MAPPER
         );
+    }
+
+    @Override
+    public List<Customer> findPaged(
+            int offset,
+            int limit,
+            String search,
+            String city,
+            String state,
+            String sortBy,
+            String sortDir
+    ) {
+        StringBuilder sql = new StringBuilder(SELECT_COLUMNS).append(" WHERE active = TRUE ");
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        applyCustomerFilters(sql, params, search, city, state);
+
+        String sortColumn = CUSTOMER_SORT_ALLOWLIST.getOrDefault(sortBy, "customer_name");
+        String direction = "DESC".equalsIgnoreCase(sortDir) ? "DESC" : "ASC";
+        sql.append(" ORDER BY ").append(sortColumn).append(" ").append(direction);
+        if (!"id".equals(sortColumn)) {
+            sql.append(", id ASC");
+        }
+        sql.append(" LIMIT :limit OFFSET :offset");
+
+        params.addValue("limit", Math.max(1, Math.min(limit, 100)));
+        params.addValue("offset", Math.max(0, offset));
+
+        return jdbcTemplate.query(sql.toString(), params, ROW_MAPPER);
+    }
+
+    @Override
+    public long countPaged(String search, String city, String state) {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM customers WHERE active = TRUE ");
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        applyCustomerFilters(sql, params, search, city, state);
+
+        Long count = jdbcTemplate.queryForObject(sql.toString(), params, Long.class);
+        return count != null ? count : 0L;
+    }
+
+    private void applyCustomerFilters(
+            StringBuilder sql,
+            MapSqlParameterSource params,
+            String search,
+            String city,
+            String state
+    ) {
+        if (city != null && !city.isBlank()) {
+            sql.append(" AND LOWER(city) = LOWER(:city) ");
+            params.addValue("city", city.trim());
+        }
+        if (state != null && !state.isBlank()) {
+            sql.append(" AND LOWER(state) = LOWER(:state) ");
+            params.addValue("state", state.trim());
+        }
+        if (search != null && !search.isBlank()) {
+            sql.append("""
+                 AND (
+                     LOWER(customer_name) LIKE :searchPattern
+                     OR LOWER(customer_code) LIKE :searchPattern
+                     OR phone LIKE :searchPattern
+                 )
+            """);
+            params.addValue("searchPattern", "%" + search.trim().toLowerCase(Locale.ROOT) + "%");
+        }
     }
 
     @Override

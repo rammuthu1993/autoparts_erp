@@ -33,6 +33,7 @@ import com.autoparts.erp.ai.enums.AiAgentRunStatus;
 import com.autoparts.erp.ai.exception.AiExecutionInProgressException;
 import com.autoparts.erp.ai.exception.AiProviderResponseException;
 import com.autoparts.erp.ai.exception.AiProviderTimeoutException;
+import com.autoparts.erp.common.exception.ClientValidationException;
 import com.autoparts.erp.ai.model.AiAgentRun;
 import com.autoparts.erp.ai.repository.AiRepository;
 import org.slf4j.Logger;
@@ -486,13 +487,13 @@ public class AiAssistantService {
         validateUserSubject(userSubject);
 
         if (conversationId == null) {
-            throw new IllegalArgumentException(
+            throw new ClientValidationException(
                     "Conversation ID is required"
             );
         }
 
         if (!StringUtils.hasText(title)) {
-            throw new IllegalArgumentException(
+            throw new ClientValidationException(
                     "Conversation title cannot be empty"
             );
         }
@@ -500,7 +501,7 @@ public class AiAssistantService {
         String cleanTitle = title.trim();
 
         if (cleanTitle.length() > 200) {
-            throw new IllegalArgumentException(
+            throw new ClientValidationException(
                     "Conversation title cannot exceed 200 characters"
             );
         }
@@ -545,7 +546,7 @@ public class AiAssistantService {
         validateUserSubject(userSubject);
 
         if (conversationId == null) {
-            throw new IllegalArgumentException(
+            throw new ClientValidationException(
                     "Conversation ID is required"
             );
         }
@@ -569,12 +570,12 @@ public class AiAssistantService {
     private void validateMessage(String message) {
 
         if (!StringUtils.hasText(message)) {
-            throw new IllegalArgumentException(
+            throw new ClientValidationException(
                     "Chat message cannot be empty"
             );
         }
         if (message.length() > 8000) {
-            throw new IllegalArgumentException("Chat message cannot exceed 8000 characters");
+            throw new ClientValidationException("Chat message cannot exceed 8000 characters");
         }
     }
 
