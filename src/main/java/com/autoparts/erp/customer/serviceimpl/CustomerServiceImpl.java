@@ -6,6 +6,7 @@ import com.autoparts.erp.auth.security.annotation.AdminOrManager;
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.common.dto.PageResponse;
+import com.autoparts.erp.common.util.PaginationUtils;
 import com.autoparts.erp.common.exception.ApiException;
 import com.autoparts.erp.customer.dto.CustomerCreateRequest;
 import com.autoparts.erp.customer.dto.CustomerResponse;
@@ -107,7 +108,7 @@ public class CustomerServiceImpl implements CustomerService {
     ) {
         int safePage = Math.max(0, page);
         int safeSize = Math.max(1, Math.min(size, 100));
-        int offset = safePage * safeSize;
+        int offset = PaginationUtils.calculateOffsetForNormalized(safePage, safeSize);
 
         List<CustomerResponse> content = customerRepository.findPaged(
                 offset,

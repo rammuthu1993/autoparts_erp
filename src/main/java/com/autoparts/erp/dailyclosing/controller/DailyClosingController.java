@@ -2,6 +2,7 @@
 package com.autoparts.erp.dailyclosing.controller;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.common.dto.PageResponse;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -70,6 +71,20 @@ public class DailyClosingController {
 
         return ResponseEntity.ok(
             service.findByUuid(uuid)
+        );
+    }
+
+    @GetMapping("/paged")
+    public ResponseEntity<PageResponse<DailyClosingResponse>> findPaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(defaultValue = "businessDate") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
+    ) {
+        return ResponseEntity.ok(
+                service.findPaged(page, size, fromDate, toDate, sortBy, sortDir)
         );
     }
 }

@@ -1,5 +1,6 @@
 package com.autoparts.erp.inventory.service;
 
+import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.inventory.dto.InventoryMovementResponse;
 import com.autoparts.erp.inventory.dto.InventoryPageResponse;
 import com.autoparts.erp.inventory.dto.InventoryStockResponse;
@@ -37,7 +38,23 @@ public interface InventoryService {
 
     List<InventoryStockResponse> findAllStock();
 
+    PageResponse<InventoryStockResponse> findStockPaged(
+            int page,
+            int size,
+            String search,
+            String sortBy,
+            String sortDir
+    );
+
     List<InventoryStockResponse> findLowStock();
+
+    PageResponse<InventoryStockResponse> findLowStockPaged(
+            int page,
+            int size,
+            String search,
+            String sortBy,
+            String sortDir
+    );
 
     InventoryPageResponse<InventoryMovementResponse> findMovements(
             UUID productUuid,

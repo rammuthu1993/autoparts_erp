@@ -28,6 +28,8 @@ import com.autoparts.erp.ai.dto.AiChatResponse;
 import com.autoparts.erp.ai.dto.AiConversationResponse;
 import com.autoparts.erp.ai.dto.AiConversationMessagesResponse;
 import com.autoparts.erp.ai.dto.AiMessageResponse;
+import com.autoparts.erp.common.dto.PageResponse;
+import com.autoparts.erp.common.util.PaginationUtils;
 
 import com.autoparts.erp.ai.enums.AiAgentRunStatus;
 import com.autoparts.erp.ai.exception.AiExecutionInProgressException;
@@ -443,6 +445,7 @@ public class AiAssistantService {
     // GET ALL CONVERSATIONS
     // ---------------------------------------------
 
+    @Deprecated(since = "2.0")
     public List<AiConversationResponse> getConversations(
             String userSubject
     ) {
@@ -450,6 +453,32 @@ public class AiAssistantService {
         validateUserSubject(userSubject);
 
         return aiRepository.getConversations(userSubject);
+    }
+
+    public PageResponse<AiConversationResponse> getConversationsPaged(
+            String userSubject,
+            int page,
+            int size,
+            String sortBy,
+            String sortDir
+    ) {
+        validateUserSubject(userSubject);
+
+        int safePage = Math.max(page, 0);
+        int safeSize = (size <= 0) ? 20 : Math.min(size, 100);
+        int offset = PaginationUtils.calculateOffsetForNormalized(safePage, safeSize);
+
+        List<AiConversationResponse> content = aiRepository.getConversationsPaged(
+                userSubject,
+                offset,
+                safeSize,
+                sortBy,
+                sortDir
+        );
+
+        long total = aiRepository.countConversations(userSubject);
+
+        return PageResponse.of(content, safePage, safeSize, total);
     }
 
     // ---------------------------------------------

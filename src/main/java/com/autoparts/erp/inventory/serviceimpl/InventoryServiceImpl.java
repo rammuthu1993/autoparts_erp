@@ -5,6 +5,8 @@ import com.autoparts.erp.auth.security.annotation.AdminOrManager;
 import com.autoparts.erp.auth.security.annotation.AuthenticatedUser;
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.audit.service.AuditLogService;
+import com.autoparts.erp.common.dto.PageResponse;
+import com.autoparts.erp.common.util.PaginationUtils;
 import com.autoparts.erp.common.exception.ApiException;
 import com.autoparts.erp.inventory.dto.InventoryMovementResponse;
 import com.autoparts.erp.inventory.dto.InventoryPageResponse;
@@ -188,6 +190,31 @@ public class InventoryServiceImpl implements InventoryService {
                 .toList();
     }
 
+    @Override
+    @AuthenticatedUser
+    public PageResponse<InventoryStockResponse> findStockPaged(
+            int page,
+            int size,
+            String search,
+            String sortBy,
+            String sortDir
+    ) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        int offset = PaginationUtils.calculateOffsetForNormalized(safePage, safeSize);
+
+        List<InventoryStockResponse> content = repository.findStockPaged(
+                offset,
+                safeSize,
+                search,
+                sortBy,
+                sortDir
+        ).stream().map(this::toStockResponse).toList();
+
+        long total = repository.countStockPaged(search);
+        return PageResponse.of(content, safePage, safeSize, total);
+    }
+
     // ---------------------------------------------------------
     // FIND LOW STOCK
     // ALL AUTHENTICATED USERS
@@ -201,6 +228,31 @@ public class InventoryServiceImpl implements InventoryService {
                 .stream()
                 .map(this::toStockResponse)
                 .toList();
+    }
+
+    @Override
+    @AuthenticatedUser
+    public PageResponse<InventoryStockResponse> findLowStockPaged(
+            int page,
+            int size,
+            String search,
+            String sortBy,
+            String sortDir
+    ) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        int offset = PaginationUtils.calculateOffsetForNormalized(safePage, safeSize);
+
+        List<InventoryStockResponse> content = repository.findLowStockPaged(
+                offset,
+                safeSize,
+                search,
+                sortBy,
+                sortDir
+        ).stream().map(this::toStockResponse).toList();
+
+        long total = repository.countLowStockPaged(search);
+        return PageResponse.of(content, safePage, safeSize, total);
     }
 
     // ---------------------------------------------------------

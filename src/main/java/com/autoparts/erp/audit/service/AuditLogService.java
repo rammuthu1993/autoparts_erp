@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.autoparts.erp.audit.model.AuditLog;
+import com.autoparts.erp.common.dto.PageResponse;
 
 public interface AuditLogService {
 
@@ -40,4 +41,14 @@ public interface AuditLogService {
     );
 
     List<AuditLog> getRecentLogs(int limit, int offset);
+
+    PageResponse<AuditLog> findPaged(
+        int page,
+        int size,
+        String search,
+        String action,
+        String entityType,
+        String sortBy,
+        String sortDir
+    );
 }

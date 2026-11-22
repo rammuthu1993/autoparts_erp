@@ -19,4 +19,20 @@ public interface AuditLogRepository {
     );
 
     List<AuditLog> findRecent(int limit, int offset);
+
+    List<AuditLog> findPaged(
+        int offset,
+        int limit,
+        String search,
+        String action,
+        String entityType,
+        String sortBy,
+        String sortDir
+    );
+
+    long countPaged(
+        String search,
+        String action,
+        String entityType
+    );
 }

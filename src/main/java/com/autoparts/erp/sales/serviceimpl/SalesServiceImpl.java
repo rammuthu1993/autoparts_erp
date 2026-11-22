@@ -18,6 +18,8 @@ import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.cashregister.enums.CashMovementSourceType;
 import com.autoparts.erp.cashregister.enums.CashMovementType;
 import com.autoparts.erp.cashregister.service.CashRegisterService;
+import com.autoparts.erp.common.dto.PageResponse;
+import com.autoparts.erp.common.util.PaginationUtils;
 import com.autoparts.erp.common.exception.ApiException;
 import com.autoparts.erp.customer.exception.CustomerErrorCode;
 import com.autoparts.erp.customer.model.Customer;
@@ -692,6 +694,76 @@ public class SalesServiceImpl implements SalesService {
                     .toList()
             ))
             .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<SalesResponse> findPaged(
+            int page,
+            int size,
+            String search,
+            String status,
+            String paymentStatus,
+            String sortBy,
+            String sortDir
+    ) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        int offset = PaginationUtils.calculateOffsetForNormalized(safePage, safeSize);
+
+        List<Sales> salesList = salesRepository.findPaged(
+                offset,
+                safeSize,
+                search,
+                status,
+                paymentStatus,
+                sortBy,
+                sortDir
+        );
+
+        List<SalesResponse> content = salesList.stream()
+                .map(sale -> toResponse(
+                        sale,
+                        salesRepository.findProductsBySaleId(sale.id())
+                                .stream()
+                                .map(product -> new SalesProductResponse(
+                                        product.uuid(),
+                                        product.productUuid(),
+                                        product.productCode(),
+                                        product.productName(),
+                                        product.quantity(),
+                                        product.unit(),
+                                        product.unitPrice(),
+                                        product.discountAmount(),
+                                        product.taxableAmount(),
+                                        product.hsnCode(),
+                                        product.gstRate(),
+                                        product.cgstRate(),
+                                        product.sgstRate(),
+                                        product.igstRate(),
+                                        product.cgstAmount(),
+                                        product.sgstAmount(),
+                                        product.igstAmount(),
+                                        product.totalTaxAmount(),
+                                        product.lineTotal()
+                                ))
+                                .toList(),
+                        salesRepository.findPaymentsBySaleId(sale.id())
+                                .stream()
+                                .map(payment -> new SalesPaymentResponse(
+                                        payment.uuid(),
+                                        payment.paymentMethod(),
+                                        payment.amount(),
+                                        payment.referenceNumber(),
+                                        payment.paymentDate(),
+                                        payment.notes()
+                                ))
+                                .toList()
+                ))
+                .toList();
+
+        long total = salesRepository.countPaged(search, status, paymentStatus);
+        return PageResponse.of(content, safePage, safeSize, total);
     }
 
     // ---------------------------------------------------------

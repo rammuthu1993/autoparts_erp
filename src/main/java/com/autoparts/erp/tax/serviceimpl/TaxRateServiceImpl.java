@@ -4,6 +4,8 @@ package com.autoparts.erp.tax.serviceimpl;
 import com.autoparts.erp.auth.security.annotation.AdminOnly;
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.audit.service.AuditLogService;
+import com.autoparts.erp.common.dto.PageResponse;
+import com.autoparts.erp.common.util.PaginationUtils;
 import com.autoparts.erp.common.exception.ApiException;
 import com.autoparts.erp.tax.dto.TaxRateCreateRequest;
 import com.autoparts.erp.tax.dto.TaxRateResponse;
@@ -115,6 +117,30 @@ public class TaxRateServiceImpl implements TaxRateService {
             .stream()
             .map(this::toResponse)
             .toList();
+    }
+
+    @Override
+    @SalesAccess
+    public PageResponse<TaxRateResponse> findPaged(
+        int page,
+        int size,
+        String search,
+        String sortBy,
+        String sortDir
+    ) {
+        int safePage = Math.max(page, 0);
+        int safeSize = (size <= 0) ? 20 : Math.min(size, 100);
+        int offset = PaginationUtils.calculateOffsetForNormalized(safePage, safeSize);
+
+        List<TaxRateResponse> content = taxRateRepository
+            .findPaged(offset, safeSize, search, sortBy, sortDir)
+            .stream()
+            .map(this::toResponse)
+            .toList();
+
+        long total = taxRateRepository.countPaged(search);
+
+        return PageResponse.of(content, safePage, safeSize, total);
     }
 
     @Override

@@ -3,6 +3,7 @@ package com.autoparts.erp.audit.repositoryimpl;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -86,6 +87,14 @@ public class AuditLogRepositoryImpl implements AuditLogRepository {
         jdbcTemplate.update(INSERT_SQL, params);
     }
 
+    private static final Map<String, String> AUDIT_SORT_ALLOWLIST = Map.of(
+            "id", "id",
+            "createdAt", "created_at",
+            "action", "action",
+            "entityType", "entity_type",
+            "username", "username"
+    );
+
     @Override
     public List<AuditLog> findRecent(int limit, int offset) {
         MapSqlParameterSource params = new MapSqlParameterSource()
@@ -97,6 +106,82 @@ public class AuditLogRepositoryImpl implements AuditLogRepository {
                 params,
                 auditLogRowMapper()
         );
+    }
+
+    @Override
+    public List<AuditLog> findPaged(
+            int offset,
+            int limit,
+            String search,
+            String action,
+            String entityType,
+            String sortBy,
+            String sortDir
+    ) {
+        StringBuilder sql = new StringBuilder("""
+            SELECT
+                id,
+                uuid,
+                user_id,
+                username,
+                action,
+                entity_type,
+                entity_id,
+                description,
+                old_values::TEXT AS old_values,
+                new_values::TEXT AS new_values,
+                created_at
+            FROM audit_logs
+            WHERE 1=1
+            """);
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        applyAuditFilters(sql, params, search, action, entityType);
+
+        String sortColumn = AUDIT_SORT_ALLOWLIST.getOrDefault(sortBy, "created_at");
+        String direction = "ASC".equalsIgnoreCase(sortDir) ? "ASC" : "DESC";
+        sql.append(" ORDER BY ").append(sortColumn).append(" ").append(direction);
+        if (!"id".equals(sortColumn)) {
+            sql.append(", id DESC");
+        }
+        sql.append(" LIMIT :limit OFFSET :offset");
+
+        params.addValue("limit", Math.max(1, Math.min(limit, 100)));
+        params.addValue("offset", Math.max(0, offset));
+
+        return jdbcTemplate.query(sql.toString(), params, auditLogRowMapper());
+    }
+
+    @Override
+    public long countPaged(String search, String action, String entityType) {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM audit_logs WHERE 1=1 ");
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        applyAuditFilters(sql, params, search, action, entityType);
+
+        Long count = jdbcTemplate.queryForObject(sql.toString(), params, Long.class);
+        return count != null ? count : 0L;
+    }
+
+    private void applyAuditFilters(
+            StringBuilder sql,
+            MapSqlParameterSource params,
+            String search,
+            String action,
+            String entityType
+    ) {
+        if (search != null && !search.isBlank()) {
+            sql.append(" AND (description ILIKE :search OR username ILIKE :search OR entity_id ILIKE :search)");
+            params.addValue("search", "%" + search.trim() + "%");
+        }
+        if (action != null && !action.isBlank()) {
+            sql.append(" AND action = :action");
+            params.addValue("action", action.trim().toUpperCase());
+        }
+        if (entityType != null && !entityType.isBlank()) {
+            sql.append(" AND entity_type = :entityType");
+            params.addValue("entityType", entityType.trim().toUpperCase());
+        }
     }
 
     private RowMapper<AuditLog> auditLogRowMapper() {

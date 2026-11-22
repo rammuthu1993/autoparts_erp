@@ -6,6 +6,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -215,16 +216,89 @@ public class SalesRepositoryImpl implements SalesRepository {
         ).stream().findFirst();
     }
 
+    private static final Map<String, String> SALES_SORT_ALLOWLIST = Map.of(
+            "id", "id",
+            "invoiceNumber", "invoice_number",
+            "customerName", "customer_name",
+            "saleDate", "sale_date",
+            "grandTotal", "grand_total",
+            "status", "status",
+            "paymentStatus", "payment_status",
+            "createdAt", "created_at"
+    );
+
     @Override
     public List<Sales> findAll() {
 
         String sql = """
             SELECT *
             FROM sales
-            ORDER BY created_at DESC
+            ORDER BY created_at DESC, id DESC
+            LIMIT 501
             """;
 
         return jdbcTemplate.query(sql, new MapSqlParameterSource(), saleRowMapper);
+    }
+
+    @Override
+    public List<Sales> findPaged(
+            int offset,
+            int limit,
+            String search,
+            String status,
+            String paymentStatus,
+            String sortBy,
+            String sortDir
+    ) {
+        StringBuilder sql = new StringBuilder("SELECT * FROM sales WHERE 1=1 ");
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        applySalesFilters(sql, params, search, status, paymentStatus);
+
+        String sortColumn = SALES_SORT_ALLOWLIST.getOrDefault(sortBy, "id");
+        String direction = "ASC".equalsIgnoreCase(sortDir) ? "ASC" : "DESC";
+        sql.append(" ORDER BY ").append(sortColumn).append(" ").append(direction);
+        if (!"id".equals(sortColumn)) {
+            sql.append(", id DESC");
+        }
+        sql.append(" LIMIT :limit OFFSET :offset");
+
+        params.addValue("limit", Math.max(1, Math.min(limit, 100)));
+        params.addValue("offset", Math.max(0, offset));
+
+        return jdbcTemplate.query(sql.toString(), params, saleRowMapper);
+    }
+
+    @Override
+    public long countPaged(String search, String status, String paymentStatus) {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM sales WHERE 1=1 ");
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        applySalesFilters(sql, params, search, status, paymentStatus);
+
+        Long count = jdbcTemplate.queryForObject(sql.toString(), params, Long.class);
+        return count != null ? count : 0L;
+    }
+
+    private void applySalesFilters(
+            StringBuilder sql,
+            MapSqlParameterSource params,
+            String search,
+            String status,
+            String paymentStatus
+    ) {
+        if (search != null && !search.isBlank()) {
+            sql.append(" AND (invoice_number ILIKE :search OR customer_name ILIKE :search OR customer_phone ILIKE :search)");
+            params.addValue("search", "%" + search.trim() + "%");
+        }
+        if (status != null && !status.isBlank()) {
+            sql.append(" AND status = :status");
+            params.addValue("status", status.trim().toUpperCase());
+        }
+        if (paymentStatus != null && !paymentStatus.isBlank()) {
+            sql.append(" AND payment_status = :paymentStatus");
+            params.addValue("paymentStatus", paymentStatus.trim().toUpperCase());
+        }
     }
 
     @Override

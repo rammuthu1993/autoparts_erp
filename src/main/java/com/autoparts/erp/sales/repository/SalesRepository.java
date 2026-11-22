@@ -22,6 +22,22 @@ public interface SalesRepository {
 
     List<Sales> findAll();
 
+    List<Sales> findPaged(
+        int offset,
+        int limit,
+        String search,
+        String status,
+        String paymentStatus,
+        String sortBy,
+        String sortDir
+    );
+
+    long countPaged(
+        String search,
+        String status,
+        String paymentStatus
+    );
+
     List<SalesProduct> findProductsBySaleId(Long saleId);
 
     List<SalesPayment> findPaymentsBySaleId(Long saleId);

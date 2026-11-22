@@ -63,6 +63,12 @@ public class PurchaseLedgerServiceImpl implements PurchaseLedgerService {
             );
         }
 
+        if ((long) page * size > Integer.MAX_VALUE) {
+            throw new ApiException(
+                    PurchaseErrorCode.INVALID_PURCHASE_LEDGER_FILTER
+            );
+        }
+
         long offset = (long) page * size;
 
         var entries = ledgerRepository.findEntries(

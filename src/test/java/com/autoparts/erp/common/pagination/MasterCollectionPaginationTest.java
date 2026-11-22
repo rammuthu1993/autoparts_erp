@@ -2,6 +2,7 @@ package com.autoparts.erp.common.pagination;
 
 import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.common.dto.PageResponse;
+import com.autoparts.erp.common.exception.ClientValidationException;
 import com.autoparts.erp.customer.dto.CustomerResponse;
 import com.autoparts.erp.customer.model.Customer;
 import com.autoparts.erp.customer.repository.CustomerRepository;
@@ -118,5 +119,44 @@ class MasterCollectionPaginationTest {
         verify(supplierRepository).findPaged(0, 1, null, null, null, "supplierName", "asc");
         assertEquals(0, result.page());
         assertEquals(1, result.size());
+    }
+
+    @Test
+    void productFindPagedIntegerOverflowThrowsClientValidationException() {
+        var service = new ProductServiceImpl(
+                productRepository,
+                mock(AuditLogService.class)
+        );
+
+        assertThrows(ClientValidationException.class, () ->
+                service.findPaged(Integer.MAX_VALUE, 20, null, null, null, "name", "asc")
+        );
+        verifyNoInteractions(productRepository);
+    }
+
+    @Test
+    void customerFindPagedIntegerOverflowThrowsClientValidationException() {
+        var service = new CustomerServiceImpl(
+                customerRepository,
+                mock(AuditLogService.class)
+        );
+
+        assertThrows(ClientValidationException.class, () ->
+                service.findPaged(Integer.MAX_VALUE, 20, null, null, null, "customerName", "asc")
+        );
+        verifyNoInteractions(customerRepository);
+    }
+
+    @Test
+    void supplierFindPagedIntegerOverflowThrowsClientValidationException() {
+        var service = new SupplierServiceImpl(
+                supplierRepository,
+                mock(AuditLogService.class)
+        );
+
+        assertThrows(ClientValidationException.class, () ->
+                service.findPaged(Integer.MAX_VALUE, 20, null, null, null, "supplierName", "asc")
+        );
+        verifyNoInteractions(supplierRepository);
     }
 }

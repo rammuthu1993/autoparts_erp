@@ -169,7 +169,7 @@ public class ProductRepositoryImpl implements ProductRepository {
     @Override
     public List<Product> findAll() {
         return jdbcTemplate.query(
-                SELECT_PRODUCT + " ORDER BY p.id DESC",
+                SELECT_PRODUCT + " ORDER BY p.id DESC LIMIT 501",
                 new MapSqlParameterSource(),
                 rowMapper
         );

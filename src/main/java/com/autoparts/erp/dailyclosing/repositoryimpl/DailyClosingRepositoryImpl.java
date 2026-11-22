@@ -6,6 +6,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -690,6 +691,62 @@ public class DailyClosingRepositoryImpl
             "paramValue",
             businessDate
         );
+    }
+
+    private static final Map<String, String> DAILY_CLOSING_SORT_ALLOWLIST = Map.of(
+        "id", "id",
+        "businessDate", "business_date",
+        "closedAt", "closed_at"
+    );
+
+    @Override
+    public List<DailyClosingResponse> findPaged(
+        int offset,
+        int limit,
+        LocalDate fromDate,
+        LocalDate toDate,
+        String sortBy,
+        String sortDir
+    ) {
+        String sortColumn = DAILY_CLOSING_SORT_ALLOWLIST.getOrDefault(sortBy, "business_date");
+        String direction = "asc".equalsIgnoreCase(sortDir) ? "ASC" : "DESC";
+
+        StringBuilder sql = new StringBuilder(SUMMARY_SELECT).append(" WHERE 1=1 ");
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("limit", limit)
+                .addValue("offset", offset);
+
+        if (fromDate != null) {
+            sql.append(" AND business_date >= :fromDate ");
+            params.addValue("fromDate", fromDate);
+        }
+        if (toDate != null) {
+            sql.append(" AND business_date <= :toDate ");
+            params.addValue("toDate", toDate);
+        }
+
+        sql.append(" ORDER BY ").append(sortColumn).append(" ").append(direction).append(", id DESC ");
+        sql.append(" LIMIT :limit OFFSET :offset ");
+
+        return jdbcTemplate.query(sql.toString(), params, (rs, rowNum) -> mapResponse(rs));
+    }
+
+    @Override
+    public long countPaged(LocalDate fromDate, LocalDate toDate) {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM daily_closings WHERE 1=1 ");
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        if (fromDate != null) {
+            sql.append(" AND business_date >= :fromDate ");
+            params.addValue("fromDate", fromDate);
+        }
+        if (toDate != null) {
+            sql.append(" AND business_date <= :toDate ");
+            params.addValue("toDate", toDate);
+        }
+
+        Long count = jdbcTemplate.queryForObject(sql.toString(), params, Long.class);
+        return count != null ? count : 0L;
     }
 
     @Override

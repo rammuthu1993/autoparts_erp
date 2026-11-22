@@ -1,6 +1,7 @@
 package com.autoparts.erp.expense.ledger.serviceimpl;
 
 import com.autoparts.erp.common.exception.ClientValidationException;
+import com.autoparts.erp.common.util.PaginationUtils;
 import com.autoparts.erp.expense.ledger.dto.ExpenseLedgerResponse;
 import com.autoparts.erp.expense.ledger.dto.ExpenseLedgerSummary;
 import com.autoparts.erp.expense.ledger.repository.ExpenseLedgerRepository;
@@ -57,7 +58,7 @@ public class ExpenseLedgerServiceImpl implements ExpenseLedgerService {
             );
         }
 
-        long offset = (long) page * size;
+        long offset = PaginationUtils.calculateOffsetForNormalized(page, size);
 
         var entries = ledgerRepository.findEntries(
             fromDate,

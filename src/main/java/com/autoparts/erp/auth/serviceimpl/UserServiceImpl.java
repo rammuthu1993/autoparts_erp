@@ -28,6 +28,8 @@ import com.autoparts.erp.auth.repository.UserRepository;
 import com.autoparts.erp.auth.security.CurrentUserService;
 import com.autoparts.erp.auth.service.RefreshTokenService;
 import com.autoparts.erp.auth.service.UserService;
+import com.autoparts.erp.common.dto.PageResponse;
+import com.autoparts.erp.common.util.PaginationUtils;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -116,6 +118,31 @@ public class UserServiceImpl implements UserService {
                 .stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<UserResponse> findPaged(
+            int page,
+            int size,
+            String search,
+            String sortBy,
+            String sortDir
+    ) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        int offset = PaginationUtils.calculateOffsetForNormalized(safePage, safeSize);
+
+        List<UserResponse> content = repository.findPaged(
+                offset,
+                safeSize,
+                search,
+                sortBy,
+                sortDir
+        ).stream().map(this::toResponse).toList();
+
+        long total = repository.countPaged(search);
+        return PageResponse.of(content, safePage, safeSize, total);
     }
 
     // =========================================================

@@ -47,6 +47,16 @@ public interface CashRegisterRepository {
 
     List<CashRegisterMovement> findMovements(Long sessionId);
 
+    List<CashRegisterMovement> findMovementsPaged(
+        Long sessionId,
+        int offset,
+        int limit,
+        String sortBy,
+        String sortDir
+    );
+
+    long countMovements(Long sessionId);
+
     BigDecimal calculateTotalByType(
         Long sessionId,
         String movementType

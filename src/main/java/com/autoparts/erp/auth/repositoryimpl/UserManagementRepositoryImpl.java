@@ -43,11 +43,101 @@ public class UserManagementRepositoryImpl
         LEFT JOIN roles r ON r.id = ur.role_id
         """;
 
+    private static final Map<String, String> USER_SORT_ALLOWLIST = Map.of(
+            "id", "id",
+            "username", "username",
+            "createdAt", "created_at",
+            "enabled", "enabled"
+    );
+
     @Override
     public List<ManagedUser> findAll() {
-        return findUsers(USER_SELECT + """
-            ORDER BY LOWER(u.username), r.name
+        return findUsers("""
+            SELECT
+                u.id,
+                u.uuid,
+                u.username,
+                u.enabled,
+                u.created_at,
+                u.updated_at,
+                r.name AS role_name
+            FROM (
+                SELECT id, uuid, username, enabled, created_at, updated_at
+                FROM users
+                ORDER BY LOWER(username), id ASC
+                LIMIT 501
+            ) u
+            LEFT JOIN user_roles ur ON ur.user_id = u.id
+            LEFT JOIN roles r ON r.id = ur.role_id
+            ORDER BY LOWER(u.username), u.id ASC, r.name
             """, null);
+    }
+
+    @Override
+    public List<ManagedUser> findPaged(
+            int offset,
+            int limit,
+            String search,
+            String sortBy,
+            String sortDir
+    ) {
+        StringBuilder userSubquery = new StringBuilder("SELECT id, uuid, username, enabled, created_at, updated_at FROM users WHERE 1=1 ");
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        if (search != null && !search.isBlank()) {
+            userSubquery.append(" AND username ILIKE :search ");
+            params.addValue("search", "%" + search.trim() + "%");
+        }
+
+        String sortKey = USER_SORT_ALLOWLIST.getOrDefault(sortBy, "id");
+        String sortExpr = "username".equals(sortKey) ? "LOWER(username)" : sortKey;
+        String direction = "DESC".equalsIgnoreCase(sortDir) ? "DESC" : "ASC";
+        userSubquery.append(" ORDER BY ").append(sortExpr).append(" ").append(direction);
+        if (!"id".equals(sortKey)) {
+            userSubquery.append(", id ASC");
+        }
+        userSubquery.append(" LIMIT :limit OFFSET :offset");
+
+        params.addValue("limit", Math.max(1, Math.min(limit, 100)));
+        params.addValue("offset", Math.max(0, offset));
+
+        String outerSortExpr = "username".equals(sortKey) ? "LOWER(u.username)" : "u." + sortKey;
+        String sql = """
+            SELECT
+                u.id,
+                u.uuid,
+                u.username,
+                u.enabled,
+                u.created_at,
+                u.updated_at,
+                r.name AS role_name
+            FROM (
+            """ + userSubquery + """
+            ) u
+            LEFT JOIN user_roles ur ON ur.user_id = u.id
+            LEFT JOIN roles r ON r.id = ur.role_id
+            ORDER BY %s %s%s, r.name
+            """.formatted(
+                outerSortExpr,
+                direction,
+                !"id".equals(sortKey) ? ", u.id ASC" : ""
+            );
+
+        return findUsersWithParams(sql, params);
+    }
+
+    @Override
+    public long countPaged(String search) {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM users WHERE 1=1 ");
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        if (search != null && !search.isBlank()) {
+            sql.append(" AND username ILIKE :search ");
+            params.addValue("search", "%" + search.trim() + "%");
+        }
+
+        Long count = jdbcTemplate.queryForObject(sql.toString(), params, Long.class);
+        return count != null ? count : 0L;
     }
 
     @Override
@@ -72,6 +162,13 @@ public class UserManagementRepositoryImpl
                 ? new MapSqlParameterSource()
                 : new MapSqlParameterSource("uuid", uuid);
 
+        return findUsersWithParams(sql, params);
+    }
+
+    private List<ManagedUser> findUsersWithParams(
+            String sql,
+            MapSqlParameterSource params
+    ) {
         List<Object[]> rows = jdbcTemplate.query(
                 sql,
                 params,

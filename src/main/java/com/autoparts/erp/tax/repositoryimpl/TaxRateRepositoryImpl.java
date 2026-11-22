@@ -15,6 +15,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -209,10 +210,20 @@ public class TaxRateRepositoryImpl implements TaxRateRepository {
         ).stream().findFirst();
     }
 
+    private static final Map<String, String> TAX_RATE_SORT_ALLOWLIST = Map.of(
+        "id", "id",
+        "taxName", "tax_name",
+        "gstRate", "gst_rate",
+        "effectiveFrom", "effective_from",
+        "effectiveTo", "effective_to",
+        "createdAt", "created_at"
+    );
+
     @Override
     public List<TaxRate> findAll() {
         String sql = SELECT_COLUMNS + """
-            ORDER BY effective_from DESC, tax_name
+            ORDER BY effective_from DESC, tax_name, id DESC
+            LIMIT 101
             """;
 
         return jdbcTemplate.query(
@@ -220,6 +231,47 @@ public class TaxRateRepositoryImpl implements TaxRateRepository {
             EmptySqlParameterSource.INSTANCE,
             taxRateRowMapper
         );
+    }
+
+    @Override
+    public List<TaxRate> findPaged(
+        int offset,
+        int limit,
+        String search,
+        String sortBy,
+        String sortDir
+    ) {
+        String sortColumn = TAX_RATE_SORT_ALLOWLIST.getOrDefault(sortBy, "effective_from");
+        String direction = "asc".equalsIgnoreCase(sortDir) ? "ASC" : "DESC";
+
+        StringBuilder sql = new StringBuilder(SELECT_COLUMNS);
+        MapSqlParameterSource params = new MapSqlParameterSource()
+            .addValue("limit", limit)
+            .addValue("offset", offset);
+
+        if (search != null && !search.isBlank()) {
+            sql.append(" WHERE LOWER(tax_name) LIKE :search ");
+            params.addValue("search", "%" + search.trim().toLowerCase() + "%");
+        }
+
+        sql.append(" ORDER BY ").append(sortColumn).append(" ").append(direction).append(", id DESC ");
+        sql.append(" LIMIT :limit OFFSET :offset ");
+
+        return jdbcTemplate.query(sql.toString(), params, taxRateRowMapper);
+    }
+
+    @Override
+    public long countPaged(String search) {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM tax_rates");
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        if (search != null && !search.isBlank()) {
+            sql.append(" WHERE LOWER(tax_name) LIKE :search");
+            params.addValue("search", "%" + search.trim().toLowerCase() + "%");
+        }
+
+        Long count = jdbcTemplate.queryForObject(sql.toString(), params, Long.class);
+        return count != null ? count : 0L;
     }
 
     @Override

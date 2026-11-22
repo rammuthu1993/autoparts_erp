@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -19,6 +20,8 @@ import com.autoparts.erp.auth.security.CurrentUserService;
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
 import com.autoparts.erp.auth.security.annotation.AuthenticatedUser;
 import com.autoparts.erp.audit.service.AuditLogService;
+import com.autoparts.erp.common.dto.PageResponse;
+import com.autoparts.erp.common.util.PaginationUtils;
 import com.autoparts.erp.dailyclosing.dto.DailyClosingResponse;
 import com.autoparts.erp.dailyclosing.repository.DailyClosingRepository;
 import com.autoparts.erp.dailyclosing.service.DailyClosingService;
@@ -204,6 +207,28 @@ public class DailyClosingServiceImpl
                 .orElseThrow(() ->
                         notFound("Daily closing not found")
                 );
+    }
+
+    @Override
+    @AuthenticatedUser
+    public PageResponse<DailyClosingResponse> findPaged(
+            int page,
+            int size,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String sortBy,
+            String sortDir
+    ) {
+        int safePage = Math.max(page, 0);
+        int safeSize = (size <= 0) ? 20 : Math.min(size, 100);
+        int offset = PaginationUtils.calculateOffsetForNormalized(safePage, safeSize);
+
+        List<DailyClosingResponse> content = repository.findPaged(
+                offset, safeSize, fromDate, toDate, sortBy, sortDir
+        );
+        long total = repository.countPaged(fromDate, toDate);
+
+        return PageResponse.of(content, safePage, safeSize, total);
     }
 
     // ---------------------------------------------------------

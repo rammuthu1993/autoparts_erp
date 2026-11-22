@@ -1,6 +1,7 @@
 package com.autoparts.erp.product.controller;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.common.annotation.DeprecatedUnpagedEndpoint;
 import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.product.dto.ProductCreateRequest;
 import com.autoparts.erp.product.dto.ProductResponse;
@@ -43,6 +44,8 @@ public class ProductController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @Deprecated(since = "2.0")
+    @DeprecatedUnpagedEndpoint(limit = 500, pagedUrl = "/api/v1/products/paged", deprecationDate = "2026-11-22T00:00:00Z")
     @GetMapping
     public ResponseEntity<List<ProductResponse>> findAll() {
         return ResponseEntity.ok(productService.findAll());

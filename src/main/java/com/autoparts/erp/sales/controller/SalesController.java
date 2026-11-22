@@ -1,6 +1,8 @@
 package com.autoparts.erp.sales.controller;
 
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
+import com.autoparts.erp.common.annotation.DeprecatedUnpagedEndpoint;
+import com.autoparts.erp.common.dto.PageResponse;
 import java.util.List;
 import java.util.UUID;
 
@@ -54,10 +56,27 @@ public class SalesController {
         );
     }
 
+    @Deprecated(since = "2.0")
+    @DeprecatedUnpagedEndpoint(limit = 500, pagedUrl = "/api/v1/sales/paged", deprecationDate = "2026-11-22T00:00:00Z")
     @GetMapping
     public ResponseEntity<List<SalesResponse>> findAll() {
         return ResponseEntity.ok(
             salesService.findAll()
+        );
+    }
+
+    @GetMapping("/paged")
+    public ResponseEntity<PageResponse<SalesResponse>> findPaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String paymentStatus,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
+    ) {
+        return ResponseEntity.ok(
+                salesService.findPaged(page, size, search, status, paymentStatus, sortBy, sortDir)
         );
     }
 

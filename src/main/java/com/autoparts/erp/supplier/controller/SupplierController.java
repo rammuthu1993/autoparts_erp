@@ -2,6 +2,7 @@
 package com.autoparts.erp.supplier.controller;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.common.annotation.DeprecatedUnpagedEndpoint;
 import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.supplier.dto.SupplierCreateRequest;
 import com.autoparts.erp.supplier.dto.SupplierResponse;
@@ -34,6 +35,8 @@ public class SupplierController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @Deprecated(since = "2.0")
+    @DeprecatedUnpagedEndpoint(limit = 500, pagedUrl = "/api/v1/suppliers/paged", deprecationDate = "2026-11-22T00:00:00Z")
     @GetMapping
     public ResponseEntity<List<SupplierResponse>> findAll() {
         return ResponseEntity.ok(supplierService.findAll());

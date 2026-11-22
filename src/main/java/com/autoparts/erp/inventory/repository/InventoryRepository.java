@@ -23,7 +23,27 @@ public interface InventoryRepository {
 
     List<InventoryStock> findAllStock();
 
+    List<InventoryStock> findStockPaged(
+        int offset,
+        int limit,
+        String search,
+        String sortBy,
+        String sortDir
+    );
+
+    long countStockPaged(String search);
+
     List<InventoryStock> findLowStock();
+
+    List<InventoryStock> findLowStockPaged(
+        int offset,
+        int limit,
+        String search,
+        String sortBy,
+        String sortDir
+    );
+
+    long countLowStockPaged(String search);
 
     Long createAdjustment(
             UUID uuid,

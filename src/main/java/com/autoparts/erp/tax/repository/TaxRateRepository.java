@@ -34,6 +34,16 @@ public interface TaxRateRepository {
 
     List<TaxRate> findAll();
 
+    List<TaxRate> findPaged(
+        int offset,
+        int limit,
+        String search,
+        String sortBy,
+        String sortDir
+    );
+
+    long countPaged(String search);
+
     List<TaxRate> findCurrent();
 
     boolean existsByNameAndEffectiveFrom(

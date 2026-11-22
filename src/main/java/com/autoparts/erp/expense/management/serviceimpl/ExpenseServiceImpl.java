@@ -8,6 +8,8 @@ import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.cashregister.enums.CashMovementSourceType;
 import com.autoparts.erp.cashregister.enums.CashMovementType;
 import com.autoparts.erp.cashregister.service.CashRegisterService;
+import com.autoparts.erp.common.dto.PageResponse;
+import com.autoparts.erp.common.util.PaginationUtils;
 import com.autoparts.erp.common.exception.ApiException;
 import com.autoparts.erp.expense.category.model.ExpenseCategory;
 import com.autoparts.erp.expense.category.repository.ExpenseCategoryRepository;
@@ -131,6 +133,35 @@ public class ExpenseServiceImpl implements ExpenseService {
     @SalesAccess
     public List<Expense> findAll() {
         return expenseRepository.findAll();
+    }
+
+    @Override
+    @SalesAccess
+    public PageResponse<Expense> findPaged(
+            int page,
+            int size,
+            String search,
+            String status,
+            String paymentMethod,
+            String sortBy,
+            String sortDir
+    ) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        int offset = PaginationUtils.calculateOffsetForNormalized(safePage, safeSize);
+
+        List<Expense> content = expenseRepository.findPaged(
+                offset,
+                safeSize,
+                search,
+                status,
+                paymentMethod,
+                sortBy,
+                sortDir
+        );
+
+        long total = expenseRepository.countPaged(search, status, paymentMethod);
+        return PageResponse.of(content, safePage, safeSize, total);
     }
 
     @Override

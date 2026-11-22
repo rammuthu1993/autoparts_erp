@@ -12,6 +12,16 @@ public interface ProductCategoryRepository {
 
     List<ProductCategory> findAll();
 
+    List<ProductCategory> findPaged(
+        int offset,
+        int limit,
+        String search,
+        String sortBy,
+        String sortDir
+    );
+
+    long countPaged(String search);
+
     Optional<ProductCategory> findByUuid(UUID uuid);
 
     boolean update(UUID uuid, String name, String description);

@@ -54,6 +54,20 @@ public interface PurchaseRepository {
     Optional<Purchase> findByUuid(UUID uuid);
 
     List<Purchase> findAll();
+
+    List<Purchase> findPaged(
+        int offset,
+        int limit,
+        String search,
+        String status,
+        String sortBy,
+        String sortDir
+    );
+
+    long countPaged(
+        String search,
+        String status
+    );
     
     Optional<Purchase> findByUuidForUpdate(UUID uuid);
 

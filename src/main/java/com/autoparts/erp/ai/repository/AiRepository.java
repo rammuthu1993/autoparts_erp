@@ -47,6 +47,18 @@ public interface AiRepository {
             String userSubject
     );
 
+    List<AiConversationResponse> getConversationsPaged(
+            String userSubject,
+            int offset,
+            int limit,
+            String sortBy,
+            String sortDir
+    );
+
+    long countConversations(
+            String userSubject
+    );
+
     List<AiMessageResponse> getConversationMessages(
             UUID conversationId
     );

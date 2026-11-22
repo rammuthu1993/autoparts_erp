@@ -156,6 +156,7 @@ public class PurchasePaymentRepositoryImpl
             FROM purchase_payments
             WHERE purchase_id = :purchaseId
             ORDER BY payment_date DESC, id DESC
+            LIMIT 100
             """;
 
         return jdbcTemplate.query(

@@ -2,6 +2,8 @@
 package com.autoparts.erp.purchase.controller;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.common.annotation.DeprecatedUnpagedEndpoint;
+import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.purchase.dto.PurchaseCreateRequest;
 import com.autoparts.erp.purchase.dto.PurchaseResponse;
 import com.autoparts.erp.purchase.service.PurchaseService;
@@ -35,9 +37,25 @@ public class PurchaseController {
             .body(response);
     }
 
+    @Deprecated(since = "2.0")
+    @DeprecatedUnpagedEndpoint(limit = 500, pagedUrl = "/api/v1/purchases/paged", deprecationDate = "2026-11-22T00:00:00Z")
     @GetMapping
     public ResponseEntity<List<PurchaseResponse>> findAll() {
         return ResponseEntity.ok(purchaseService.findAll());
+    }
+
+    @GetMapping("/paged")
+    public ResponseEntity<PageResponse<PurchaseResponse>> findPaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
+    ) {
+        return ResponseEntity.ok(
+                purchaseService.findPaged(page, size, search, status, sortBy, sortDir)
+        );
     }
 
     @GetMapping("/{uuid}")

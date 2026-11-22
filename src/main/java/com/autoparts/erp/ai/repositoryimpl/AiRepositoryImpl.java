@@ -219,8 +219,15 @@ public class AiRepositoryImpl implements AiRepository {
         );
     }
 
+    private static final Map<String, String> CONVERSATION_SORT_ALLOWLIST = Map.of(
+            "id", "id",
+            "title", "title",
+            "createdAt", "created_at",
+            "updatedAt", "updated_at"
+    );
+
     // ---------------------------------------------
-    // GET ALL ACTIVE CONVERSATIONS FOR USER
+    // GET ALL ACTIVE CONVERSATIONS FOR USER (LEGACY SAFE CAPPED)
     // ---------------------------------------------
 
     @Override
@@ -236,7 +243,8 @@ public class AiRepositoryImpl implements AiRepository {
                 FROM ai_conversations
                 WHERE user_subject = :userSubject
                   AND active = TRUE
-                ORDER BY updated_at DESC
+                ORDER BY updated_at DESC, id DESC
+                LIMIT 101
                 """;
 
         return jdbc.query(
@@ -255,6 +263,58 @@ public class AiRepositoryImpl implements AiRepository {
                         )
                 )
         );
+    }
+
+    @Override
+    public List<AiConversationResponse> getConversationsPaged(
+            String userSubject,
+            int offset,
+            int limit,
+            String sortBy,
+            String sortDir
+    ) {
+        String sortColumn = CONVERSATION_SORT_ALLOWLIST.getOrDefault(sortBy, "updated_at");
+        String direction = "asc".equalsIgnoreCase(sortDir) ? "ASC" : "DESC";
+
+        String sql = """
+                SELECT
+                    id,
+                    title,
+                    created_at,
+                    updated_at
+                FROM ai_conversations
+                WHERE user_subject = :userSubject
+                  AND active = TRUE
+                ORDER BY %s %s, id DESC
+                LIMIT :limit OFFSET :offset
+                """.formatted(sortColumn, direction);
+
+        return jdbc.query(
+                sql,
+                Map.of(
+                        "userSubject", userSubject,
+                        "limit", limit,
+                        "offset", offset
+                ),
+                (rs, rowNum) -> new AiConversationResponse(
+                        rs.getObject("id", UUID.class),
+                        rs.getString("title"),
+                        rs.getObject("created_at", OffsetDateTime.class),
+                        rs.getObject("updated_at", OffsetDateTime.class)
+                )
+        );
+    }
+
+    @Override
+    public long countConversations(String userSubject) {
+        String sql = """
+                SELECT COUNT(*)
+                FROM ai_conversations
+                WHERE user_subject = :userSubject
+                  AND active = TRUE
+                """;
+        Long count = jdbc.queryForObject(sql, Map.of("userSubject", userSubject), Long.class);
+        return count != null ? count : 0L;
     }
 
     // ---------------------------------------------

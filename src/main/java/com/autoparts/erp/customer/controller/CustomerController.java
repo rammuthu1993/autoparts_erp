@@ -2,6 +2,7 @@ package com.autoparts.erp.customer.controller;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
+import com.autoparts.erp.common.annotation.DeprecatedUnpagedEndpoint;
 import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.customer.dto.CustomerCreateRequest;
 import com.autoparts.erp.customer.dto.CustomerResponse;
@@ -37,6 +38,8 @@ public class CustomerController {
                 .body(customerService.create(request));
     }
 
+    @Deprecated(since = "2.0")
+    @DeprecatedUnpagedEndpoint(limit = 500, pagedUrl = "/api/v1/customers/paged", deprecationDate = "2026-11-22T00:00:00Z")
     @GetMapping
     public ResponseEntity<List<CustomerResponse>> findAll() {
 

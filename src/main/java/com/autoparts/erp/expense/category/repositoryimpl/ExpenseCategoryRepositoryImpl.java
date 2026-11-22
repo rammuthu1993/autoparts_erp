@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -54,6 +55,12 @@ public class ExpenseCategoryRepositoryImpl
         );
     }
 
+    private static final Map<String, String> EXPENSE_CATEGORY_SORT_ALLOWLIST = Map.of(
+            "id", "id",
+            "name", "name",
+            "createdAt", "created_at"
+    );
+
     @Override
     public List<ExpenseCategory> findAll() {
 
@@ -61,10 +68,59 @@ public class ExpenseCategoryRepositoryImpl
             SELECT *
             FROM expense_categories
             WHERE active = TRUE
-            ORDER BY name ASC
+            ORDER BY name ASC, id ASC
+            LIMIT 501
             """;
 
         return jdbcTemplate.query(sql, new MapSqlParameterSource(), rowMapper);
+    }
+
+    @Override
+    public List<ExpenseCategory> findPaged(
+            int offset,
+            int limit,
+            String search,
+            String sortBy,
+            String sortDir
+    ) {
+        StringBuilder sql = new StringBuilder("""
+            SELECT *
+            FROM expense_categories
+            WHERE active = TRUE
+            """);
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        if (search != null && !search.isBlank()) {
+            sql.append(" AND (name ILIKE :search OR description ILIKE :search)");
+            params.addValue("search", "%" + search.trim() + "%");
+        }
+
+        String sortColumn = EXPENSE_CATEGORY_SORT_ALLOWLIST.getOrDefault(sortBy, "name");
+        String direction = "DESC".equalsIgnoreCase(sortDir) ? "DESC" : "ASC";
+        sql.append(" ORDER BY ").append(sortColumn).append(" ").append(direction);
+        if (!"id".equals(sortColumn)) {
+            sql.append(", id ASC");
+        }
+        sql.append(" LIMIT :limit OFFSET :offset");
+
+        params.addValue("limit", Math.max(1, Math.min(limit, 100)));
+        params.addValue("offset", Math.max(0, offset));
+
+        return jdbcTemplate.query(sql.toString(), params, rowMapper);
+    }
+
+    @Override
+    public long countPaged(String search) {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM expense_categories WHERE active = TRUE ");
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        if (search != null && !search.isBlank()) {
+            sql.append(" AND (name ILIKE :search OR description ILIKE :search)");
+            params.addValue("search", "%" + search.trim() + "%");
+        }
+
+        Long count = jdbcTemplate.queryForObject(sql.toString(), params, Long.class);
+        return count != null ? count : 0L;
     }
 
     @Override

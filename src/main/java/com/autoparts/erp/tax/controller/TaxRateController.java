@@ -2,6 +2,8 @@
 package com.autoparts.erp.tax.controller;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.common.annotation.DeprecatedUnpagedEndpoint;
+import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.tax.dto.TaxRateCreateRequest;
 import com.autoparts.erp.tax.dto.TaxRateResponse;
 import com.autoparts.erp.tax.dto.TaxRateUpdateRequest;
@@ -36,10 +38,25 @@ public class TaxRateController {
             .body(taxRateService.create(request));
     }
 
+    @Deprecated(since = "2.0")
+    @DeprecatedUnpagedEndpoint(limit = 100, pagedUrl = "/api/v1/tax-rates/paged", deprecationDate = "2026-11-22T00:00:00Z")
     @GetMapping
     public ResponseEntity<List<TaxRateResponse>> findAll() {
         return ResponseEntity.ok(
             taxRateService.findAll()
+        );
+    }
+
+    @GetMapping("/paged")
+    public ResponseEntity<PageResponse<TaxRateResponse>> findPaged(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "20") int size,
+        @RequestParam(required = false) String search,
+        @RequestParam(defaultValue = "effectiveFrom") String sortBy,
+        @RequestParam(defaultValue = "desc") String sortDir
+    ) {
+        return ResponseEntity.ok(
+            taxRateService.findPaged(page, size, search, sortBy, sortDir)
         );
     }
 

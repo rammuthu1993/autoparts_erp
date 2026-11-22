@@ -2,6 +2,7 @@ package com.autoparts.erp.audit.serviceimpl;
 
 import com.autoparts.erp.audit.repository.AuditLogRepository;
 import com.autoparts.erp.auth.security.CurrentUserService;
+import com.autoparts.erp.common.exception.ClientValidationException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -210,5 +211,73 @@ class AuditLogServiceImplTest {
         assertThrows(IllegalArgumentException.class, () ->
                 auditLogService.logWithActor("USER", 1L, "u", "CREATE", null, "1", "desc", null, null)
         );
+    }
+
+    @Test
+    void getRecentLogsEnforcesFixedCeilingOf50AndQueriesLimitPlusOne() {
+        // limit = 20 -> queries safeLimit + 1 = 21
+        auditLogService.getRecentLogs(20, 0);
+        verify(auditLogRepository).findRecent(eq(21), eq(0));
+
+        // limit = 50 -> queries safeLimit + 1 = 51
+        reset(auditLogRepository);
+        auditLogService.getRecentLogs(50, 10);
+        verify(auditLogRepository).findRecent(eq(51), eq(10));
+
+        // limit = 75 -> clamped to ceiling 50, queries 51
+        reset(auditLogRepository);
+        auditLogService.getRecentLogs(75, 0);
+        verify(auditLogRepository).findRecent(eq(51), eq(0));
+
+        // limit = 100 -> clamped to ceiling 50, queries 51
+        reset(auditLogRepository);
+        auditLogService.getRecentLogs(100, 0);
+        verify(auditLogRepository).findRecent(eq(51), eq(0));
+
+        // invalid limit (-5) -> falls back to ceiling 50, queries 51
+        reset(auditLogRepository);
+        auditLogService.getRecentLogs(-5, 0);
+        verify(auditLogRepository).findRecent(eq(51), eq(0));
+
+        // invalid limit (0) -> falls back to ceiling 50, queries 51
+        reset(auditLogRepository);
+        auditLogService.getRecentLogs(0, 0);
+        verify(auditLogRepository).findRecent(eq(51), eq(0));
+    }
+
+    @Test
+    void findPagedRemainsIndependentlyConfigurableUpTo100() {
+        when(auditLogRepository.countPaged(any(), any(), any())).thenReturn(150L);
+        when(auditLogRepository.findPaged(eq(0), eq(100), any(), any(), any(), any(), any()))
+                .thenReturn(List.of());
+
+        var response = auditLogService.findPaged(0, 100, null, null, null, "createdAt", "desc");
+
+        assertNotNull(response);
+        assertEquals(100, response.size());
+        verify(auditLogRepository).findPaged(eq(0), eq(100), isNull(), isNull(), isNull(), eq("createdAt"), eq("desc"));
+    }
+
+    @Test
+    void findPagedWithIntegerOverflowThrowsClientValidationExceptionWithoutCallingRepository() {
+        assertThrows(ClientValidationException.class, () ->
+                auditLogService.findPaged(Integer.MAX_VALUE, 20, null, null, null, "createdAt", "desc")
+        );
+
+        // Verify repository is never queried with any offset, preventing negative offset in SQL
+        verifyNoInteractions(auditLogRepository);
+    }
+
+    @Test
+    void findPagedWithNegativePageNormalizedToZeroAndExecutesSafely() {
+        when(auditLogRepository.countPaged(any(), any(), any())).thenReturn(10L);
+        when(auditLogRepository.findPaged(eq(0), eq(20), any(), any(), any(), any(), any()))
+                .thenReturn(List.of());
+
+        var response = auditLogService.findPaged(-1, 20, null, null, null, "createdAt", "desc");
+
+        assertNotNull(response);
+        assertEquals(0, response.page());
+        verify(auditLogRepository).findPaged(eq(0), eq(20), isNull(), isNull(), isNull(), eq("createdAt"), eq("desc"));
     }
 }

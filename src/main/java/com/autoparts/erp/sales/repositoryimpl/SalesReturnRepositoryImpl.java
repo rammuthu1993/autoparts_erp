@@ -380,6 +380,7 @@ public class SalesReturnRepositoryImpl implements SalesReturnRepository {
             FROM sales_returns
             WHERE sale_id = :saleId
             ORDER BY return_date DESC, id DESC
+            LIMIT 50
             """;
 
         return jdbcTemplate.query(

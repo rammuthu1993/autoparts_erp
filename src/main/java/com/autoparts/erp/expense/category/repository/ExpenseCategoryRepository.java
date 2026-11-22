@@ -12,6 +12,16 @@ public interface ExpenseCategoryRepository {
 
     List<ExpenseCategory> findAll();
 
+    List<ExpenseCategory> findPaged(
+        int offset,
+        int limit,
+        String search,
+        String sortBy,
+        String sortDir
+    );
+
+    long countPaged(String search);
+
     Optional<ExpenseCategory> findByUuid(UUID uuid);
 
     boolean update(UUID uuid, ExpenseCategory category);

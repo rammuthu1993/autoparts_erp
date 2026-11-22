@@ -2,6 +2,8 @@ package com.autoparts.erp.purchase.serviceimpl;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
 import com.autoparts.erp.audit.service.AuditLogService;
+import com.autoparts.erp.common.dto.PageResponse;
+import com.autoparts.erp.common.util.PaginationUtils;
 import com.autoparts.erp.common.exception.ApiException;
 import com.autoparts.erp.inventory.exception.InventoryErrorCode;
 import com.autoparts.erp.inventory.service.InventoryService;
@@ -230,6 +232,33 @@ public class PurchaseServiceImpl implements PurchaseService {
                 .stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<PurchaseResponse> findPaged(
+            int page,
+            int size,
+            String search,
+            String status,
+            String sortBy,
+            String sortDir
+    ) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        int offset = PaginationUtils.calculateOffsetForNormalized(safePage, safeSize);
+
+        List<PurchaseResponse> content = repository.findPaged(
+                offset,
+                safeSize,
+                search,
+                status,
+                sortBy,
+                sortDir
+        ).stream().map(this::toResponse).toList();
+
+        long total = repository.countPaged(search, status);
+        return PageResponse.of(content, safePage, safeSize, total);
     }
 
     // ---------------------------------------------------------

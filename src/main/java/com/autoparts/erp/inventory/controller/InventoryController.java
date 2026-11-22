@@ -1,5 +1,8 @@
 package com.autoparts.erp.inventory.controller;
 
+import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.common.annotation.DeprecatedUnpagedEndpoint;
+import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.inventory.dto.InventoryMovementResponse;
 import com.autoparts.erp.inventory.dto.InventoryPageResponse;
 import com.autoparts.erp.inventory.dto.InventoryStockResponse;
@@ -43,6 +46,8 @@ public class InventoryController {
     /**
      * Get stock for all active Products.
      */
+    @Deprecated(since = "2.0")
+    @DeprecatedUnpagedEndpoint(limit = 500, pagedUrl = "/api/v1/inventory/stock/paged", deprecationDate = "2026-11-22T00:00:00Z")
     @GetMapping("/stock")
     public List<InventoryStockResponse> findAllStock() {
 
@@ -50,13 +55,44 @@ public class InventoryController {
     }
 
     /**
+     * Get stock for all active Products with pagination.
+     */
+    @GetMapping("/stock/paged")
+    public PageResponse<InventoryStockResponse> findStockPaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "productName") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir
+    ) {
+        return inventoryService.findStockPaged(page, size, search, sortBy, sortDir);
+    }
+
+    /**
      * Get Products whose current quantity is less than
      * or equal to their minimum stock.
      */
+    @Deprecated(since = "2.0")
+    @DeprecatedUnpagedEndpoint(limit = 500, pagedUrl = "/api/v1/inventory/low-stock/paged", deprecationDate = "2026-11-22T00:00:00Z")
     @GetMapping("/low-stock")
     public List<InventoryStockResponse> findLowStock() {
 
         return inventoryService.findLowStock();
+    }
+
+    /**
+     * Get Products whose current quantity is less than
+     * or equal to their minimum stock with pagination.
+     */
+    @GetMapping("/low-stock/paged")
+    public PageResponse<InventoryStockResponse> findLowStockPaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "quantity") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir
+    ) {
+        return inventoryService.findLowStockPaged(page, size, search, sortBy, sortDir);
     }
 
     /**

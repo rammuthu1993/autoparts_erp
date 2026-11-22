@@ -19,6 +19,8 @@ import com.autoparts.erp.auth.dto.UserStatusRequest;
 import com.autoparts.erp.auth.dto.UserUpdateRequest;
 import com.autoparts.erp.auth.security.annotation.AdminOnly;
 import com.autoparts.erp.auth.service.UserService;
+import com.autoparts.erp.common.annotation.DeprecatedUnpagedEndpoint;
+import com.autoparts.erp.common.dto.PageResponse;
 
 @RestController
 @RequestMapping("/api/v1/admin/users")
@@ -53,10 +55,25 @@ public class UserController {
     // GET ALL USERS
     // =========================================================
 
+    @Deprecated(since = "2.0")
+    @DeprecatedUnpagedEndpoint(limit = 500, pagedUrl = "/api/v1/admin/users/paged", deprecationDate = "2026-11-22T00:00:00Z")
     @GetMapping
     public ResponseEntity<List<UserResponse>> findAll() {
 
         return ResponseEntity.ok(userService.findAll());
+    }
+
+    @GetMapping("/paged")
+    public ResponseEntity<PageResponse<UserResponse>> findPaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir
+    ) {
+        return ResponseEntity.ok(
+                userService.findPaged(page, size, search, sortBy, sortDir)
+        );
     }
 
     // =========================================================

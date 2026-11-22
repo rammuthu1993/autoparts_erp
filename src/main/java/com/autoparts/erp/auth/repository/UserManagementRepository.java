@@ -12,6 +12,16 @@ public interface UserManagementRepository {
 
     List<ManagedUser> findAll();
 
+    List<ManagedUser> findPaged(
+        int offset,
+        int limit,
+        String search,
+        String sortBy,
+        String sortDir
+    );
+
+    long countPaged(String search);
+
     Optional<ManagedUser> findByUuid(UUID uuid);
 
     boolean existsByUsername(String username, UUID excludeUuid);

@@ -10,12 +10,21 @@ import com.autoparts.erp.auth.dto.UserResponse;
 import com.autoparts.erp.auth.dto.UserRoleRequest;
 import com.autoparts.erp.auth.dto.UserStatusRequest;
 import com.autoparts.erp.auth.dto.UserUpdateRequest;
+import com.autoparts.erp.common.dto.PageResponse;
 
 public interface UserService {
 
     UserResponse create(UserCreateRequest request);
 
     List<UserResponse> findAll();
+
+    PageResponse<UserResponse> findPaged(
+        int page,
+        int size,
+        String search,
+        String sortBy,
+        String sortDir
+    );
 
     UserResponse findByUuid(UUID uuid);
 

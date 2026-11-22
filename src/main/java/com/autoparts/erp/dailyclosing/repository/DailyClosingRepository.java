@@ -3,6 +3,7 @@ package com.autoparts.erp.dailyclosing.repository;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -30,4 +31,18 @@ public interface DailyClosingRepository {
     );
 
     Optional<DailyClosingResponse> findByUuid(UUID uuid);
+
+    List<DailyClosingResponse> findPaged(
+        int offset,
+        int limit,
+        LocalDate fromDate,
+        LocalDate toDate,
+        String sortBy,
+        String sortDir
+    );
+
+    long countPaged(
+        LocalDate fromDate,
+        LocalDate toDate
+    );
 }

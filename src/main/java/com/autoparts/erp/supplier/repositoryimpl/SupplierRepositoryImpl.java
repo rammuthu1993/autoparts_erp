@@ -98,7 +98,7 @@ public class SupplierRepositoryImpl implements SupplierRepository {
     @Override
     public List<Supplier> findAll() {
         return jdbcTemplate.query(
-            SELECT_COLUMNS + " ORDER BY supplier_name",
+            SELECT_COLUMNS + " ORDER BY supplier_name, id ASC LIMIT 501",
             new MapSqlParameterSource(),
             ROW_MAPPER
         );

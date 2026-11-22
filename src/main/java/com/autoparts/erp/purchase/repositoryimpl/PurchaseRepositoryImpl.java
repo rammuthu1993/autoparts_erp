@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -300,6 +301,17 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
         return Optional.of(withProducts(purchase, products));
     }
 
+    private static final Map<String, String> PURCHASE_SORT_ALLOWLIST = Map.of(
+        "id", "p.id",
+        "purchaseNumber", "p.purchase_number",
+        "supplierName", "s.supplier_name",
+        "supplierInvoiceNo", "p.supplier_invoice_no",
+        "purchaseDate", "p.purchase_date",
+        "status", "p.status",
+        "grandTotal", "p.grand_total",
+        "createdAt", "p.created_at"
+    );
+
     @Override
     public List<Purchase> findAll() {
         List<Purchase> purchases = jdbcTemplate.query(
@@ -311,7 +323,8 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
                    p.notes, p.created_at, p.updated_at, p.received_at
             FROM purchases p
             JOIN suppliers s ON s.id = p.supplier_id
-            ORDER BY p.created_at DESC
+            ORDER BY p.created_at DESC, p.id DESC
+            LIMIT 501
             """,
             new MapSqlParameterSource(),
             this::mapPurchase
@@ -327,6 +340,80 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
         }
 
         return result;
+    }
+
+    @Override
+    public List<Purchase> findPaged(
+            int offset,
+            int limit,
+            String search,
+            String status,
+            String sortBy,
+            String sortDir
+    ) {
+        StringBuilder sql = new StringBuilder("""
+            SELECT p.id, p.uuid, p.purchase_number, p.supplier_id,
+                   s.supplier_name, p.supplier_invoice_no,
+                   p.purchase_date, p.status, p.subtotal,
+                   p.discount_total, p.tax_total, p.grand_total,
+                   p.notes, p.created_at, p.updated_at, p.received_at
+            FROM purchases p
+            JOIN suppliers s ON s.id = p.supplier_id
+            WHERE 1=1
+            """);
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        applyPurchaseFilters(sql, params, search, status);
+
+        String sortColumn = PURCHASE_SORT_ALLOWLIST.getOrDefault(sortBy, "p.id");
+        String direction = "ASC".equalsIgnoreCase(sortDir) ? "ASC" : "DESC";
+        sql.append(" ORDER BY ").append(sortColumn).append(" ").append(direction);
+        if (!"p.id".equals(sortColumn)) {
+            sql.append(", p.id DESC");
+        }
+        sql.append(" LIMIT :limit OFFSET :offset");
+
+        params.addValue("limit", Math.max(1, Math.min(limit, 100)));
+        params.addValue("offset", Math.max(0, offset));
+
+        List<Purchase> purchases = jdbcTemplate.query(sql.toString(), params, this::mapPurchase);
+        List<Purchase> result = new ArrayList<>();
+        for (Purchase purchase : purchases) {
+            result.add(withProducts(purchase, findProducts(purchase.id())));
+        }
+        return result;
+    }
+
+    @Override
+    public long countPaged(String search, String status) {
+        StringBuilder sql = new StringBuilder("""
+            SELECT COUNT(*)
+            FROM purchases p
+            JOIN suppliers s ON s.id = p.supplier_id
+            WHERE 1=1
+            """);
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        applyPurchaseFilters(sql, params, search, status);
+
+        Long count = jdbcTemplate.queryForObject(sql.toString(), params, Long.class);
+        return count != null ? count : 0L;
+    }
+
+    private void applyPurchaseFilters(
+            StringBuilder sql,
+            MapSqlParameterSource params,
+            String search,
+            String status
+    ) {
+        if (search != null && !search.isBlank()) {
+            sql.append(" AND (p.purchase_number ILIKE :search OR s.supplier_name ILIKE :search OR p.supplier_invoice_no ILIKE :search)");
+            params.addValue("search", "%" + search.trim() + "%");
+        }
+        if (status != null && !status.isBlank()) {
+            sql.append(" AND p.status = :status");
+            params.addValue("status", status.trim().toUpperCase());
+        }
     }
 
     private Purchase mapPurchase(

@@ -11,6 +11,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -139,14 +140,92 @@ public class ExpenseRepositoryImpl implements ExpenseRepository {
         return results.stream().findFirst();
     }
 
+    private static final Map<String, String> EXPENSE_SORT_ALLOWLIST = Map.of(
+            "id", "e.id",
+            "expenseDate", "e.expense_date",
+            "title", "e.title",
+            "amount", "e.amount",
+            "status", "e.status",
+            "paymentMethod", "e.payment_method",
+            "categoryName", "ec.name",
+            "createdAt", "e.created_at"
+    );
+
     @Override
     public List<Expense> findAll() {
 
         String sql = SELECT_EXPENSE + """
-            ORDER BY e.expense_date DESC, e.created_at DESC
+            ORDER BY e.expense_date DESC, e.created_at DESC, e.id DESC
+            LIMIT 501
             """;
 
         return jdbcTemplate.query(sql, new MapSqlParameterSource(), rowMapper);
+    }
+
+    @Override
+    public List<Expense> findPaged(
+            int offset,
+            int limit,
+            String search,
+            String status,
+            String paymentMethod,
+            String sortBy,
+            String sortDir
+    ) {
+        StringBuilder sql = new StringBuilder(SELECT_EXPENSE).append(" WHERE 1=1 ");
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        applyExpenseFilters(sql, params, search, status, paymentMethod);
+
+        String sortColumn = EXPENSE_SORT_ALLOWLIST.getOrDefault(sortBy, "e.expense_date");
+        String direction = "ASC".equalsIgnoreCase(sortDir) ? "ASC" : "DESC";
+        sql.append(" ORDER BY ").append(sortColumn).append(" ").append(direction);
+        if (!"e.id".equals(sortColumn)) {
+            sql.append(", e.id DESC");
+        }
+        sql.append(" LIMIT :limit OFFSET :offset");
+
+        params.addValue("limit", Math.max(1, Math.min(limit, 100)));
+        params.addValue("offset", Math.max(0, offset));
+
+        return jdbcTemplate.query(sql.toString(), params, rowMapper);
+    }
+
+    @Override
+    public long countPaged(String search, String status, String paymentMethod) {
+        StringBuilder sql = new StringBuilder("""
+            SELECT COUNT(*)
+            FROM expenses e
+            JOIN expense_categories ec ON ec.id = e.category_id
+            WHERE 1=1
+            """);
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        applyExpenseFilters(sql, params, search, status, paymentMethod);
+
+        Long count = jdbcTemplate.queryForObject(sql.toString(), params, Long.class);
+        return count != null ? count : 0L;
+    }
+
+    private void applyExpenseFilters(
+            StringBuilder sql,
+            MapSqlParameterSource params,
+            String search,
+            String status,
+            String paymentMethod
+    ) {
+        if (search != null && !search.isBlank()) {
+            sql.append(" AND (e.title ILIKE :search OR e.description ILIKE :search OR ec.name ILIKE :search OR e.reference_number ILIKE :search)");
+            params.addValue("search", "%" + search.trim() + "%");
+        }
+        if (status != null && !status.isBlank()) {
+            sql.append(" AND e.status = :status");
+            params.addValue("status", status.trim().toUpperCase());
+        }
+        if (paymentMethod != null && !paymentMethod.isBlank()) {
+            sql.append(" AND e.payment_method = :paymentMethod");
+            params.addValue("paymentMethod", paymentMethod.trim().toUpperCase());
+        }
     }
 
     @Override

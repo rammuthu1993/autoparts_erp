@@ -21,7 +21,9 @@ import com.autoparts.erp.auth.security.annotation.AdminOnly;
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.audit.service.AuditLogService;
+import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.common.exception.ClientValidationException;
+import com.autoparts.erp.common.util.PaginationUtils;
 import com.autoparts.erp.cashregister.dto.*;
 import com.autoparts.erp.cashregister.enums.*;
 import com.autoparts.erp.cashregister.model.*;
@@ -437,6 +439,36 @@ public class CashRegisterServiceImpl implements CashRegisterService {
                 .stream()
                 .map(this::toMovementResponse)
                 .toList();
+    }
+
+    @Override
+    @SalesAccess
+    public PageResponse<CashMovementResponse> findMovementsPaged(
+            UUID sessionUuid,
+            int page,
+            int size,
+            String sortBy,
+            String sortDir
+    ) {
+        CashRegisterSession session = cashRegisterRepository
+                .findSessionByUuid(sessionUuid)
+                .orElseThrow(() ->
+                        notFound("Cash session not found")
+                );
+
+        int safePage = Math.max(page, 0);
+        int safeSize = (size <= 0) ? 20 : Math.min(size, 100);
+        int offset = PaginationUtils.calculateOffsetForNormalized(safePage, safeSize);
+
+        List<CashMovementResponse> content = cashRegisterRepository
+                .findMovementsPaged(session.id(), offset, safeSize, sortBy, sortDir)
+                .stream()
+                .map(this::toMovementResponse)
+                .toList();
+
+        long total = cashRegisterRepository.countMovements(session.id());
+
+        return PageResponse.of(content, safePage, safeSize, total);
     }
 
     // ---------------------------------------------------------

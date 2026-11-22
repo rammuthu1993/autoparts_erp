@@ -17,6 +17,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -109,14 +110,61 @@ public class InventoryRepositoryImpl implements InventoryRepository {
         ).stream().findFirst();
     }
 
+    private static final Map<String, String> INVENTORY_STOCK_SORT_ALLOWLIST = Map.of(
+            "id", "p.id",
+            "productName", "p.name",
+            "productCode", "p.product_code",
+            "partNo", "p.part_no",
+            "quantity", "p.qty",
+            "minimumStock", "p.minimum_stock"
+    );
+
     @Override
     public List<InventoryStock> findAllStock() {
 
         return jdbcTemplate.query(
-                STOCK_SELECT + " ORDER BY p.name ASC",
+                STOCK_SELECT + " ORDER BY p.name ASC, p.id ASC LIMIT 501",
                 new MapSqlParameterSource(),
                 stockRowMapper
         );
+    }
+
+    @Override
+    public List<InventoryStock> findStockPaged(
+            int offset,
+            int limit,
+            String search,
+            String sortBy,
+            String sortDir
+    ) {
+        StringBuilder sql = new StringBuilder(STOCK_SELECT);
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        applyStockSearch(sql, params, search);
+
+        String sortColumn = INVENTORY_STOCK_SORT_ALLOWLIST.getOrDefault(sortBy, "p.name");
+        String direction = "DESC".equalsIgnoreCase(sortDir) ? "DESC" : "ASC";
+        sql.append(" ORDER BY ").append(sortColumn).append(" ").append(direction);
+        if (!"p.id".equals(sortColumn)) {
+            sql.append(", p.id ASC");
+        }
+        sql.append(" LIMIT :limit OFFSET :offset");
+
+        params.addValue("limit", Math.max(1, Math.min(limit, 100)));
+        params.addValue("offset", Math.max(0, offset));
+
+        return jdbcTemplate.query(sql.toString(), params, stockRowMapper);
+    }
+
+    @Override
+    public long countStockPaged(String search) {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM products p WHERE p.active = TRUE ");
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        applyStockSearch(sql, params, search);
+
+        Long count = jdbcTemplate.queryForObject(sql.toString(), params, Long.class);
+        return count != null ? count : 0L;
     }
 
     @Override
@@ -125,11 +173,57 @@ public class InventoryRepositoryImpl implements InventoryRepository {
         return jdbcTemplate.query(
                 STOCK_SELECT + """
                          AND p.qty <= p.minimum_stock
-                         ORDER BY p.qty ASC, p.name ASC
+                         ORDER BY p.qty ASC, p.name ASC, p.id ASC
+                         LIMIT 501
                         """,
                 new MapSqlParameterSource(),
                 stockRowMapper
         );
+    }
+
+    @Override
+    public List<InventoryStock> findLowStockPaged(
+            int offset,
+            int limit,
+            String search,
+            String sortBy,
+            String sortDir
+    ) {
+        StringBuilder sql = new StringBuilder(STOCK_SELECT).append(" AND p.qty <= p.minimum_stock ");
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        applyStockSearch(sql, params, search);
+
+        String sortColumn = INVENTORY_STOCK_SORT_ALLOWLIST.getOrDefault(sortBy, "p.qty");
+        String direction = "DESC".equalsIgnoreCase(sortDir) ? "DESC" : "ASC";
+        sql.append(" ORDER BY ").append(sortColumn).append(" ").append(direction);
+        if (!"p.id".equals(sortColumn)) {
+            sql.append(", p.id ASC");
+        }
+        sql.append(" LIMIT :limit OFFSET :offset");
+
+        params.addValue("limit", Math.max(1, Math.min(limit, 100)));
+        params.addValue("offset", Math.max(0, offset));
+
+        return jdbcTemplate.query(sql.toString(), params, stockRowMapper);
+    }
+
+    @Override
+    public long countLowStockPaged(String search) {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM products p WHERE p.active = TRUE AND p.qty <= p.minimum_stock ");
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        applyStockSearch(sql, params, search);
+
+        Long count = jdbcTemplate.queryForObject(sql.toString(), params, Long.class);
+        return count != null ? count : 0L;
+    }
+
+    private void applyStockSearch(StringBuilder sql, MapSqlParameterSource params, String search) {
+        if (search != null && !search.isBlank()) {
+            sql.append(" AND (p.name ILIKE :search OR p.product_code ILIKE :search OR p.part_no ILIKE :search)");
+            params.addValue("search", "%" + search.trim() + "%");
+        }
     }
 
     @Override

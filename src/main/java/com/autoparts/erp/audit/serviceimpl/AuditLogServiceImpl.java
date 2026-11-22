@@ -18,6 +18,8 @@ import com.autoparts.erp.audit.model.AuditLog;
 import com.autoparts.erp.audit.repository.AuditLogRepository;
 import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.auth.security.CurrentUserService;
+import com.autoparts.erp.common.dto.PageResponse;
+import com.autoparts.erp.common.util.PaginationUtils;
 
 @Service
 public class AuditLogServiceImpl implements AuditLogService {
@@ -157,13 +159,44 @@ public class AuditLogServiceImpl implements AuditLogService {
     @Transactional(readOnly = true)
     public List<AuditLog> getRecentLogs(int limit, int offset) {
 
-        int safeLimit = Math.max(1, Math.min(limit, 100));
+        // Enforce consistent fixed safety ceiling of 50 for the deprecated endpoint
+        int safeLimit = (limit <= 0) ? 50 : Math.min(limit, 50);
         int safeOffset = Math.max(0, offset);
 
+        // Fetch safeLimit + 1 rows for accurate limit-plus-one truncation detection
         return auditLogRepository.findRecent(
-                safeLimit,
+                safeLimit + 1,
                 safeOffset
         );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<AuditLog> findPaged(
+            int page,
+            int size,
+            String search,
+            String action,
+            String entityType,
+            String sortBy,
+            String sortDir
+    ) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        int offset = PaginationUtils.calculateOffsetForNormalized(safePage, safeSize);
+
+        List<AuditLog> content = auditLogRepository.findPaged(
+                offset,
+                safeSize,
+                search,
+                action,
+                entityType,
+                sortBy,
+                sortDir
+        );
+
+        long total = auditLogRepository.countPaged(search, action, entityType);
+        return PageResponse.of(content, safePage, safeSize, total);
     }
 
     private String toJson(Map<String, Object> values) {

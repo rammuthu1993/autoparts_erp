@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -62,6 +63,12 @@ public class ProductBrandRepositoryImpl
         );
     }
 
+    private static final Map<String, String> BRAND_SORT_ALLOWLIST = Map.of(
+            "id", "id",
+            "name", "name",
+            "createdAt", "created_at"
+    );
+
     @Override
     public List<ProductBrand> findAll() {
 
@@ -70,9 +77,59 @@ public class ProductBrandRepositoryImpl
                        active, created_at, updated_at
                 FROM product_brands
                 ORDER BY id DESC
+                LIMIT 501
                 """;
 
         return jdbcTemplate.query(sql, new MapSqlParameterSource(), rowMapper);
+    }
+
+    @Override
+    public List<ProductBrand> findPaged(
+            int offset,
+            int limit,
+            String search,
+            String sortBy,
+            String sortDir
+    ) {
+        StringBuilder sql = new StringBuilder("""
+                SELECT id, uuid, name, description,
+                       active, created_at, updated_at
+                FROM product_brands
+                WHERE 1=1
+                """);
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        if (search != null && !search.isBlank()) {
+            sql.append(" AND (name ILIKE :search OR description ILIKE :search)");
+            params.addValue("search", "%" + search.trim() + "%");
+        }
+
+        String sortColumn = BRAND_SORT_ALLOWLIST.getOrDefault(sortBy, "id");
+        String direction = "ASC".equalsIgnoreCase(sortDir) ? "ASC" : "DESC";
+        sql.append(" ORDER BY ").append(sortColumn).append(" ").append(direction);
+        if (!"id".equals(sortColumn)) {
+            sql.append(", id DESC");
+        }
+        sql.append(" LIMIT :limit OFFSET :offset");
+
+        params.addValue("limit", Math.max(1, Math.min(limit, 100)));
+        params.addValue("offset", Math.max(0, offset));
+
+        return jdbcTemplate.query(sql.toString(), params, rowMapper);
+    }
+
+    @Override
+    public long countPaged(String search) {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM product_brands WHERE 1=1 ");
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        if (search != null && !search.isBlank()) {
+            sql.append(" AND (name ILIKE :search OR description ILIKE :search)");
+            params.addValue("search", "%" + search.trim() + "%");
+        }
+
+        Long count = jdbcTemplate.queryForObject(sql.toString(), params, Long.class);
+        return count != null ? count : 0L;
     }
 
     @Override

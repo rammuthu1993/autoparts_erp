@@ -20,6 +20,8 @@ import com.autoparts.erp.ai.dto.AiConversationMessagesResponse;
 import com.autoparts.erp.ai.dto.AiConversationTitleRequest;
 import com.autoparts.erp.ai.security.ErpAiExecutionContext;
 import com.autoparts.erp.ai.service.AiAssistantService;
+import com.autoparts.erp.common.annotation.DeprecatedUnpagedEndpoint;
+import com.autoparts.erp.common.dto.PageResponse;
 
 import jakarta.validation.Valid;
 
@@ -71,6 +73,8 @@ public class AiAssistantController {
         return ResponseEntity.ok(response);
     }
 
+    @Deprecated(since = "2.0")
+    @DeprecatedUnpagedEndpoint(limit = 100, pagedUrl = "/api/v1/ai/conversations/paged", deprecationDate = "2026-11-22T00:00:00Z")
     @GetMapping("/conversations")
     public ResponseEntity<List<AiConversationResponse>> getConversations(
             Authentication authentication) {
@@ -79,6 +83,27 @@ public class AiAssistantController {
 
         return ResponseEntity.ok(
                 aiAssistantService.getConversations(userSubject)
+        );
+    }
+
+    @GetMapping("/conversations/paged")
+    public ResponseEntity<PageResponse<AiConversationResponse>> getConversationsPaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "updatedAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir,
+            Authentication authentication) {
+
+        String userSubject = getAuthenticatedUser(authentication);
+
+        return ResponseEntity.ok(
+                aiAssistantService.getConversationsPaged(
+                        userSubject,
+                        page,
+                        size,
+                        sortBy,
+                        sortDir
+                )
         );
     }
 

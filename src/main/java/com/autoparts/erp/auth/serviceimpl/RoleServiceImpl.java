@@ -39,7 +39,7 @@ public class RoleServiceImpl implements RoleService {
     public List<RoleResponse> findAll() {
 
         return jdbcTemplate.query(
-                SELECT_SQL + " ORDER BY name",
+                SELECT_SQL + " ORDER BY name LIMIT 50",
                 roleRowMapper()
         );
     }

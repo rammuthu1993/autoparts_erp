@@ -5,6 +5,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -116,7 +117,8 @@ public class CashRegisterRepositoryImpl implements CashRegisterRepository {
             """
             SELECT *
             FROM cash_registers
-            ORDER BY created_at DESC
+            ORDER BY created_at DESC, id DESC
+            LIMIT 50
             """,
             new MapSqlParameterSource(),
             registerMapper
@@ -298,6 +300,13 @@ public class CashRegisterRepositoryImpl implements CashRegisterRepository {
         return Boolean.TRUE.equals(exists);
     }
 
+    private static final Map<String, String> CASH_MOVEMENT_SORT_ALLOWLIST = Map.of(
+            "id", "id",
+            "createdAt", "created_at",
+            "amount", "amount",
+            "movementType", "movement_type"
+    );
+
     @Override
     public List<CashRegisterMovement> findMovements(Long sessionId) {
         MapSqlParameterSource params = new MapSqlParameterSource("sessionId", sessionId);
@@ -308,10 +317,47 @@ public class CashRegisterRepositoryImpl implements CashRegisterRepository {
             FROM cash_register_movements
             WHERE session_id = :sessionId
             ORDER BY created_at, id
+            LIMIT 501
             """,
             params,
             movementMapper
         );
+    }
+
+    @Override
+    public List<CashRegisterMovement> findMovementsPaged(
+            Long sessionId,
+            int offset,
+            int limit,
+            String sortBy,
+            String sortDir
+    ) {
+        StringBuilder sql = new StringBuilder("""
+            SELECT *
+            FROM cash_register_movements
+            WHERE session_id = :sessionId
+            """);
+        MapSqlParameterSource params = new MapSqlParameterSource("sessionId", sessionId);
+
+        String sortColumn = CASH_MOVEMENT_SORT_ALLOWLIST.getOrDefault(sortBy, "created_at");
+        String direction = "ASC".equalsIgnoreCase(sortDir) ? "ASC" : "DESC";
+        sql.append(" ORDER BY ").append(sortColumn).append(" ").append(direction);
+        if (!"id".equals(sortColumn)) {
+            sql.append(", id DESC");
+        }
+        sql.append(" LIMIT :limit OFFSET :offset");
+
+        params.addValue("limit", Math.max(1, Math.min(limit, 100)));
+        params.addValue("offset", Math.max(0, offset));
+
+        return jdbcTemplate.query(sql.toString(), params, movementMapper);
+    }
+
+    @Override
+    public long countMovements(Long sessionId) {
+        String sql = "SELECT COUNT(*) FROM cash_register_movements WHERE session_id = :sessionId";
+        Long count = jdbcTemplate.queryForObject(sql, new MapSqlParameterSource("sessionId", sessionId), Long.class);
+        return count != null ? count : 0L;
     }
 
     @Override

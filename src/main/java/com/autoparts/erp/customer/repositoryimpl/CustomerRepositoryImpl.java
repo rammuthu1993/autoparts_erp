@@ -115,7 +115,8 @@ public class CustomerRepositoryImpl implements CustomerRepository {
 
         String sql = SELECT_COLUMNS + """
                 WHERE active = TRUE
-                ORDER BY customer_name
+                ORDER BY customer_name, id ASC
+                LIMIT 501
                 """;
 
         return jdbcTemplate.query(

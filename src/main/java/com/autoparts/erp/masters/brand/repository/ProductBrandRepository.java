@@ -12,6 +12,16 @@ public interface ProductBrandRepository {
 
     List<ProductBrand> findAll();
 
+    List<ProductBrand> findPaged(
+        int offset,
+        int limit,
+        String search,
+        String sortBy,
+        String sortDir
+    );
+
+    long countPaged(String search);
+
     Optional<ProductBrand> findByUuid(UUID uuid);
 
     boolean update(UUID uuid, String name, String description);

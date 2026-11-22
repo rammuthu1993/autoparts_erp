@@ -189,7 +189,8 @@ public class ProductTaxMappingRepositoryImpl implements ProductTaxMappingReposit
     ) {
         String sql = SELECT_COLUMNS + """
             WHERE p.uuid = :productUuid
-            ORDER BY ptm.effective_from DESC
+            ORDER BY ptm.effective_from DESC, ptm.id DESC
+            LIMIT 50
             """;
 
         return jdbcTemplate.query(

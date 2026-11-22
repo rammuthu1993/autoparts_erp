@@ -1,6 +1,8 @@
 package com.autoparts.erp.expense.category.controller;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.common.annotation.DeprecatedUnpagedEndpoint;
+import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.expense.category.dto.ExpenseCategoryCreateRequest;
 import com.autoparts.erp.expense.category.dto.ExpenseCategoryResponse;
 import com.autoparts.erp.expense.category.dto.ExpenseCategoryUpdateRequest;
@@ -37,10 +39,25 @@ public class ExpenseCategoryController {
             .body(service.create(request));
     }
 
+    @Deprecated(since = "2.0")
+    @DeprecatedUnpagedEndpoint(limit = 500, pagedUrl = "/api/v1/expense-categories/paged", deprecationDate = "2026-11-22T00:00:00Z")
     @GetMapping
     public ResponseEntity<List<ExpenseCategoryResponse>> findAll() {
 
         return ResponseEntity.ok(service.findAll());
+    }
+
+    @GetMapping("/paged")
+    public ResponseEntity<PageResponse<ExpenseCategoryResponse>> findPaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "name") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir
+    ) {
+        return ResponseEntity.ok(
+                service.findPaged(page, size, search, sortBy, sortDir)
+        );
     }
 
     @GetMapping("/{uuid}")
