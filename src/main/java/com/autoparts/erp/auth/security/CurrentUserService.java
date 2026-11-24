@@ -17,63 +17,51 @@ import org.springframework.stereotype.Service;
 @Service
 public class CurrentUserService {
 
-    private static final Logger log =
-        LoggerFactory.getLogger(CurrentUserService.class);
+	private static final Logger log = LoggerFactory.getLogger(CurrentUserService.class);
 
-    private final UserRepository userRepository;
+	private final UserRepository userRepository;
 
-    public CurrentUserService(UserRepository userRepository) {
-        this.userRepository = userRepository;
-    }
+	public CurrentUserService(UserRepository userRepository) {
+		this.userRepository = userRepository;
+	}
 
-    public Long getCurrentUserId() {
+	public Long getCurrentUserId() {
 
-        Authentication authentication =
-            SecurityContextHolder.getContext().getAuthentication();
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        if (authentication == null
-                || !authentication.isAuthenticated()
-                || authentication.getName() == null
-                || authentication.getName().isBlank()
-                || "anonymousUser".equals(authentication.getName())) {
+		if (authentication == null || !authentication.isAuthenticated() || authentication.getName() == null
+				|| authentication.getName().isBlank() || "anonymousUser".equals(authentication.getName())) {
 
-            throw new AuthenticationCredentialsNotFoundException(
-                "Authenticated user information is unavailable"
-            );
-        }
+			throw new AuthenticationCredentialsNotFoundException("Authenticated user information is unavailable");
+		}
 
-        // Fast path 1: extract user_id claim directly from validated Jwt token
-        if (authentication.getPrincipal() instanceof Jwt jwt) {
-            Object userIdClaim = jwt.getClaim("user_id");
-            if (userIdClaim instanceof Number number) {
-                return number.longValue();
-            } else if (userIdClaim instanceof String str && !str.isBlank()) {
-                try {
-                    return Long.parseLong(str);
-                } catch (NumberFormatException ignored) {
-                }
-            }
-        }
+		// Fast path 1: extract user_id claim directly from validated Jwt token
+		if (authentication.getPrincipal() instanceof Jwt jwt) {
+			Object userIdClaim = jwt.getClaim("user_id");
+			if (userIdClaim instanceof Number number) {
+				return number.longValue();
+			} else if (userIdClaim instanceof String str && !str.isBlank()) {
+				try {
+					return Long.parseLong(str);
+				} catch (NumberFormatException ignored) {
+				}
+			}
+		}
 
-        // Fast path 2: extract from AuthenticatedUserDetails when available
-        if (authentication.getPrincipal() instanceof AuthenticatedUserDetails userDetails
-                && userDetails.getUserId() != null) {
-            return userDetails.getUserId();
-        }
+		// Fast path 2: extract from AuthenticatedUserDetails when available
+		if (authentication.getPrincipal() instanceof AuthenticatedUserDetails userDetails
+				&& userDetails.getUserId() != null) {
+			return userDetails.getUserId();
+		}
 
-        String username = authentication.getName();
+		String username = authentication.getName();
 
-        UserAccount account = userRepository.findByUsername(username)
-            .orElseThrow(() -> {
-                log.warn(
-                    "Authenticated username does not exist in the user repository"
-                );
+		UserAccount account = userRepository.findByUsername(username).orElseThrow(() -> {
+			log.warn("Authenticated username does not exist in the user repository");
 
-                return new AuthenticationCredentialsNotFoundException(
-                    "Authenticated user could not be found"
-                );
-            });
+			return new AuthenticationCredentialsNotFoundException("Authenticated user could not be found");
+		});
 
-        return account.id();
-    }
+		return account.id();
+	}
 }

@@ -37,24 +37,6 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    @ExceptionHandler(AuthenticationException.class)
-    public ResponseEntity<ApiError> handleAuthenticationException(
-            AuthenticationException exception,
-            HttpServletRequest request) {
-
-        ApiError error = new ApiError(
-                Instant.now(),
-                HttpStatus.UNAUTHORIZED.value(),
-                "Unauthorized",
-                "Invalid username or password.",
-                request.getRequestURI()
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.UNAUTHORIZED)
-                .body(error);
-    }
-
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidationException(
             MethodArgumentNotValidException exception,
@@ -124,43 +106,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(error.getStatus())
                 .body(response);
-    }
-    
-    @ExceptionHandler(LockedException.class)
-    public ResponseEntity<ApiError> handleLockedException(
-            LockedException exception,
-            HttpServletRequest request) {
-
-        ApiError error = new ApiError(
-                Instant.now(),
-                HttpStatus.UNAUTHORIZED.value(),
-                "Account Locked",
-                "Your account is locked. Please wait 15 minutes before trying again.",
-                request.getRequestURI()
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.UNAUTHORIZED)
-                .body(error);
-    }
-    
-    @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<ApiError> handleBadCredentials(
-            BadCredentialsException exception,
-            HttpServletRequest request
-    ) {
-
-        ApiError error = new ApiError(
-                Instant.now(),
-                HttpStatus.UNAUTHORIZED.value(),
-                "Unauthorized",
-                "The refresh token is invalid or expired.",
-                request.getRequestURI()
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.UNAUTHORIZED)
-                .body(error);
     }
     
     @ExceptionHandler(AiProviderTimeoutException.class)
@@ -317,5 +262,55 @@ public class GlobalExceptionHandler {
         ApiError error = new ApiError(Instant.now(), status.value(),
                 errorName, message, request.getRequestURI());
         return ResponseEntity.status(status).body(error);
+    }
+    
+    @ExceptionHandler(LockedException.class)
+    public ResponseEntity<ApiError> handleLockedException(
+            LockedException exception,
+            HttpServletRequest request) {
+
+        return buildUnauthorizedResponse(
+                "Your account is locked. Please try again later.",
+                request
+        );
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ApiError> handleBadCredentials(
+            BadCredentialsException exception,
+            HttpServletRequest request) {
+
+        return buildUnauthorizedResponse(
+                "Invalid username or password.",
+                request
+        );
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiError> handleAuthenticationException(
+            AuthenticationException exception,
+            HttpServletRequest request) {
+
+        return buildUnauthorizedResponse(
+                "Authentication failed. Please try again.",
+                request
+        );
+    }
+
+    private ResponseEntity<ApiError> buildUnauthorizedResponse(
+            String message,
+            HttpServletRequest request) {
+
+        ApiError error = new ApiError(
+                Instant.now(),
+                HttpStatus.UNAUTHORIZED.value(),
+                "Unauthorized",
+                message,
+                request.getRequestURI()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(error);
     }
 }

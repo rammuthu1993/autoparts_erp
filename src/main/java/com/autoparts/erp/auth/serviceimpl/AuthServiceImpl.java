@@ -25,114 +25,82 @@ import org.springframework.security.authentication.LockedException;
 @Service
 public class AuthServiceImpl implements AuthService {
 
-    private static final Logger logger =
-            LoggerFactory.getLogger(AuthServiceImpl.class);
+	private static final Logger logger = LoggerFactory.getLogger(AuthServiceImpl.class);
 
-    private final AuthenticationManager authenticationManager;
+	private final AuthenticationManager authenticationManager;
 
-    private final JwtService jwtService;
+	private final JwtService jwtService;
 
-    private final UserRepository userRepository;
+	private final UserRepository userRepository;
 
-    private final int maxFailedAttempts;
+	private final int maxFailedAttempts;
 
-    private final long lockDurationSeconds;
-    
-    private final RefreshTokenService refreshTokenService;
+	private final long lockDurationSeconds;
 
-    public AuthServiceImpl(
-            AuthenticationManager authenticationManager,
-            JwtService jwtService,
-            UserRepository userRepository,
-            @Value("${app.security.login.max-failed-attempts:5}")
-            int maxFailedAttempts,
-            @Value("${app.security.login.lock-duration-seconds:900}")
-            long lockDurationSeconds,
-            RefreshTokenService refreshTokenService
-    ) {
+	private final RefreshTokenService refreshTokenService;
 
-        if (maxFailedAttempts <= 0 || lockDurationSeconds <= 0) {
-            throw new IllegalArgumentException(
-                    "Login security configuration must be positive."
-            );
-        }
+	public AuthServiceImpl(AuthenticationManager authenticationManager, JwtService jwtService,
+			UserRepository userRepository, @Value("${app.security.login.max-failed-attempts:5}") int maxFailedAttempts,
+			@Value("${app.security.login.lock-duration-seconds:900}") long lockDurationSeconds,
+			RefreshTokenService refreshTokenService) {
 
-        this.authenticationManager = authenticationManager;
-        this.jwtService = jwtService;
-        this.userRepository = userRepository;
-        this.maxFailedAttempts = maxFailedAttempts;
-        this.lockDurationSeconds = lockDurationSeconds;
-        this.refreshTokenService = refreshTokenService;
-    }
+		if (maxFailedAttempts <= 0 || lockDurationSeconds <= 0) {
+			throw new IllegalArgumentException("Login security configuration must be positive.");
+		}
 
-    @Override
-    public LoginResponse login(LoginRequest request) {
+		this.authenticationManager = authenticationManager;
+		this.jwtService = jwtService;
+		this.userRepository = userRepository;
+		this.maxFailedAttempts = maxFailedAttempts;
+		this.lockDurationSeconds = lockDurationSeconds;
+		this.refreshTokenService = refreshTokenService;
+	}
 
-        String username = request.username().trim();
+	@Override
+	public LoginResponse login(LoginRequest request) {
 
-        Authentication authentication;
+		String username = request.username().trim();
 
-        try {
+		Authentication authentication;
 
-            authentication = authenticationManager.authenticate(
-                    UsernamePasswordAuthenticationToken.unauthenticated(
-                            username,
-                            request.password()
-                    )
-            );
+		try {
 
-        } catch (LockedException exception) {
+			authentication = authenticationManager
+					.authenticate(UsernamePasswordAuthenticationToken.unauthenticated(username, request.password()));
 
-            logger.warn("Login rejected because account is locked.");
+		} catch (LockedException exception) {
 
-            throw exception;
+			logger.warn("Login rejected because account is locked.");
 
-        } catch (BadCredentialsException exception) {
+			throw exception;
 
-            userRepository.recordFailedLoginAttempt(
-                    username,
-                    maxFailedAttempts,
-                    lockDurationSeconds
-            );
+		} catch (BadCredentialsException exception) {
 
-            logger.warn("Login attempt failed.");
+			userRepository.recordFailedLoginAttempt(username, maxFailedAttempts, lockDurationSeconds);
 
-            throw exception;
+			logger.warn("Login attempt failed.");
 
-        } catch (AuthenticationException exception) {
+			throw exception;
 
-            logger.warn(
-                    "Authentication rejected: {}",
-                    exception.getClass().getSimpleName()
-            );
+		} catch (AuthenticationException exception) {
 
-            throw exception;
-        }
-        // Reset failed attempts after successful authentication.
-        userRepository.resetFailedLoginAttempts(
-                authentication.getName()
-        );
+			logger.warn("Authentication rejected: {}", exception.getClass().getSimpleName());
 
-        AuthenticatedUserDetails userDetails =
-                (AuthenticatedUserDetails) authentication.getPrincipal();
+			throw exception;
+		}
+		// Reset failed attempts after successful authentication.
+		userRepository.resetFailedLoginAttempts(authentication.getName());
 
-        RefreshTokenService.IssuedRefreshToken refreshToken =
-                refreshTokenService.createRefreshToken(
-                        userDetails.getUserId()
-                );
+		AuthenticatedUserDetails userDetails = (AuthenticatedUserDetails) authentication.getPrincipal();
 
-        String accessToken =
-                jwtService.generateAccessToken(authentication);
+		RefreshTokenService.IssuedRefreshToken refreshToken = refreshTokenService
+				.createRefreshToken(userDetails.getUserId());
 
-        logger.info("Login succeeded.");
+		String accessToken = jwtService.generateAccessToken(authentication);
 
-        return new LoginResponse(
-                accessToken,
-                refreshToken.refreshToken(),
-                "Bearer",
-                jwtService.getExpirationSeconds(),
-                refreshToken.expiresInSeconds(),
-                authentication.getName()
-        );
-    }
+		logger.info("Login succeeded.");
+
+		return new LoginResponse(accessToken, refreshToken.refreshToken(), "Bearer", jwtService.getExpirationSeconds(),
+				refreshToken.expiresInSeconds(), authentication.getName());
+	}
 }

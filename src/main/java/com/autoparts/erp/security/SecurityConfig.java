@@ -135,12 +135,29 @@ public class SecurityConfig {
                     "/api/v1/auth/logout"
                 ).permitAll()
 
-                // Public health endpoint.
+                // Public health and info endpoints (including liveness and readiness probes).
                 .requestMatchers(
                     HttpMethod.GET,
                     "/api/v1/health",
-                    "/actuator/health"
+                    "/actuator/health",
+                    "/actuator/health/**",
+                    "/actuator/info"
                 ).permitAll()
+
+                // Phase P3.1: Public OpenAPI 3 / Swagger UI documentation endpoints.
+                .requestMatchers(
+                    "/v3/api-docs/**",
+                    "/swagger-ui/**",
+                    "/swagger-ui.html",
+                    "/swagger-resources/**"
+                ).permitAll()
+
+                // Phase P3.2: ADMIN-only Prometheus metrics and actuator management endpoints.
+                .requestMatchers(
+                    "/actuator/prometheus",
+                    "/actuator/metrics/**",
+                    "/actuator/**"
+                ).hasRole("ADMIN")
 
                 // ADMIN-only endpoints.
                 .requestMatchers(

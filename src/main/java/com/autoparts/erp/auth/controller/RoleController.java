@@ -16,27 +16,21 @@ import com.autoparts.erp.auth.service.RoleService;
 @AdminOnly
 public class RoleController {
 
-    private final RoleService roleService;
+	private final RoleService roleService;
 
-    public RoleController(RoleService roleService) {
-        this.roleService = roleService;
-    }
+	public RoleController(RoleService roleService) {
+		this.roleService = roleService;
+	}
 
-    @GetMapping
-    public ResponseEntity<List<RoleResponse>> findAll() {
+	@GetMapping
+	public ResponseEntity<List<RoleResponse>> findAll() {
 
-        return ResponseEntity.ok(
-                roleService.findAll()
-        );
-    }
+		return ResponseEntity.ok(roleService.findAll());
+	}
 
-    @GetMapping("/{uuid}")
-    public ResponseEntity<RoleResponse> findByUuid(
-            @PathVariable UUID uuid
-    ) {
+	@GetMapping("/{uuid}")
+	public ResponseEntity<RoleResponse> findByUuid(@PathVariable UUID uuid) {
 
-        return ResponseEntity.ok(
-                roleService.findByUuid(uuid)
-        );
-    }
+		return ResponseEntity.ok(roleService.findByUuid(uuid));
+	}
 }

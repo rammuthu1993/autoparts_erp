@@ -6,11 +6,8 @@ import java.util.List;
 import java.util.UUID;
 
 import jakarta.validation.Valid;
-
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import com.autoparts.erp.auth.dto.UserCreateRequest;
 import com.autoparts.erp.auth.dto.UserPasswordResetRequest;
 import com.autoparts.erp.auth.dto.UserResponse;
@@ -27,126 +24,95 @@ import com.autoparts.erp.common.dto.PageResponse;
 @AdminOnly
 public class UserController {
 
-    private final UserService userService;
+	private final UserService userService;
 
-    public UserController(UserService userService) {
-        this.userService = userService;
-    }
+	public UserController(UserService userService) {
+		this.userService = userService;
+	}
 
-    // =========================================================
-    // CREATE USER
-    // =========================================================
+	// =========================================================
+	// CREATE USER
+	// =========================================================
 
-    @PostMapping
-    public ResponseEntity<UserResponse> create(
-            @Valid @RequestBody UserCreateRequest request
-    ) {
+	@PostMapping
+	public ResponseEntity<UserResponse> create(@Valid @RequestBody UserCreateRequest request) {
 
-        UserResponse response = userService.create(request);
+		UserResponse response = userService.create(request);
 
-        return ResponseEntity
-                .created(URI.create(
-                        "/api/v1/admin/users/" + response.uuid()
-                ))
-                .body(response);
-    }
+		return ResponseEntity.created(URI.create("/api/v1/admin/users/" + response.uuid())).body(response);
+	}
 
-    // =========================================================
-    // GET ALL USERS
-    // =========================================================
+	// =========================================================
+	// GET ALL USERS
+	// =========================================================
 
-    @Deprecated(since = "2.0")
-    @DeprecatedUnpagedEndpoint(limit = 500, pagedUrl = "/api/v1/admin/users/paged", deprecationDate = "2026-11-22T00:00:00Z")
-    @GetMapping
-    public ResponseEntity<List<UserResponse>> findAll() {
+	@Deprecated(since = "2.0")
+	@DeprecatedUnpagedEndpoint(limit = 500, pagedUrl = "/api/v1/admin/users/paged", deprecationDate = "2026-11-22T00:00:00Z")
+	@GetMapping
+	public ResponseEntity<List<UserResponse>> findAll() {
 
-        return ResponseEntity.ok(userService.findAll());
-    }
+		return ResponseEntity.ok(userService.findAll());
+	}
 
-    @GetMapping("/paged")
-    public ResponseEntity<PageResponse<UserResponse>> findPaged(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) String search,
-            @RequestParam(defaultValue = "id") String sortBy,
-            @RequestParam(defaultValue = "asc") String sortDir
-    ) {
-        return ResponseEntity.ok(
-                userService.findPaged(page, size, search, sortBy, sortDir)
-        );
-    }
+	@GetMapping("/paged")
+	public ResponseEntity<PageResponse<UserResponse>> findPaged(@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size, @RequestParam(required = false) String search,
+			@RequestParam(defaultValue = "id") String sortBy, @RequestParam(defaultValue = "asc") String sortDir) {
+		return ResponseEntity.ok(userService.findPaged(page, size, search, sortBy, sortDir));
+	}
 
-    // =========================================================
-    // GET USER BY UUID
-    // =========================================================
+	// =========================================================
+	// GET USER BY UUID
+	// =========================================================
 
-    @GetMapping("/{uuid}")
-    public ResponseEntity<UserResponse> findByUuid(
-            @PathVariable UUID uuid
-    ) {
+	@GetMapping("/{uuid}")
+	public ResponseEntity<UserResponse> findByUuid(@PathVariable UUID uuid) {
 
-        return ResponseEntity.ok(
-                userService.findByUuid(uuid)
-        );
-    }
+		return ResponseEntity.ok(userService.findByUuid(uuid));
+	}
 
-    // =========================================================
-    // UPDATE USERNAME
-    // =========================================================
+	// =========================================================
+	// UPDATE USERNAME
+	// =========================================================
 
-    @PutMapping("/{uuid}")
-    public ResponseEntity<UserResponse> update(
-            @PathVariable UUID uuid,
-            @Valid @RequestBody UserUpdateRequest request
-    ) {
+	@PutMapping("/{uuid}")
+	public ResponseEntity<UserResponse> update(@PathVariable UUID uuid, @Valid @RequestBody UserUpdateRequest request) {
 
-        return ResponseEntity.ok(
-                userService.update(uuid, request)
-        );
-    }
+		return ResponseEntity.ok(userService.update(uuid, request));
+	}
 
-    // =========================================================
-    // ENABLE / DISABLE USER
-    // =========================================================
+	// =========================================================
+	// ENABLE / DISABLE USER
+	// =========================================================
 
-    @PatchMapping("/{uuid}/status")
-    public ResponseEntity<UserResponse> updateStatus(
-            @PathVariable UUID uuid,
-            @Valid @RequestBody UserStatusRequest request
-    ) {
+	@PatchMapping("/{uuid}/status")
+	public ResponseEntity<UserResponse> updateStatus(@PathVariable UUID uuid,
+			@Valid @RequestBody UserStatusRequest request) {
 
-        return ResponseEntity.ok(
-                userService.updateStatus(uuid, request)
-        );
-    }
+		return ResponseEntity.ok(userService.updateStatus(uuid, request));
+	}
 
-    // =========================================================
-    // ASSIGN / CHANGE ROLES
-    // =========================================================
+	// =========================================================
+	// ASSIGN / CHANGE ROLES
+	// =========================================================
 
-    @PutMapping("/{uuid}/roles")
-    public ResponseEntity<UserResponse> updateRoles(
-            @PathVariable UUID uuid,
-            @Valid @RequestBody UserRoleRequest request
-    ) {
+	@PutMapping("/{uuid}/roles")
+	public ResponseEntity<UserResponse> updateRoles(@PathVariable UUID uuid,
+			@Valid @RequestBody UserRoleRequest request) {
 
-        return ResponseEntity.ok(
-                userService.updateRoles(uuid, request)
-        );
-    }
+		return ResponseEntity.ok(userService.updateRoles(uuid, request));
+	}
 
-    // =========================================================
-    // RESET PASSWORD
-    // =========================================================
+	// =========================================================
+	// RESET PASSWORD
+	// =========================================================
 
-    @PatchMapping("/{uuid}/password")
-    public ResponseEntity<Void> resetPassword(
-            @PathVariable UUID uuid,
-            @Valid @RequestBody UserPasswordResetRequest request
-    ) {
+	@PatchMapping("/{uuid}/password")
+	public ResponseEntity<Void> resetPassword(@PathVariable UUID uuid,
+			@Valid @RequestBody UserPasswordResetRequest request) {
 
-        userService.resetPassword(uuid, request);
+		userService.resetPassword(uuid, request);
 
-        return ResponseEntity.noContent().build();
-    }
+		return ResponseEntity.noContent().build();
+	}
 }

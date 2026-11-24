@@ -1,6 +1,7 @@
 
 package com.autoparts.erp.auth.controller;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import jakarta.validation.Valid;
 
 import org.springframework.http.ResponseEntity;
@@ -17,59 +18,40 @@ import com.autoparts.erp.auth.service.RefreshTokenService;
 @RequestMapping("/api/v1/auth")
 public class AuthController {
 
-    private final AuthService authService;
+	private final AuthService authService;
 
-    private final RefreshTokenService refreshTokenService;
+	private final RefreshTokenService refreshTokenService;
 
-    public AuthController(
-            AuthService authService,
-            RefreshTokenService refreshTokenService
-    ) {
-        this.authService = authService;
-        this.refreshTokenService = refreshTokenService;
-    }
+	public AuthController(AuthService authService, RefreshTokenService refreshTokenService) {
+		this.authService = authService;
+		this.refreshTokenService = refreshTokenService;
+	}
 
-    @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(
-            @Valid @RequestBody LoginRequest request
-    ) {
-        return ResponseEntity.ok(authService.login(request));
-    }
+	@SecurityRequirements
+	@PostMapping("/login")
+	public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+		return ResponseEntity.ok(authService.login(request));
+	}
 
-    @PostMapping("/refresh")
-    public ResponseEntity<LoginResponse> refresh(
-            @Valid @RequestBody RefreshTokenRequest request
-    ) {
+	@SecurityRequirements
+	@PostMapping("/refresh")
+	public ResponseEntity<LoginResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
 
-        RefreshTokenService.RotatedTokens tokens =
-                refreshTokenService.refresh(request.refreshToken())
-                        .orElseThrow(() ->
-                                new BadCredentialsException(
-                                        "Invalid or expired refresh token."
-                                )
-                        );
+		RefreshTokenService.RotatedTokens tokens = refreshTokenService.refresh(request.refreshToken())
+				.orElseThrow(() -> new BadCredentialsException("Invalid or expired refresh token."));
 
-        LoginResponse response = new LoginResponse(
-                tokens.accessToken(),
-                tokens.refreshToken(),
-                "Bearer",
-                tokens.expiresInSeconds(),
-                tokens.refreshExpiresInSeconds(),
-                tokens.username()
-        );
+		LoginResponse response = new LoginResponse(tokens.accessToken(), tokens.refreshToken(), "Bearer",
+				tokens.expiresInSeconds(), tokens.refreshExpiresInSeconds(), tokens.username());
 
-        return ResponseEntity.ok(response);
-    }
+		return ResponseEntity.ok(response);
+	}
 
-    @PostMapping("/logout")
-    public ResponseEntity<Void> logout(
-            @Valid @RequestBody RefreshTokenRequest request
-    ) {
+	@SecurityRequirements
+	@PostMapping("/logout")
+	public ResponseEntity<Void> logout(@Valid @RequestBody RefreshTokenRequest request) {
 
-        refreshTokenService.revokeRefreshToken(
-                request.refreshToken()
-        );
+		refreshTokenService.revokeRefreshToken(request.refreshToken());
 
-        return ResponseEntity.noContent().build();
-    }
+		return ResponseEntity.noContent().build();
+	}
 }
