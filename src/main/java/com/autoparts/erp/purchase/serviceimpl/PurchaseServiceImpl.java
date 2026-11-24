@@ -1,6 +1,7 @@
 package com.autoparts.erp.purchase.serviceimpl;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.common.util.PaginationUtils;
@@ -56,6 +57,7 @@ public class PurchaseServiceImpl implements PurchaseService {
 
     @Override
     @Transactional
+    @RequiresPermission("PURCHASES.CREATE")
     public PurchaseResponse create(PurchaseCreateRequest request) {
 
         validateUniqueProducts(request.products());
@@ -226,6 +228,7 @@ public class PurchaseServiceImpl implements PurchaseService {
     // ---------------------------------------------------------
 
     @Override
+    @RequiresPermission("PURCHASES.VIEW")
     public List<PurchaseResponse> findAll() {
 
         return repository.findAll()
@@ -236,6 +239,7 @@ public class PurchaseServiceImpl implements PurchaseService {
 
     @Override
     @Transactional(readOnly = true)
+    @RequiresPermission("PURCHASES.VIEW")
     public PageResponse<PurchaseResponse> findPaged(
             int page,
             int size,
@@ -266,6 +270,7 @@ public class PurchaseServiceImpl implements PurchaseService {
     // ---------------------------------------------------------
 
     @Override
+    @RequiresPermission("PURCHASES.VIEW")
     public PurchaseResponse findByUuid(UUID uuid) {
 
         Purchase purchase = repository.findByUuid(uuid)
@@ -359,6 +364,7 @@ public class PurchaseServiceImpl implements PurchaseService {
 
     @Override
     @Transactional
+    @RequiresPermission("PURCHASES.RECEIVE")
     public PurchaseResponse receive(UUID uuid) {
 
         Purchase purchase = repository.findByUuidForUpdate(uuid)

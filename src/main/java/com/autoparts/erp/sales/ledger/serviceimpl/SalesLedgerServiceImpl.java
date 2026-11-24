@@ -1,5 +1,6 @@
 package com.autoparts.erp.sales.ledger.serviceimpl;
 
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -35,6 +36,7 @@ public class SalesLedgerServiceImpl implements SalesLedgerService {
     }
 
     @Override
+    @RequiresPermission("SALES.LEDGER_VIEW")
     public SalesLedgerPageResponse getSalesLedger(
         UUID customerUuid,
         LocalDate fromDate,

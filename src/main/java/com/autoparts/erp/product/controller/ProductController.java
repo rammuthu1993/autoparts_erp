@@ -1,6 +1,7 @@
 package com.autoparts.erp.product.controller;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.common.annotation.DeprecatedUnpagedEndpoint;
 import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.product.dto.ProductCreateRequest;
@@ -36,6 +37,7 @@ public class ProductController {
     }
 
     @AdminOrManager
+    @RequiresPermission("PRODUCTS.CREATE")
     @PostMapping
     public ResponseEntity<ProductResponse> create(
             @Valid @RequestBody ProductCreateRequest request
@@ -46,11 +48,13 @@ public class ProductController {
 
     @Deprecated(since = "2.0")
     @DeprecatedUnpagedEndpoint(limit = 500, pagedUrl = "/api/v1/products/paged", deprecationDate = "2026-11-22T00:00:00Z")
+    @RequiresPermission("PRODUCTS.VIEW")
     @GetMapping
     public ResponseEntity<List<ProductResponse>> findAll() {
         return ResponseEntity.ok(productService.findAll());
     }
 
+    @RequiresPermission("PRODUCTS.VIEW")
     @GetMapping("/paged")
     public ResponseEntity<PageResponse<ProductResponse>> findPaged(
             @RequestParam(defaultValue = "0") int page,
@@ -64,12 +68,14 @@ public class ProductController {
         return ResponseEntity.ok(productService.findPaged(page, size, search, categoryId, brandId, sortBy, sortDir));
     }
 
+    @RequiresPermission("PRODUCTS.VIEW")
     @GetMapping("/{uuid}")
     public ResponseEntity<ProductResponse> findByUuid(@PathVariable UUID uuid) {
         return ResponseEntity.ok(productService.findByUuid(uuid));
     }
 
     @AdminOrManager
+    @RequiresPermission("PRODUCTS.UPDATE")
     @PutMapping("/{uuid}")
     public ResponseEntity<ProductResponse> update(
             @PathVariable UUID uuid,
@@ -79,12 +85,14 @@ public class ProductController {
     }
 
     @AdminOrManager
+    @RequiresPermission("PRODUCTS.DEACTIVATE")
     @PatchMapping("/{uuid}/deactivate")
     public ResponseEntity<Void> deactivate(@PathVariable UUID uuid) {
         productService.deactivate(uuid);
         return ResponseEntity.noContent().build();
     }
 
+    @RequiresPermission("PRODUCTS.VIEW")
     @GetMapping("/{uuid}/barcode")
     public ResponseEntity<ProductBarcodeResponse> getBarcode(@PathVariable UUID uuid) {
         ProductResponse product = barcodeService.getBarcodeDetails(uuid);
@@ -97,6 +105,7 @@ public class ProductController {
         ));
     }
 
+    @RequiresPermission("PRODUCTS.VIEW")
     @GetMapping(value = "/{uuid}/barcode/image", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<byte[]> previewBarcode(@PathVariable UUID uuid) {
         byte[] image = barcodeService.generatePng(uuid);
@@ -106,6 +115,7 @@ public class ProductController {
                 .body(image);
     }
 
+    @RequiresPermission("PRODUCTS.VIEW")
     @GetMapping(value = "/{uuid}/barcode/download", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<byte[]> downloadBarcode(@PathVariable UUID uuid) {
         ProductResponse product = barcodeService.getBarcodeDetails(uuid);

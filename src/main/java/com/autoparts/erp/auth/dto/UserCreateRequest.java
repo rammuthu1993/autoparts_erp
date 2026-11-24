@@ -1,6 +1,7 @@
 
 package com.autoparts.erp.auth.dto;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;
@@ -18,6 +19,11 @@ public record UserCreateRequest(
         )
         String username,
 
+        @NotBlank(message = "Email is required")
+        @Email(message = "Email format is invalid")
+        @Size(max = 254, message = "Email must not exceed 254 characters")
+        String email,
+
         @NotBlank(message = "Password is required")
         @Size(min = 12, max = 128)
         String password,
@@ -31,4 +37,16 @@ public record UserCreateRequest(
             String
         > roleNames
 ) {
+    public UserCreateRequest {
+        if (username != null) {
+            username = username.trim();
+        }
+        if (email != null) {
+            email = email.trim();
+        }
+    }
+
+    public UserCreateRequest(String username, String password, Set<String> roleNames) {
+        this(username, username != null ? username.toLowerCase() + "@example.com" : null, password, roleNames);
+    }
 }

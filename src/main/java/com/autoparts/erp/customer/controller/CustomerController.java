@@ -1,6 +1,7 @@
 package com.autoparts.erp.customer.controller;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.common.annotation.DeprecatedUnpagedEndpoint;
 import com.autoparts.erp.common.dto.PageResponse;
@@ -29,6 +30,7 @@ public class CustomerController {
     }
 
     @SalesAccess
+    @RequiresPermission("CUSTOMERS.CREATE")
     @PostMapping
     public ResponseEntity<CustomerResponse> create(
             @Valid @RequestBody CustomerCreateRequest request
@@ -40,12 +42,14 @@ public class CustomerController {
 
     @Deprecated(since = "2.0")
     @DeprecatedUnpagedEndpoint(limit = 500, pagedUrl = "/api/v1/customers/paged", deprecationDate = "2026-11-22T00:00:00Z")
+    @RequiresPermission("CUSTOMERS.VIEW")
     @GetMapping
     public ResponseEntity<List<CustomerResponse>> findAll() {
 
         return ResponseEntity.ok(customerService.findAll());
     }
 
+    @RequiresPermission("CUSTOMERS.VIEW")
     @GetMapping("/paged")
     public ResponseEntity<PageResponse<CustomerResponse>> findPaged(
             @RequestParam(defaultValue = "0") int page,
@@ -61,6 +65,7 @@ public class CustomerController {
         );
     }
 
+    @RequiresPermission("CUSTOMERS.VIEW")
     @GetMapping("/{uuid}")
     public ResponseEntity<CustomerResponse> findByUuid(
             @PathVariable UUID uuid
@@ -71,6 +76,7 @@ public class CustomerController {
     }
 
     @SalesAccess
+    @RequiresPermission("CUSTOMERS.UPDATE")
     @PutMapping("/{uuid}")
     public ResponseEntity<CustomerResponse> update(
             @PathVariable UUID uuid,
@@ -82,6 +88,7 @@ public class CustomerController {
     }
 
     @AdminOrManager
+    @RequiresPermission("CUSTOMERS.DEACTIVATE")
     @PatchMapping("/{uuid}/deactivate")
     public ResponseEntity<Void> deactivate(
             @PathVariable UUID uuid

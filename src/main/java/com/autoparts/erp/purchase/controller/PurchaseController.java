@@ -1,7 +1,7 @@
-
 package com.autoparts.erp.purchase.controller;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.common.annotation.DeprecatedUnpagedEndpoint;
 import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.purchase.dto.PurchaseCreateRequest;
@@ -26,6 +26,7 @@ public class PurchaseController {
     }
 
     @AdminOrManager
+    @RequiresPermission("PURCHASES.CREATE")
     @PostMapping
     public ResponseEntity<PurchaseResponse> create(
         @Valid @RequestBody PurchaseCreateRequest request
@@ -38,12 +39,21 @@ public class PurchaseController {
     }
 
     @Deprecated(since = "2.0")
-    @DeprecatedUnpagedEndpoint(limit = 500, pagedUrl = "/api/v1/purchases/paged", deprecationDate = "2026-11-22T00:00:00Z")
+    @DeprecatedUnpagedEndpoint(
+            limit = 500,
+            pagedUrl = "/api/v1/purchases/paged",
+            deprecationDate = "2026-11-22T00:00:00Z"
+    )
+    @RequiresPermission("PURCHASES.VIEW")
     @GetMapping
     public ResponseEntity<List<PurchaseResponse>> findAll() {
-        return ResponseEntity.ok(purchaseService.findAll());
+
+        return ResponseEntity.ok(
+            purchaseService.findAll()
+        );
     }
 
+    @RequiresPermission("PURCHASES.VIEW")
     @GetMapping("/paged")
     public ResponseEntity<PageResponse<PurchaseResponse>> findPaged(
             @RequestParam(defaultValue = "0") int page,
@@ -51,13 +61,14 @@ public class PurchaseController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "id") String sortBy,
-            @RequestParam(defaultValue = "desc") String sortDir
+            @RequestParam(defaultValue = "asc") String sortDir
     ) {
         return ResponseEntity.ok(
                 purchaseService.findPaged(page, size, search, status, sortBy, sortDir)
         );
     }
 
+    @RequiresPermission("PURCHASES.VIEW")
     @GetMapping("/{uuid}")
     public ResponseEntity<PurchaseResponse> findByUuid(
         @PathVariable UUID uuid
@@ -66,16 +77,15 @@ public class PurchaseController {
             purchaseService.findByUuid(uuid)
         );
     }
-    
 
-	@AdminOrManager
-	@PostMapping("/{uuid}/receive")
-	public ResponseEntity<PurchaseResponse> receive(
-	    @PathVariable UUID uuid
-	) {
-	    return ResponseEntity.ok(
-	        purchaseService.receive(uuid)
-	    );
-	}
-
+    @AdminOrManager
+    @RequiresPermission("PURCHASES.RECEIVE")
+    @PostMapping("/{uuid}/receive")
+    public ResponseEntity<PurchaseResponse> receive(
+        @PathVariable UUID uuid
+    ) {
+        return ResponseEntity.ok(
+            purchaseService.receive(uuid)
+        );
+    }
 }

@@ -127,12 +127,14 @@ public class SecurityConfig {
                     DispatcherType.ERROR
                 ).permitAll()
 
-                // Public authentication endpoints.
+                // Public authentication & recovery endpoints.
                 .requestMatchers(
                     HttpMethod.POST,
                     "/api/v1/auth/login",
                     "/api/v1/auth/refresh",
-                    "/api/v1/auth/logout"
+                    "/api/v1/auth/logout",
+                    "/api/v1/auth/forgot-password/**",
+                    "/api/v1/auth/verify-email/confirm"
                 ).permitAll()
 
                 // Public health and info endpoints (including liveness and readiness probes).
@@ -159,7 +161,19 @@ public class SecurityConfig {
                     "/actuator/**"
                 ).hasRole("ADMIN")
 
-                // ADMIN-only endpoints.
+                // Authenticated user can query their own effective permissions
+                .requestMatchers(
+                    HttpMethod.GET,
+                    "/api/v1/admin/users/me/permissions"
+                ).authenticated()
+
+                // Manager & Admin can access user password reset (hierarchical policy enforced in service)
+                .requestMatchers(
+                    HttpMethod.PATCH,
+                    "/api/v1/admin/users/*/password"
+                ).hasAnyRole("ADMIN", "MANAGER")
+
+                // ADMIN-only management and administration endpoints.
                 .requestMatchers(
                     "/api/v1/admin/**",
                     "/api/v1/users/**",

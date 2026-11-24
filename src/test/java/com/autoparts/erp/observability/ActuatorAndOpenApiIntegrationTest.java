@@ -65,6 +65,7 @@ class ActuatorAndOpenApiIntegrationTest {
         registry.add("management.endpoints.web.exposure.include", () -> "health,info,metrics,prometheus");
         registry.add("management.endpoint.health.show-details", () -> "never");
         registry.add("management.endpoint.health.probes.enabled", () -> "true");
+        registry.add("management.health.mail.enabled", () -> "false");
         registry.add("management.endpoint.prometheus.enabled", () -> "true");
         registry.add("management.prometheus.metrics.export.enabled", () -> "true");
         registry.add("management.metrics.export.prometheus.enabled", () -> "true");
@@ -116,7 +117,12 @@ class ActuatorAndOpenApiIntegrationTest {
                 .andExpect(jsonPath("$.paths['/api/v1/auth/login'].post.security").isEmpty())
                 .andExpect(jsonPath("$.paths['/api/v1/auth/refresh'].post.security").isEmpty())
                 .andExpect(jsonPath("$.paths['/api/v1/auth/logout'].post.security").isEmpty())
+                .andExpect(jsonPath("$.paths['/api/v1/auth/forgot-password/request-otp'].post.security").isEmpty())
+                .andExpect(jsonPath("$.paths['/api/v1/auth/forgot-password/verify-otp'].post.security").isEmpty())
+                .andExpect(jsonPath("$.paths['/api/v1/auth/forgot-password/reset'].post.security").isEmpty())
+                .andExpect(jsonPath("$.paths['/api/v1/auth/verify-email/confirm'].post.security").isEmpty())
                 .andExpect(jsonPath("$.paths['/api/v1/health'].get.security").isEmpty())
+                .andExpect(jsonPath("$.paths['/api/v1/auth/change-password'].post.security").doesNotExist())
                 .andExpect(jsonPath("$.paths['/api/v1/sales/paged'].get.security").doesNotExist());
     }
 

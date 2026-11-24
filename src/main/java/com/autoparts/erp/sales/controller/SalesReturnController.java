@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.sales.dto.SalesRefundRequest;
 import com.autoparts.erp.sales.dto.SalesReturnRequest;
 import com.autoparts.erp.sales.dto.SalesReturnResponse;
@@ -31,6 +32,7 @@ public class SalesReturnController {
         this.salesReturnService = salesReturnService;
     }
 
+    @RequiresPermission("SALES_RETURNS.CREATE")
     @PostMapping("/{saleUuid}/returns")
     public ResponseEntity<SalesReturnResponse> createReturn(
             @PathVariable UUID saleUuid,
@@ -47,6 +49,7 @@ public class SalesReturnController {
                 );
     }
 
+    @RequiresPermission("SALES_RETURNS.VIEW")
     @GetMapping("/{saleUuid}/returns")
     public ResponseEntity<List<SalesReturnResponse>> findReturnsBySale(
             @PathVariable UUID saleUuid
@@ -57,6 +60,7 @@ public class SalesReturnController {
         );
     }
 
+    @RequiresPermission("SALES_RETURNS.VIEW")
     @GetMapping("/returns/{returnUuid}")
     public ResponseEntity<SalesReturnResponse> findReturn(
             @PathVariable UUID returnUuid
@@ -67,6 +71,7 @@ public class SalesReturnController {
         );
     }
 
+    @RequiresPermission("SALES_RETURNS.REFUND")
     @PostMapping("/returns/{returnUuid}/refund")
     public ResponseEntity<SalesReturnResponse> recordRefund(
             @PathVariable UUID returnUuid,

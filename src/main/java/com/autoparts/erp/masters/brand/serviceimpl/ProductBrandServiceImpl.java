@@ -3,6 +3,7 @@ package com.autoparts.erp.masters.brand.serviceimpl;
 
 import com.autoparts.erp.auth.security.annotation.AdminOnly;
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.common.dto.PageResponse;
@@ -45,6 +46,7 @@ public class ProductBrandServiceImpl implements ProductBrandService {
     @Override
     @Transactional
     @AdminOrManager
+    @RequiresPermission("BRANDS.CREATE")
     public BrandResponse create(BrandCreateRequest request) {
 
         String name = request.name().trim();
@@ -89,6 +91,7 @@ public class ProductBrandServiceImpl implements ProductBrandService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("BRANDS.VIEW")
     public List<BrandResponse> findAll() {
 
         return repository.findAll()
@@ -99,6 +102,7 @@ public class ProductBrandServiceImpl implements ProductBrandService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("BRANDS.VIEW")
     public PageResponse<BrandResponse> findPaged(
             int page,
             int size,
@@ -124,6 +128,7 @@ public class ProductBrandServiceImpl implements ProductBrandService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("BRANDS.VIEW")
     public BrandResponse findByUuid(UUID uuid) {
 
         ProductBrand brand = repository.findByUuid(uuid)
@@ -138,6 +143,7 @@ public class ProductBrandServiceImpl implements ProductBrandService {
     @Override
     @Transactional
     @AdminOrManager
+    @RequiresPermission("BRANDS.UPDATE")
     public BrandResponse update(
         UUID uuid,
         BrandUpdateRequest request
@@ -191,6 +197,7 @@ public class ProductBrandServiceImpl implements ProductBrandService {
     @Override
     @Transactional
     @AdminOnly
+    @RequiresPermission("BRANDS.DEACTIVATE")
     public void deactivate(UUID uuid) {
 
         ProductBrand existing = repository.findByUuid(uuid)

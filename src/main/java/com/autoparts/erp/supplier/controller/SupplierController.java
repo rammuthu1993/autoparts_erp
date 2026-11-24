@@ -2,6 +2,7 @@
 package com.autoparts.erp.supplier.controller;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.common.annotation.DeprecatedUnpagedEndpoint;
 import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.supplier.dto.SupplierCreateRequest;
@@ -27,6 +28,7 @@ public class SupplierController {
     }
 
     @AdminOrManager
+    @RequiresPermission("SUPPLIERS.CREATE")
     @PostMapping
     public ResponseEntity<SupplierResponse> create(
         @Valid @RequestBody SupplierCreateRequest request
@@ -37,11 +39,13 @@ public class SupplierController {
 
     @Deprecated(since = "2.0")
     @DeprecatedUnpagedEndpoint(limit = 500, pagedUrl = "/api/v1/suppliers/paged", deprecationDate = "2026-11-22T00:00:00Z")
+    @RequiresPermission("SUPPLIERS.VIEW")
     @GetMapping
     public ResponseEntity<List<SupplierResponse>> findAll() {
         return ResponseEntity.ok(supplierService.findAll());
     }
 
+    @RequiresPermission("SUPPLIERS.VIEW")
     @GetMapping("/paged")
     public ResponseEntity<PageResponse<SupplierResponse>> findPaged(
             @RequestParam(defaultValue = "0") int page,
@@ -57,6 +61,7 @@ public class SupplierController {
         );
     }
 
+    @RequiresPermission("SUPPLIERS.VIEW")
     @GetMapping("/{uuid}")
     public ResponseEntity<SupplierResponse> findByUuid(
         @PathVariable UUID uuid
@@ -65,6 +70,7 @@ public class SupplierController {
     }
 
     @AdminOrManager
+    @RequiresPermission("SUPPLIERS.UPDATE")
     @PutMapping("/{uuid}")
     public ResponseEntity<SupplierResponse> update(
         @PathVariable UUID uuid,
@@ -74,6 +80,7 @@ public class SupplierController {
     }
 
     @AdminOrManager
+    @RequiresPermission("SUPPLIERS.DEACTIVATE")
     @PatchMapping("/{uuid}/deactivate")
     public ResponseEntity<Void> deactivate(
         @PathVariable UUID uuid

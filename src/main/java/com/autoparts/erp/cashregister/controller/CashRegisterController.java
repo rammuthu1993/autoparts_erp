@@ -1,6 +1,7 @@
 package com.autoparts.erp.cashregister.controller;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.cashregister.dto.*;
 import com.autoparts.erp.cashregister.service.CashRegisterService;
@@ -26,6 +27,7 @@ public class CashRegisterController {
     }
 
     @AdminOrManager
+    @RequiresPermission("CASH_REGISTER.CREATE")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public CashRegisterResponse createRegister(
@@ -34,12 +36,14 @@ public class CashRegisterController {
         return cashRegisterService.createRegister(request);
     }
 
+    @RequiresPermission("CASH_REGISTER.VIEW")
     @GetMapping
     public List<CashRegisterResponse> findAllRegisters() {
         return cashRegisterService.findAllRegisters();
     }
 
     @SalesAccess
+    @RequiresPermission("CASH_REGISTER.OPEN")
     @PostMapping("/{registerUuid}/sessions")
     @ResponseStatus(HttpStatus.CREATED)
     public CashSessionResponse openSession(
@@ -50,6 +54,7 @@ public class CashRegisterController {
     }
 
     @SalesAccess
+    @RequiresPermission("CASH_REGISTER.CLOSE")
     @PostMapping("/sessions/{sessionUuid}/close")
     public CashSessionResponse closeSession(
         @PathVariable UUID sessionUuid,
@@ -58,6 +63,7 @@ public class CashRegisterController {
         return cashRegisterService.closeSession(sessionUuid, request);
     }
 
+    @RequiresPermission("CASH_REGISTER.VIEW")
     @GetMapping("/{registerUuid}/sessions/latest")
     public CashSessionResponse findLatestSession(
         @PathVariable UUID registerUuid
@@ -65,6 +71,7 @@ public class CashRegisterController {
         return cashRegisterService.findLatestSession(registerUuid);
     }
 
+    @RequiresPermission("CASH_REGISTER.OPEN")
     @PostMapping("/sessions/{sessionUuid}/movements")
     @ResponseStatus(HttpStatus.CREATED)
     public CashMovementResponse createMovement(
@@ -76,6 +83,7 @@ public class CashRegisterController {
 
     @Deprecated(since = "2.0")
     @DeprecatedUnpagedEndpoint(limit = 500, pagedUrl = "/api/v1/cash-registers/sessions/{sessionUuid}/movements/paged", deprecationDate = "2026-11-22T00:00:00Z")
+    @RequiresPermission("CASH_REGISTER.VIEW")
     @GetMapping("/sessions/{sessionUuid}/movements")
     public List<CashMovementResponse> findMovements(
         @PathVariable UUID sessionUuid
@@ -83,6 +91,7 @@ public class CashRegisterController {
         return cashRegisterService.findMovements(sessionUuid);
     }
 
+    @RequiresPermission("CASH_REGISTER.VIEW")
     @GetMapping("/sessions/{sessionUuid}/movements/paged")
     public ResponseEntity<PageResponse<CashMovementResponse>> findMovementsPaged(
             @PathVariable UUID sessionUuid,

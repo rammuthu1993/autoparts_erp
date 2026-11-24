@@ -2,6 +2,7 @@
 package com.autoparts.erp.expense.category.serviceimpl;
 
 import com.autoparts.erp.auth.security.annotation.AdminOnly;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.common.dto.PageResponse;
@@ -48,6 +49,7 @@ public class ExpenseCategoryServiceImpl
     @Override
     @Transactional
     @AdminOnly
+    @RequiresPermission("EXPENSE_CATEGORIES.CREATE")
     public ExpenseCategoryResponse create(
         ExpenseCategoryCreateRequest request
     ) {
@@ -105,6 +107,7 @@ public class ExpenseCategoryServiceImpl
 
     @Override
     @SalesAccess
+    @RequiresPermission("EXPENSE_CATEGORIES.VIEW")
     public List<ExpenseCategoryResponse> findAll() {
 
         return repository.findAll()
@@ -115,6 +118,7 @@ public class ExpenseCategoryServiceImpl
 
     @Override
     @SalesAccess
+    @RequiresPermission("EXPENSE_CATEGORIES.VIEW")
     public PageResponse<ExpenseCategoryResponse> findPaged(
             int page,
             int size,
@@ -140,6 +144,7 @@ public class ExpenseCategoryServiceImpl
 
     @Override
     @SalesAccess
+    @RequiresPermission("EXPENSE_CATEGORIES.VIEW")
     public ExpenseCategoryResponse findByUuid(UUID uuid) {
 
         ExpenseCategory category = repository.findByUuid(uuid)
@@ -156,6 +161,7 @@ public class ExpenseCategoryServiceImpl
     @Override
     @Transactional
     @AdminOnly
+    @RequiresPermission("EXPENSE_CATEGORIES.UPDATE")
     public ExpenseCategoryResponse update(
         UUID uuid,
         ExpenseCategoryUpdateRequest request
@@ -226,6 +232,7 @@ public class ExpenseCategoryServiceImpl
     @Override
     @Transactional
     @AdminOnly
+    @RequiresPermission("EXPENSE_CATEGORIES.DEACTIVATE")
     public void deactivate(UUID uuid) {
 
         ExpenseCategory existing = repository.findByUuid(uuid)

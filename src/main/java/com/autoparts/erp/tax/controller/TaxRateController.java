@@ -2,6 +2,7 @@
 package com.autoparts.erp.tax.controller;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.common.annotation.DeprecatedUnpagedEndpoint;
 import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.tax.dto.TaxRateCreateRequest;
@@ -29,6 +30,7 @@ public class TaxRateController {
     }
 
     @AdminOrManager
+    @RequiresPermission("TAX_RATES.CREATE")
     @PostMapping
     public ResponseEntity<TaxRateResponse> create(
         @Valid @RequestBody TaxRateCreateRequest request
@@ -40,6 +42,7 @@ public class TaxRateController {
 
     @Deprecated(since = "2.0")
     @DeprecatedUnpagedEndpoint(limit = 100, pagedUrl = "/api/v1/tax-rates/paged", deprecationDate = "2026-11-22T00:00:00Z")
+    @RequiresPermission("TAX_RATES.VIEW")
     @GetMapping
     public ResponseEntity<List<TaxRateResponse>> findAll() {
         return ResponseEntity.ok(
@@ -47,6 +50,7 @@ public class TaxRateController {
         );
     }
 
+    @RequiresPermission("TAX_RATES.VIEW")
     @GetMapping("/paged")
     public ResponseEntity<PageResponse<TaxRateResponse>> findPaged(
         @RequestParam(defaultValue = "0") int page,
@@ -60,6 +64,7 @@ public class TaxRateController {
         );
     }
 
+    @RequiresPermission("TAX_RATES.VIEW")
     @GetMapping("/{uuid}")
     public ResponseEntity<TaxRateResponse> findByUuid(
         @PathVariable UUID uuid
@@ -70,6 +75,7 @@ public class TaxRateController {
     }
 
     @AdminOrManager
+    @RequiresPermission("TAX_RATES.UPDATE")
     @PutMapping("/{uuid}")
     public ResponseEntity<TaxRateResponse> update(
         @PathVariable UUID uuid,
@@ -80,6 +86,7 @@ public class TaxRateController {
         );
     }
 
+    @RequiresPermission("TAX_RATES.VIEW")
     @GetMapping("/current")
     public ResponseEntity<List<TaxRateResponse>> findCurrent() {
         return ResponseEntity.ok(

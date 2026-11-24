@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.purchase.payment.dto.PurchasePaymentRequest;
 import com.autoparts.erp.purchase.payment.dto.PurchasePaymentResponse;
 import com.autoparts.erp.purchase.payment.dto.PurchasePaymentSummaryResponse;
@@ -29,6 +30,7 @@ public class PurchasePaymentController {
      * Record a payment against a purchase.
      */
     @PostMapping("/{purchaseUuid}/payments")
+    @RequiresPermission("PURCHASES.PAYMENT_RECORD")
     public ResponseEntity<PurchasePaymentSummaryResponse> recordPayment(
             @PathVariable UUID purchaseUuid,
             @Valid @RequestBody PurchasePaymentRequest request
@@ -48,7 +50,8 @@ public class PurchasePaymentController {
      * Get payment history and outstanding balance for a purchase.
      */
     @GetMapping("/{purchaseUuid}/payments")
-    public ResponseEntity<PurchasePaymentSummaryResponse> findPaymentsByPurchase(
+    @RequiresPermission("PURCHASES.PAYMENT_VIEW")
+    public ResponseEntity<PurchasePaymentSummaryResponse> getPaymentSummary(
             @PathVariable UUID purchaseUuid
     ) {
 
@@ -58,10 +61,11 @@ public class PurchasePaymentController {
     }
 
     /**
-     * Get an individual payment by its UUID.
+     * Get a specific payment by its UUID.
      */
     @GetMapping("/payments/{paymentUuid}")
-    public ResponseEntity<PurchasePaymentResponse> findPaymentByUuid(
+    @RequiresPermission("PURCHASES.PAYMENT_VIEW")
+    public ResponseEntity<PurchasePaymentResponse> getPaymentByUuid(
             @PathVariable UUID paymentUuid
     ) {
 

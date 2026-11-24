@@ -1,5 +1,6 @@
 package com.autoparts.erp.reports.controller;
 
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.common.exception.ClientValidationException;
 import com.autoparts.erp.reports.dto.DashboardSummaryResponse;
 import com.autoparts.erp.reports.service.ReportService;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/reports")
+@RequiresPermission("REPORTS.VIEW")
 public class ReportController {
 
     private final ReportService reportService;

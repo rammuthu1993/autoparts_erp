@@ -1,6 +1,7 @@
 package com.autoparts.erp.masters.brand.controller;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.common.annotation.DeprecatedUnpagedEndpoint;
 import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.masters.brand.dto.BrandCreateRequest;
@@ -28,6 +29,7 @@ public class ProductBrandController {
     }
 
     @AdminOrManager
+    @RequiresPermission("BRANDS.CREATE")
     @PostMapping
     public ResponseEntity<BrandResponse> create(
             @Valid @RequestBody BrandCreateRequest request
@@ -39,11 +41,13 @@ public class ProductBrandController {
 
     @Deprecated(since = "2.0")
     @DeprecatedUnpagedEndpoint(limit = 500, pagedUrl = "/api/v1/product-brands/paged", deprecationDate = "2026-11-22T00:00:00Z")
+    @RequiresPermission("BRANDS.VIEW")
     @GetMapping
     public ResponseEntity<List<BrandResponse>> findAll() {
         return ResponseEntity.ok(service.findAll());
     }
 
+    @RequiresPermission("BRANDS.VIEW")
     @GetMapping("/paged")
     public ResponseEntity<PageResponse<BrandResponse>> findPaged(
             @RequestParam(defaultValue = "0") int page,
@@ -57,6 +61,7 @@ public class ProductBrandController {
         );
     }
 
+    @RequiresPermission("BRANDS.VIEW")
     @GetMapping("/{uuid}")
     public ResponseEntity<BrandResponse> findByUuid(
             @PathVariable UUID uuid
@@ -65,6 +70,7 @@ public class ProductBrandController {
     }
 
     @AdminOrManager
+    @RequiresPermission("BRANDS.UPDATE")
     @PutMapping("/{uuid}")
     public ResponseEntity<BrandResponse> update(
             @PathVariable UUID uuid,
@@ -74,6 +80,7 @@ public class ProductBrandController {
     }
 
     @AdminOrManager
+    @RequiresPermission("BRANDS.DEACTIVATE")
     @PatchMapping("/{uuid}/deactivate")
     public ResponseEntity<Void> deactivate(
             @PathVariable UUID uuid

@@ -3,6 +3,7 @@ package com.autoparts.erp.product.serviceimpl;
 import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.auth.security.annotation.AdminOnly;
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.common.util.PaginationUtils;
@@ -43,6 +44,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     @AdminOrManager
+    @RequiresPermission("PRODUCTS.CREATE")
     public ProductResponse create(ProductCreateRequest request) {
         String name = request.name().trim();
         String partNo = request.partNo().trim();
@@ -111,6 +113,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("PRODUCTS.VIEW")
     public List<ProductResponse> findAll() {
         return repository.findAll()
                 .stream()
@@ -120,6 +123,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("PRODUCTS.VIEW")
     public PageResponse<ProductResponse> findPaged(
             int page,
             int size,
@@ -150,6 +154,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("PRODUCTS.VIEW")
     public ProductResponse findByUuid(UUID uuid) {
         Product product = repository.findByUuid(uuid)
                 .orElseThrow(() ->
@@ -160,6 +165,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     @AdminOrManager
+    @RequiresPermission("PRODUCTS.UPDATE")
     public ProductResponse update(UUID uuid, ProductUpdateRequest request) {
         Product existingProduct = repository.findByUuid(uuid)
                 .orElseThrow(() ->
@@ -225,6 +231,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     @AdminOnly
+    @RequiresPermission("PRODUCTS.DEACTIVATE")
     public void deactivate(UUID uuid) {
         Product existingProduct = repository.findByUuid(uuid)
                 .orElseThrow(() ->

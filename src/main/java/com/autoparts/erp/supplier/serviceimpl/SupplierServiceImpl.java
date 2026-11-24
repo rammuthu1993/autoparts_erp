@@ -3,6 +3,7 @@ package com.autoparts.erp.supplier.serviceimpl;
 
 import com.autoparts.erp.auth.security.annotation.AdminOnly;
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.common.dto.PageResponse;
@@ -43,6 +44,7 @@ public class SupplierServiceImpl implements SupplierService {
     @Override
     @Transactional
     @AdminOrManager
+    @RequiresPermission("SUPPLIERS.CREATE")
     public SupplierResponse create(SupplierCreateRequest request) {
 
         Supplier supplier = new Supplier(
@@ -96,6 +98,7 @@ public class SupplierServiceImpl implements SupplierService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("SUPPLIERS.VIEW")
     public List<SupplierResponse> findAll() {
 
         return repository.findAll()
@@ -106,6 +109,7 @@ public class SupplierServiceImpl implements SupplierService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("SUPPLIERS.VIEW")
     public PageResponse<SupplierResponse> findPaged(
             int page,
             int size,
@@ -136,6 +140,7 @@ public class SupplierServiceImpl implements SupplierService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("SUPPLIERS.VIEW")
     public SupplierResponse findByUuid(UUID uuid) {
 
         Supplier supplier = repository.findByUuid(uuid)
@@ -150,6 +155,7 @@ public class SupplierServiceImpl implements SupplierService {
     @Override
     @Transactional
     @AdminOrManager
+    @RequiresPermission("SUPPLIERS.UPDATE")
     public SupplierResponse update(
         UUID uuid,
         SupplierUpdateRequest request
@@ -223,6 +229,7 @@ public class SupplierServiceImpl implements SupplierService {
     @Override
     @Transactional
     @AdminOnly
+    @RequiresPermission("SUPPLIERS.DEACTIVATE")
     public void deactivate(UUID uuid) {
 
         Supplier supplier = repository.findByUuid(uuid)

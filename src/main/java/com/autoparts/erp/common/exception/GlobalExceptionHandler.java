@@ -251,7 +251,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiError> handleDataConflict(
             DataIntegrityViolationException exception, HttpServletRequest request) {
-        log.warn("Database constraint rejected request. path={}", request.getRequestURI());
+        log.warn("Database constraint rejected request. path={}, cause={}",
+                request.getRequestURI(),
+                exception.getMostSpecificCause() != null ? exception.getMostSpecificCause().getMessage() : exception.getMessage());
         return buildError(HttpStatus.CONFLICT, "Conflict",
                 "The operation conflicts with existing data.", request);
     }

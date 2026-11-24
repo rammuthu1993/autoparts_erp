@@ -2,6 +2,7 @@
 package com.autoparts.erp.expense.management.serviceimpl;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.auth.security.CurrentUserService;
 import com.autoparts.erp.audit.service.AuditLogService;
@@ -63,6 +64,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     @Override
     @Transactional
     @AdminOrManager
+    @RequiresPermission("EXPENSES.CREATE")
     public Expense create(CreateExpenseRequest request) {
 
         ExpenseCategory category =
@@ -121,6 +123,7 @@ public class ExpenseServiceImpl implements ExpenseService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("EXPENSES.VIEW")
     public Expense findByUuid(UUID uuid) {
 
         return expenseRepository.findByUuid(uuid)
@@ -131,12 +134,14 @@ public class ExpenseServiceImpl implements ExpenseService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("EXPENSES.VIEW")
     public List<Expense> findAll() {
         return expenseRepository.findAll();
     }
 
     @Override
     @SalesAccess
+    @RequiresPermission("EXPENSES.VIEW")
     public PageResponse<Expense> findPaged(
             int page,
             int size,
@@ -167,6 +172,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     @Override
     @Transactional
     @AdminOrManager
+    @RequiresPermission("EXPENSES.UPDATE")
     public Expense update(UUID uuid, UpdateExpenseRequest request) {
 
         Expense existing = findByUuid(uuid);
@@ -229,6 +235,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     @Override
     @Transactional
     @AdminOrManager
+    @RequiresPermission("EXPENSES.CANCEL")
     public void cancel(UUID uuid) {
 
         Expense existing = findByUuid(uuid);

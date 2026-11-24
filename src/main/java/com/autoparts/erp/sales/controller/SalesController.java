@@ -1,5 +1,6 @@
 package com.autoparts.erp.sales.controller;
 
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.common.annotation.DeprecatedUnpagedEndpoint;
 import com.autoparts.erp.common.dto.PageResponse;
@@ -28,6 +29,7 @@ public class SalesController {
     }
 
     @SalesAccess
+    @RequiresPermission("SALES.CREATE")
     @PostMapping
     public ResponseEntity<SalesResponse> create(
         @Valid @RequestBody SalesCreateRequest request
@@ -38,6 +40,7 @@ public class SalesController {
     }
 
     @SalesAccess
+    @RequiresPermission("SALES.COMPLETE")
     @PostMapping("/{saleUuid}/complete")
     public ResponseEntity<SalesResponse> complete(
         @PathVariable UUID saleUuid
@@ -47,6 +50,7 @@ public class SalesController {
         );
     }
 
+    @RequiresPermission("SALES.VIEW")
     @GetMapping("/{saleUuid}")
     public ResponseEntity<SalesResponse> findByUuid(
         @PathVariable UUID saleUuid
@@ -58,6 +62,7 @@ public class SalesController {
 
     @Deprecated(since = "2.0")
     @DeprecatedUnpagedEndpoint(limit = 500, pagedUrl = "/api/v1/sales/paged", deprecationDate = "2026-11-22T00:00:00Z")
+    @RequiresPermission("SALES.VIEW")
     @GetMapping
     public ResponseEntity<List<SalesResponse>> findAll() {
         return ResponseEntity.ok(
@@ -65,6 +70,7 @@ public class SalesController {
         );
     }
 
+    @RequiresPermission("SALES.VIEW")
     @GetMapping("/paged")
     public ResponseEntity<PageResponse<SalesResponse>> findPaged(
             @RequestParam(defaultValue = "0") int page,
@@ -80,6 +86,7 @@ public class SalesController {
         );
     }
 
+    @RequiresPermission("SALES.CANCEL")
     @PostMapping("/{saleUuid}/cancel")
     public ResponseEntity<SalesResponse> cancel(
         @PathVariable UUID saleUuid
@@ -89,6 +96,7 @@ public class SalesController {
         );
     }
     
+    @RequiresPermission("SALES.PAYMENT_RECORD")
     @PostMapping("/{saleUuid}/payments")
     public ResponseEntity<SalesResponse> recordPayment(
         @PathVariable UUID saleUuid,

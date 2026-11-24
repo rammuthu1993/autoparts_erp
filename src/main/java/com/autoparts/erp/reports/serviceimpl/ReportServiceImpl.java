@@ -7,6 +7,7 @@ import com.autoparts.erp.reports.service.ReportService;
 import java.time.LocalDate;
 import java.time.ZoneId;
 
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.common.exception.ClientValidationException;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,7 +32,7 @@ public class ReportServiceImpl implements ReportService {
 
     @Override
     @Transactional(readOnly = true)
-    @SalesAccess
+    @RequiresPermission("REPORTS.VIEW")
     public DashboardSummaryResponse getDashboardSummary(
             LocalDate fromDate,
             LocalDate toDate) {

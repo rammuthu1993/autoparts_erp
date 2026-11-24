@@ -27,6 +27,8 @@ public class UserRepositoryImpl implements UserRepository {
 			SELECT
 			    u.id,
 			    u.username,
+			    u.email,
+			    u.email_verified,
 			    u.password_hash,
 			    u.enabled,
 			    CASE
@@ -40,6 +42,50 @@ public class UserRepositoryImpl implements UserRepository {
 			LEFT JOIN user_roles ur ON ur.user_id = u.id
 			LEFT JOIN roles r ON r.id = ur.role_id
 			WHERE LOWER(u.username) = LOWER(:username)
+			ORDER BY r.name
+			""";
+
+	private static final String FIND_BY_EMAIL_SQL = """
+			SELECT
+			    u.id,
+			    u.username,
+			    u.email,
+			    u.email_verified,
+			    u.password_hash,
+			    u.enabled,
+			    CASE
+			        WHEN u.locked_until IS NULL
+			            OR u.locked_until <= CURRENT_TIMESTAMP
+			        THEN TRUE
+			        ELSE FALSE
+			    END AS account_non_locked,
+			    r.name AS role_name
+			FROM users u
+			LEFT JOIN user_roles ur ON ur.user_id = u.id
+			LEFT JOIN roles r ON r.id = ur.role_id
+			WHERE LOWER(TRIM(u.email)) = LOWER(TRIM(:email))
+			ORDER BY r.name
+			""";
+
+	private static final String FIND_BY_ID_SQL = """
+			SELECT
+			    u.id,
+			    u.username,
+			    u.email,
+			    u.email_verified,
+			    u.password_hash,
+			    u.enabled,
+			    CASE
+			        WHEN u.locked_until IS NULL
+			            OR u.locked_until <= CURRENT_TIMESTAMP
+			        THEN TRUE
+			        ELSE FALSE
+			    END AS account_non_locked,
+			    r.name AS role_name
+			FROM users u
+			LEFT JOIN user_roles ur ON ur.user_id = u.id
+			LEFT JOIN roles r ON r.id = ur.role_id
+			WHERE u.id = :id
 			ORDER BY r.name
 			""";
 
@@ -95,6 +141,56 @@ public class UserRepositoryImpl implements UserRepository {
 	}
 
 	@Override
+	public Optional<UserAccount> findByEmail(String email) {
+		if (email == null || email.isBlank()) {
+			return Optional.empty();
+		}
+		MapSqlParameterSource params = new MapSqlParameterSource("email", email.trim().toLowerCase(java.util.Locale.ROOT));
+
+		List<UserAccount> results = jdbcTemplate.query(FIND_BY_EMAIL_SQL, params,
+				(ResultSetExtractor<List<UserAccount>>) rs -> extractUser(rs));
+
+		if (results == null || results.isEmpty()) {
+			return Optional.empty();
+		}
+
+		return Optional.of(results.get(0));
+	}
+
+	@Override
+	public Optional<UserAccount> findById(Long id) {
+		if (id == null) {
+			return Optional.empty();
+		}
+		MapSqlParameterSource params = new MapSqlParameterSource("id", id);
+
+		List<UserAccount> results = jdbcTemplate.query(FIND_BY_ID_SQL, params,
+				(ResultSetExtractor<List<UserAccount>>) rs -> extractUser(rs));
+
+		if (results == null || results.isEmpty()) {
+			return Optional.empty();
+		}
+
+		return Optional.of(results.get(0));
+	}
+
+	@Override
+	public int updatePassword(Long userId, String passwordHash) {
+		MapSqlParameterSource params = new MapSqlParameterSource()
+				.addValue("userId", userId)
+				.addValue("passwordHash", passwordHash);
+
+		return jdbcTemplate.update("""
+				UPDATE users
+				SET password_hash = :passwordHash,
+				    failed_login_attempts = 0,
+				    locked_until = NULL,
+				    updated_at = CURRENT_TIMESTAMP
+				WHERE id = :userId
+				""", params);
+	}
+
+	@Override
 	public int recordFailedLoginAttempt(String username, int maxFailedAttempts, long lockDurationSeconds) {
 
 		MapSqlParameterSource params = new MapSqlParameterSource().addValue("maxFailedAttempts", maxFailedAttempts)
@@ -120,6 +216,10 @@ public class UserRepositoryImpl implements UserRepository {
 
 		String dbUsername = rs.getString("username");
 
+		String email = rs.getString("email");
+
+		boolean emailVerified = rs.getBoolean("email_verified");
+
 		String passwordHash = rs.getString("password_hash");
 
 		boolean enabled = rs.getBoolean("enabled");
@@ -137,7 +237,7 @@ public class UserRepositoryImpl implements UserRepository {
 
 		} while (rs.next());
 
-		UserAccount user = new UserAccount(id, dbUsername, passwordHash, enabled, accountNonLocked, List.copyOf(roles));
+		UserAccount user = new UserAccount(id, dbUsername, email, emailVerified, passwordHash, enabled, accountNonLocked, List.copyOf(roles));
 
 		return List.of(user);
 	}

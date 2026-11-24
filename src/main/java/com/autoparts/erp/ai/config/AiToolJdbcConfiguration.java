@@ -101,6 +101,14 @@ public class AiToolJdbcConfiguration {
         return new NamedParameterJdbcTemplate(applicationDataSource);
     }
 
+    /** Preserve the primary JdbcTemplate for write-capable application operations. */
+    @Bean(name = "jdbcTemplate")
+    @Primary
+    public JdbcTemplate applicationJdbcTemplate(
+            @Qualifier("dataSource") DataSource applicationDataSource) {
+        return new JdbcTemplate(applicationDataSource);
+    }
+
     /** Named-parameter template dedicated to read-only AI knowledge retrieval. */
     @Bean(name = "aiToolNamedParameterJdbcTemplate")
     public NamedParameterJdbcTemplate aiToolNamedParameterJdbcTemplate(

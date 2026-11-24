@@ -1,5 +1,6 @@
 package com.autoparts.erp.purchase.returns.controller;
 
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.purchase.returns.dto.*;
 import com.autoparts.erp.purchase.returns.service.PurchaseReturnService;
 
@@ -23,6 +24,7 @@ public class PurchaseReturnController {
     // Create purchase return and generate supplier credit.
     @PostMapping("/purchases/{purchaseUuid}/returns")
     @ResponseStatus(HttpStatus.CREATED)
+    @RequiresPermission("PURCHASE_RETURNS.CREATE")
     public PurchaseReturnResponse createReturn(
             @PathVariable UUID purchaseUuid,
             @Valid @RequestBody PurchaseReturnRequest request
@@ -32,6 +34,7 @@ public class PurchaseReturnController {
 
     // Get purchase return details.
     @GetMapping("/purchase-returns/{returnUuid}")
+    @RequiresPermission("PURCHASE_RETURNS.VIEW")
     public PurchaseReturnResponse findReturn(
             @PathVariable UUID returnUuid
     ) {
@@ -41,6 +44,7 @@ public class PurchaseReturnController {
     // Record actual supplier refund.
     @PostMapping("/supplier-credits/{creditUuid}/refunds")
     @ResponseStatus(HttpStatus.CREATED)
+    @RequiresPermission("PURCHASE_RETURNS.CREATE")
     public SupplierCreditResponse recordRefund(
             @PathVariable UUID creditUuid,
             @Valid @RequestBody SupplierRefundRequest request
@@ -51,6 +55,7 @@ public class PurchaseReturnController {
     // Apply supplier credit to another purchase.
     @PostMapping("/supplier-credits/{creditUuid}/applications")
     @ResponseStatus(HttpStatus.CREATED)
+    @RequiresPermission("PURCHASE_RETURNS.CREATE")
     public SupplierCreditResponse applyCredit(
             @PathVariable UUID creditUuid,
             @Valid @RequestBody SupplierCreditApplicationRequest request

@@ -1,6 +1,7 @@
 package com.autoparts.erp.expense.management.controller;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.common.annotation.DeprecatedUnpagedEndpoint;
 import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.expense.management.dto.CreateExpenseRequest;
@@ -28,6 +29,7 @@ public class ExpenseController {
     }
 
     @AdminOrManager
+    @RequiresPermission("EXPENSES.CREATE")
     @PostMapping
     public ResponseEntity<Expense> create(
         @Valid @RequestBody CreateExpenseRequest request
@@ -41,6 +43,7 @@ public class ExpenseController {
 
     @Deprecated(since = "2.0")
     @DeprecatedUnpagedEndpoint(limit = 500, pagedUrl = "/api/v1/expenses/paged", deprecationDate = "2026-11-22T00:00:00Z")
+    @RequiresPermission("EXPENSES.VIEW")
     @GetMapping
     public ResponseEntity<List<Expense>> findAll() {
 
@@ -49,6 +52,7 @@ public class ExpenseController {
         );
     }
 
+    @RequiresPermission("EXPENSES.VIEW")
     @GetMapping("/paged")
     public ResponseEntity<PageResponse<Expense>> findPaged(
             @RequestParam(defaultValue = "0") int page,
@@ -64,6 +68,7 @@ public class ExpenseController {
         );
     }
 
+    @RequiresPermission("EXPENSES.VIEW")
     @GetMapping("/{uuid}")
     public ResponseEntity<Expense> findByUuid(
         @PathVariable UUID uuid
@@ -74,6 +79,7 @@ public class ExpenseController {
     }
 
     @AdminOrManager
+    @RequiresPermission("EXPENSES.UPDATE")
     @PutMapping("/{uuid}")
     public ResponseEntity<Expense> update(
         @PathVariable UUID uuid,
@@ -85,6 +91,7 @@ public class ExpenseController {
     }
 
     @AdminOrManager
+    @RequiresPermission("EXPENSES.CANCEL")
     @PatchMapping("/{uuid}/cancel")
     public ResponseEntity<Void> cancel(
         @PathVariable UUID uuid

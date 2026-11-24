@@ -2,6 +2,7 @@
 package com.autoparts.erp.dailyclosing.controller;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.common.dto.PageResponse;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -29,6 +30,7 @@ public class DailyClosingController {
     }
 
     @AdminOrManager
+    @RequiresPermission("DAILY_CLOSING.PERFORM")
     @PostMapping
     public ResponseEntity<DailyClosingResponse> closeBusinessDate(
 
@@ -50,6 +52,7 @@ public class DailyClosingController {
             .body(response);
     }
 
+    @RequiresPermission("DAILY_CLOSING.VIEW")
     @GetMapping("/date/{businessDate}")
     public ResponseEntity<DailyClosingResponse> findByBusinessDate(
 
@@ -64,6 +67,7 @@ public class DailyClosingController {
         );
     }
 
+    @RequiresPermission("DAILY_CLOSING.VIEW")
     @GetMapping("/{uuid}")
     public ResponseEntity<DailyClosingResponse> findByUuid(
         @PathVariable UUID uuid
@@ -74,6 +78,7 @@ public class DailyClosingController {
         );
     }
 
+    @RequiresPermission("DAILY_CLOSING.VIEW")
     @GetMapping("/paged")
     public ResponseEntity<PageResponse<DailyClosingResponse>> findPaged(
             @RequestParam(defaultValue = "0") int page,

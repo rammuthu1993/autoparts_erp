@@ -100,7 +100,28 @@ public abstract class BaseRepositoryIntegrationTest {
                 ('11111111-1111-4111-8111-111111111111', 'ADMIN', 'Full ERP administration access'),
                 ('22222222-2222-4222-8222-222222222222', 'MANAGER', 'ERP management access'),
                 ('33333333-3333-4333-8333-333333333333', 'CASHIER', 'Sales and billing access')
-            ON CONFLICT (name) DO NOTHING
+            ON CONFLICT (name) DO NOTHING;
+
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(254) NULL;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE;
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_users_email_lower ON users (LOWER(TRIM(email))) WHERE email IS NOT NULL;
+
+            CREATE TABLE IF NOT EXISTS user_security_tokens (
+                id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                uuid UUID NOT NULL UNIQUE,
+                user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                token_hash VARCHAR(128) NOT NULL,
+                purpose VARCHAR(50) NOT NULL,
+                expires_at TIMESTAMPTZ NOT NULL,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                max_attempts INTEGER NOT NULL DEFAULT 5,
+                resend_available_at TIMESTAMPTZ NULL,
+                consumed_at TIMESTAMPTZ NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_user_security_tokens_user_purpose ON user_security_tokens (user_id, purpose) WHERE consumed_at IS NULL;
+            CREATE INDEX IF NOT EXISTS idx_user_security_tokens_hash_purpose ON user_security_tokens (token_hash, purpose) WHERE consumed_at IS NULL;
+            CREATE INDEX IF NOT EXISTS idx_user_security_tokens_expires_at ON user_security_tokens (expires_at);
         """);
     }
 

@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.inventory.service.InventoryService;
@@ -83,6 +84,7 @@ public class SalesReturnServiceImpl implements SalesReturnService {
 
     @Override
     @Transactional
+    @RequiresPermission("SALES_RETURNS.CREATE")
     public SalesReturnResponse createReturn(
             UUID saleUuid,
             SalesReturnRequest request
@@ -430,6 +432,7 @@ public class SalesReturnServiceImpl implements SalesReturnService {
 
     @Override
     @Transactional(readOnly = true)
+    @RequiresPermission("SALES_RETURNS.VIEW")
     public List<SalesReturnResponse> findReturnsBySaleUuid(
             UUID saleUuid
     ) {
@@ -452,6 +455,7 @@ public class SalesReturnServiceImpl implements SalesReturnService {
 
     @Override
     @Transactional(readOnly = true)
+    @RequiresPermission("SALES_RETURNS.VIEW")
     public SalesReturnResponse findReturnByUuid(UUID returnUuid) {
 
         SalesReturn salesReturn = returnRepository.findReturnByUuid(returnUuid)
@@ -489,6 +493,7 @@ public class SalesReturnServiceImpl implements SalesReturnService {
     @Override
     @Transactional
     @AdminOrManager
+    @RequiresPermission("SALES_RETURNS.REFUND")
     public SalesReturnResponse recordRefund(
             UUID returnUuid,
             SalesRefundRequest request

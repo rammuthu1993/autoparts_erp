@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.autoparts.erp.audit.model.AuditLog;
 import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.auth.security.annotation.AdminOnly;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.common.annotation.DeprecatedUnpagedEndpoint;
 import com.autoparts.erp.common.dto.PageResponse;
 
@@ -32,6 +33,7 @@ public class AuditLogController {
     @DeprecatedUnpagedEndpoint(limit = 50, pagedUrl = "/api/v1/admin/audit-logs/paged", deprecationDate = "2026-11-22T00:00:00Z")
     @GetMapping
     @AdminOnly
+    @RequiresPermission("AUDIT_LOGS.VIEW")
     public List<AuditLog> getRecentLogs(
             @RequestParam(required = false, defaultValue = "50") String limit,
             @RequestParam(defaultValue = "0") int offset
@@ -57,6 +59,7 @@ public class AuditLogController {
 
     @GetMapping("/paged")
     @AdminOnly
+    @RequiresPermission("AUDIT_LOGS.VIEW")
     public ResponseEntity<PageResponse<AuditLog>> findPaged(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,

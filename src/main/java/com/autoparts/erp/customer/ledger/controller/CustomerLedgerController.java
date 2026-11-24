@@ -1,5 +1,6 @@
 package com.autoparts.erp.customer.ledger.controller;
 
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.customer.ledger.dto.CustomerLedgerResponse;
 import com.autoparts.erp.customer.ledger.service.CustomerLedgerService;
 
@@ -12,6 +13,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/customers")
+@RequiresPermission("CUSTOMERS.LEDGER_VIEW")
 public class CustomerLedgerController {
 
     private final CustomerLedgerService customerLedgerService;

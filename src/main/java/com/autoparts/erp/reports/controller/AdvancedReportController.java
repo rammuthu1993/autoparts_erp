@@ -31,10 +31,12 @@ import com.autoparts.erp.reports.dto.TargetActualReportResponse;
 import com.autoparts.erp.reports.dto.SupplierAnalyticsResponse;
 import com.autoparts.erp.reports.service.AdvancedReportService;
 import com.autoparts.erp.auth.security.annotation.AdminOnly;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 
 @RestController
 @Validated
 @RequestMapping("/api/v1/reports")
+@RequiresPermission("REPORTS.ADVANCED_VIEW")
 public class AdvancedReportController {
 
     private final AdvancedReportService reportService;

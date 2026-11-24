@@ -2,6 +2,7 @@
 package com.autoparts.erp.tax.serviceimpl;
 
 import com.autoparts.erp.auth.security.annotation.AdminOnly;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.common.dto.PageResponse;
@@ -44,6 +45,7 @@ public class TaxRateServiceImpl implements TaxRateService {
     @Override
     @Transactional
     @AdminOnly
+    @RequiresPermission("TAX_RATES.CREATE")
     public TaxRateResponse create(
         TaxRateCreateRequest request
     ) {
@@ -111,6 +113,7 @@ public class TaxRateServiceImpl implements TaxRateService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("TAX_RATES.VIEW")
     public List<TaxRateResponse> findAll() {
 
         return taxRateRepository.findAll()
@@ -121,6 +124,7 @@ public class TaxRateServiceImpl implements TaxRateService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("TAX_RATES.VIEW")
     public PageResponse<TaxRateResponse> findPaged(
         int page,
         int size,
@@ -145,6 +149,7 @@ public class TaxRateServiceImpl implements TaxRateService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("TAX_RATES.VIEW")
     public TaxRateResponse findByUuid(UUID uuid) {
 
         TaxRate taxRate = taxRateRepository
@@ -159,6 +164,7 @@ public class TaxRateServiceImpl implements TaxRateService {
     @Override
     @Transactional
     @AdminOnly
+    @RequiresPermission("TAX_RATES.UPDATE")
     public TaxRateResponse update(
         UUID uuid,
         TaxRateUpdateRequest request
@@ -226,6 +232,7 @@ public class TaxRateServiceImpl implements TaxRateService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("TAX_RATES.VIEW")
     public List<TaxRateResponse> findCurrent() {
 
         return taxRateRepository.findCurrent()

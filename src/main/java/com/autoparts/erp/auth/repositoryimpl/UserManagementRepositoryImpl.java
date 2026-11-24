@@ -34,6 +34,8 @@ public class UserManagementRepositoryImpl
             u.id,
             u.uuid,
             u.username,
+            u.email,
+            u.email_verified,
             u.enabled,
             u.created_at,
             u.updated_at,
@@ -46,6 +48,7 @@ public class UserManagementRepositoryImpl
     private static final Map<String, String> USER_SORT_ALLOWLIST = Map.of(
             "id", "id",
             "username", "username",
+            "email", "email",
             "createdAt", "created_at",
             "enabled", "enabled"
     );
@@ -57,12 +60,14 @@ public class UserManagementRepositoryImpl
                 u.id,
                 u.uuid,
                 u.username,
+                u.email,
+                u.email_verified,
                 u.enabled,
                 u.created_at,
                 u.updated_at,
                 r.name AS role_name
             FROM (
-                SELECT id, uuid, username, enabled, created_at, updated_at
+                SELECT id, uuid, username, email, email_verified, enabled, created_at, updated_at
                 FROM users
                 ORDER BY LOWER(username), id ASC
                 LIMIT 501
@@ -81,16 +86,16 @@ public class UserManagementRepositoryImpl
             String sortBy,
             String sortDir
     ) {
-        StringBuilder userSubquery = new StringBuilder("SELECT id, uuid, username, enabled, created_at, updated_at FROM users WHERE 1=1 ");
+        StringBuilder userSubquery = new StringBuilder("SELECT id, uuid, username, email, email_verified, enabled, created_at, updated_at FROM users WHERE 1=1 ");
         MapSqlParameterSource params = new MapSqlParameterSource();
 
         if (search != null && !search.isBlank()) {
-            userSubquery.append(" AND username ILIKE :search ");
+            userSubquery.append(" AND (username ILIKE :search OR email ILIKE :search) ");
             params.addValue("search", "%" + search.trim() + "%");
         }
 
         String sortKey = USER_SORT_ALLOWLIST.getOrDefault(sortBy, "id");
-        String sortExpr = "username".equals(sortKey) ? "LOWER(username)" : sortKey;
+        String sortExpr = "username".equals(sortKey) ? "LOWER(username)" : ("email".equals(sortKey) ? "LOWER(email)" : sortKey);
         String direction = "DESC".equalsIgnoreCase(sortDir) ? "DESC" : "ASC";
         userSubquery.append(" ORDER BY ").append(sortExpr).append(" ").append(direction);
         if (!"id".equals(sortKey)) {
@@ -101,12 +106,14 @@ public class UserManagementRepositoryImpl
         params.addValue("limit", Math.max(1, Math.min(limit, 100)));
         params.addValue("offset", Math.max(0, offset));
 
-        String outerSortExpr = "username".equals(sortKey) ? "LOWER(u.username)" : "u." + sortKey;
+        String outerSortExpr = "username".equals(sortKey) ? "LOWER(u.username)" : ("email".equals(sortKey) ? "LOWER(u.email)" : "u." + sortKey);
         String sql = """
             SELECT
                 u.id,
                 u.uuid,
                 u.username,
+                u.email,
+                u.email_verified,
                 u.enabled,
                 u.created_at,
                 u.updated_at,
@@ -132,7 +139,7 @@ public class UserManagementRepositoryImpl
         MapSqlParameterSource params = new MapSqlParameterSource();
 
         if (search != null && !search.isBlank()) {
-            sql.append(" AND username ILIKE :search ");
+            sql.append(" AND (username ILIKE :search OR email ILIKE :search) ");
             params.addValue("search", "%" + search.trim() + "%");
         }
 
@@ -149,6 +156,23 @@ public class UserManagementRepositoryImpl
                     ORDER BY r.name
                     """,
                 uuid
+        );
+
+        return users.stream().findFirst();
+    }
+
+    @Override
+    public Optional<ManagedUser> findById(Long id) {
+        if (id == null) {
+            return Optional.empty();
+        }
+
+        List<ManagedUser> users = findUsersWithParams(
+                USER_SELECT + """
+                    WHERE u.id = :id
+                    ORDER BY r.name
+                    """,
+                new MapSqlParameterSource("id", id)
         );
 
         return users.stream().findFirst();
@@ -180,20 +204,48 @@ public class UserManagementRepositoryImpl
         for (Object[] row : rows) {
 
             Long id = (Long) row[0];
+            UUID uuid = (UUID) row[1];
+            String username = (String) row[2];
+            String email = null;
+            boolean emailVerified = false;
+            boolean enabled;
+            java.time.Instant createdAt;
+            java.time.Instant updatedAt;
+            String roleName;
+
+            if (row.length >= 9) {
+                email = (String) row[3];
+                emailVerified = Boolean.TRUE.equals(row[4]);
+                enabled = Boolean.TRUE.equals(row[5]);
+                createdAt = (java.time.Instant) row[6];
+                updatedAt = (java.time.Instant) row[7];
+                roleName = (String) row[8];
+            } else {
+                enabled = Boolean.TRUE.equals(row[3]);
+                createdAt = (java.time.Instant) row[4];
+                updatedAt = (java.time.Instant) row[5];
+                roleName = row.length > 6 ? (String) row[6] : null;
+            }
+
+            final String finalEmail = email;
+            final boolean finalEmailVerified = emailVerified;
+            final boolean finalEnabled = enabled;
+            final java.time.Instant finalCreatedAt = createdAt;
+            final java.time.Instant finalUpdatedAt = updatedAt;
 
             UserBuilder builder = grouped.computeIfAbsent(
                     id,
                     key -> new UserBuilder(
                             id,
-                            (UUID) row[1],
-                            (String) row[2],
-                            (Boolean) row[3],
-                            (java.time.Instant) row[4],
-                            (java.time.Instant) row[5]
+                            uuid,
+                            username,
+                            finalEmail,
+                            finalEmailVerified,
+                            finalEnabled,
+                            finalCreatedAt,
+                            finalUpdatedAt
                     )
             );
-
-            String roleName = (String) row[6];
 
             if (roleName != null) {
                 builder.roles.add(roleName);
@@ -212,6 +264,8 @@ public class UserManagementRepositoryImpl
                 rs.getLong("id"),
                 rs.getObject("uuid", UUID.class),
                 rs.getString("username"),
+                rs.getString("email"),
+                rs.getBoolean("email_verified"),
                 rs.getBoolean("enabled"),
                 rs.getTimestamp("created_at").toInstant(),
                 rs.getTimestamp("updated_at").toInstant(),
@@ -224,6 +278,8 @@ public class UserManagementRepositoryImpl
         private final Long id;
         private final UUID uuid;
         private final String username;
+        private final String email;
+        private final boolean emailVerified;
         private final boolean enabled;
         private final java.time.Instant createdAt;
         private final java.time.Instant updatedAt;
@@ -233,6 +289,8 @@ public class UserManagementRepositoryImpl
                 Long id,
                 UUID uuid,
                 String username,
+                String email,
+                boolean emailVerified,
                 boolean enabled,
                 java.time.Instant createdAt,
                 java.time.Instant updatedAt
@@ -240,6 +298,8 @@ public class UserManagementRepositoryImpl
             this.id = id;
             this.uuid = uuid;
             this.username = username;
+            this.email = email;
+            this.emailVerified = emailVerified;
             this.enabled = enabled;
             this.createdAt = createdAt;
             this.updatedAt = updatedAt;
@@ -250,6 +310,8 @@ public class UserManagementRepositoryImpl
                     id,
                     uuid,
                     username,
+                    email,
+                    emailVerified,
                     enabled,
                     Set.copyOf(roles),
                     createdAt,
@@ -287,14 +349,51 @@ public class UserManagementRepositoryImpl
     }
 
     @Override
+    public boolean existsByEmail(
+            String email,
+            UUID excludeUuid
+    ) {
+        if (email == null || email.isBlank()) {
+            return false;
+        }
+
+        String sql = """
+            SELECT EXISTS (
+                SELECT 1
+                FROM users
+                WHERE LOWER(TRIM(email)) = LOWER(TRIM(:email))
+                  AND (CAST(:excludeUuid AS UUID) IS NULL OR uuid <> :excludeUuid)
+            )
+            """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("email", email.trim().toLowerCase(java.util.Locale.ROOT))
+                .addValue("excludeUuid", excludeUuid);
+
+        Boolean exists = jdbcTemplate.queryForObject(
+                sql,
+                params,
+                Boolean.class
+        );
+
+        return Boolean.TRUE.equals(exists);
+    }
+
+    @Override
     public Long create(
             String username,
+            String email,
             String passwordHash,
             UUID uuid
     ) {
+        String normalizedEmail = (email != null && !email.isBlank())
+                ? email.trim().toLowerCase(java.util.Locale.ROOT)
+                : null;
+
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("uuid", uuid)
                 .addValue("username", username)
+                .addValue("email", normalizedEmail)
                 .addValue("passwordHash", passwordHash);
 
         return jdbcTemplate.queryForObject(
@@ -302,10 +401,12 @@ public class UserManagementRepositoryImpl
                 INSERT INTO users (
                     uuid,
                     username,
+                    email,
+                    email_verified,
                     password_hash,
                     enabled
                 )
-                VALUES (:uuid, :username, :passwordHash, TRUE)
+                VALUES (:uuid, :username, :email, FALSE, :passwordHash, TRUE)
                 RETURNING id
                 """,
                 params,
@@ -325,6 +426,71 @@ public class UserManagementRepositoryImpl
                 SET username = :username,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE uuid = :uuid
+                """,
+                params
+        );
+    }
+
+    @Override
+    public void updateEmail(UUID uuid, String email, boolean emailVerified) {
+        String normalizedEmail = (email != null && !email.isBlank())
+                ? email.trim().toLowerCase(java.util.Locale.ROOT)
+                : null;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("email", normalizedEmail)
+                .addValue("emailVerified", emailVerified)
+                .addValue("uuid", uuid);
+
+        jdbcTemplate.update(
+                """
+                UPDATE users
+                SET email = :email,
+                    email_verified = :emailVerified,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE uuid = :uuid
+                """,
+                params
+        );
+    }
+
+    @Override
+    public void updateUsernameAndEmail(UUID uuid, String username, String email, boolean emailVerified) {
+        String normalizedEmail = (email != null && !email.isBlank())
+                ? email.trim().toLowerCase(java.util.Locale.ROOT)
+                : null;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("username", username)
+                .addValue("email", normalizedEmail)
+                .addValue("emailVerified", emailVerified)
+                .addValue("uuid", uuid);
+
+        jdbcTemplate.update(
+                """
+                UPDATE users
+                SET username = :username,
+                    email = :email,
+                    email_verified = :emailVerified,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE uuid = :uuid
+                """,
+                params
+        );
+    }
+
+    @Override
+    public void setEmailVerified(Long userId, boolean emailVerified) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("userId", userId)
+                .addValue("emailVerified", emailVerified);
+
+        jdbcTemplate.update(
+                """
+                UPDATE users
+                SET email_verified = :emailVerified,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = :userId
                 """,
                 params
         );

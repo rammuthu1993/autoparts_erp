@@ -9,6 +9,12 @@ public interface UserRepository {
 
     Optional<UserAccount> findByUsername(String username);
 
+    Optional<UserAccount> findByEmail(String email);
+
+    Optional<UserAccount> findById(Long id);
+
+    int updatePassword(Long userId, String passwordHash);
+
     int recordFailedLoginAttempt(
             String username,
             int maxFailedAttempts,

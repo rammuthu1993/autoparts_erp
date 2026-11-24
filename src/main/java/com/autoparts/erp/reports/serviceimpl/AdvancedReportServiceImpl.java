@@ -31,9 +31,11 @@ import com.autoparts.erp.reports.dto.TargetActualReportResponse.TargetActual;
 import com.autoparts.erp.reports.dto.SupplierAnalyticsResponse;
 import com.autoparts.erp.reports.repository.AdvancedReportRepository;
 import com.autoparts.erp.reports.repository.AdvancedReportRepository.ScenarioBaselineData;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.reports.service.AdvancedReportService;
 
 @Service
+@RequiresPermission("REPORTS.ADVANCED_VIEW")
 public class AdvancedReportServiceImpl implements AdvancedReportService {
 
     private static final BigDecimal ZERO = BigDecimal.ZERO;

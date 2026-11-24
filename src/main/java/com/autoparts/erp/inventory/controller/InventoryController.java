@@ -1,6 +1,7 @@
 package com.autoparts.erp.inventory.controller;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.common.annotation.DeprecatedUnpagedEndpoint;
 import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.inventory.dto.InventoryMovementResponse;
@@ -9,7 +10,6 @@ import com.autoparts.erp.inventory.dto.InventoryStockResponse;
 import com.autoparts.erp.inventory.dto.StockAdjustmentRequest;
 import com.autoparts.erp.inventory.enums.InventoryMovementType;
 import com.autoparts.erp.inventory.service.InventoryService;
-import com.autoparts.erp.auth.security.annotation.AdminOrManager;
 
 import jakarta.validation.Valid;
 
@@ -35,6 +35,7 @@ public class InventoryController {
     /**
      * Get stock for one Product.
      */
+    @RequiresPermission("INVENTORY.VIEW")
     @GetMapping("/products/{productUuid}/stock")
     public InventoryStockResponse findStockByProductUuid(
             @PathVariable UUID productUuid
@@ -48,6 +49,7 @@ public class InventoryController {
      */
     @Deprecated(since = "2.0")
     @DeprecatedUnpagedEndpoint(limit = 500, pagedUrl = "/api/v1/inventory/stock/paged", deprecationDate = "2026-11-22T00:00:00Z")
+    @RequiresPermission("INVENTORY.VIEW")
     @GetMapping("/stock")
     public List<InventoryStockResponse> findAllStock() {
 
@@ -57,6 +59,7 @@ public class InventoryController {
     /**
      * Get stock for all active Products with pagination.
      */
+    @RequiresPermission("INVENTORY.VIEW")
     @GetMapping("/stock/paged")
     public PageResponse<InventoryStockResponse> findStockPaged(
             @RequestParam(defaultValue = "0") int page,
@@ -74,6 +77,7 @@ public class InventoryController {
      */
     @Deprecated(since = "2.0")
     @DeprecatedUnpagedEndpoint(limit = 500, pagedUrl = "/api/v1/inventory/low-stock/paged", deprecationDate = "2026-11-22T00:00:00Z")
+    @RequiresPermission("INVENTORY.VIEW")
     @GetMapping("/low-stock")
     public List<InventoryStockResponse> findLowStock() {
 
@@ -84,6 +88,7 @@ public class InventoryController {
      * Get Products whose current quantity is less than
      * or equal to their minimum stock with pagination.
      */
+    @RequiresPermission("INVENTORY.VIEW")
     @GetMapping("/low-stock/paged")
     public PageResponse<InventoryStockResponse> findLowStockPaged(
             @RequestParam(defaultValue = "0") int page,
@@ -100,6 +105,7 @@ public class InventoryController {
      *
      * All filters are optional.
      */
+    @RequiresPermission("INVENTORY.VIEW")
     @GetMapping("/movements")
     public InventoryPageResponse<InventoryMovementResponse> findMovements(
 
@@ -139,6 +145,7 @@ public class InventoryController {
      */
     @PostMapping("/products/{productUuid}/adjustments")
     @AdminOrManager
+    @RequiresPermission("INVENTORY.ADJUST")
     public InventoryStockResponse adjustStock(
 
             @PathVariable UUID productUuid,

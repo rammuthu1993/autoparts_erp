@@ -24,11 +24,25 @@ public interface UserManagementRepository {
 
     Optional<ManagedUser> findByUuid(UUID uuid);
 
+    Optional<ManagedUser> findById(Long id);
+
     boolean existsByUsername(String username, UUID excludeUuid);
 
-    Long create(String username, String passwordHash, UUID uuid);
+    boolean existsByEmail(String email, UUID excludeUuid);
+
+    Long create(String username, String email, String passwordHash, UUID uuid);
+
+    default Long create(String username, String passwordHash, UUID uuid) {
+        return create(username, null, passwordHash, uuid);
+    }
 
     void updateUsername(UUID uuid, String username);
+
+    void updateEmail(UUID uuid, String email, boolean emailVerified);
+
+    void updateUsernameAndEmail(UUID uuid, String username, String email, boolean emailVerified);
+
+    void setEmailVerified(Long userId, boolean emailVerified);
 
     void updatePassword(UUID uuid, String passwordHash);
 

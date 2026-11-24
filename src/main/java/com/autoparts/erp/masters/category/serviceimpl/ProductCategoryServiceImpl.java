@@ -3,6 +3,7 @@ package com.autoparts.erp.masters.category.serviceimpl;
 
 import com.autoparts.erp.auth.security.annotation.AdminOnly;
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.common.dto.PageResponse;
@@ -43,6 +44,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
     @Override
     @Transactional
     @AdminOrManager
+    @RequiresPermission("CATEGORIES.CREATE")
     public CategoryResponse create(CategoryCreateRequest request) {
 
         String description = request.description() != null
@@ -83,6 +85,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("CATEGORIES.VIEW")
     public List<CategoryResponse> findAll() {
 
         return repository.findAll()
@@ -93,6 +96,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("CATEGORIES.VIEW")
     public PageResponse<CategoryResponse> findPaged(
             int page,
             int size,
@@ -118,6 +122,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("CATEGORIES.VIEW")
     public CategoryResponse findByUuid(UUID uuid) {
 
         ProductCategory category = repository.findByUuid(uuid)
@@ -132,6 +137,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
     @Override
     @Transactional
     @AdminOrManager
+    @RequiresPermission("CATEGORIES.UPDATE")
     public CategoryResponse update(
         UUID uuid,
         CategoryUpdateRequest request
@@ -190,6 +196,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
     @Override
     @Transactional
     @AdminOnly
+    @RequiresPermission("CATEGORIES.DEACTIVATE")
     public void deactivate(UUID uuid) {
 
         ProductCategory existing = repository.findByUuid(uuid)

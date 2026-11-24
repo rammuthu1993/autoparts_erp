@@ -1,5 +1,6 @@
 package com.autoparts.erp.expense.ledger.controller;
 
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.expense.ledger.dto.ExpenseLedgerResponse;
 import com.autoparts.erp.expense.ledger.service.ExpenseLedgerService;
 import com.autoparts.erp.expense.management.model.ExpensePaymentMethod;
@@ -23,6 +24,7 @@ public class ExpenseLedgerController {
         this.ledgerService = ledgerService;
     }
 
+    @RequiresPermission("EXPENSES.LEDGER_VIEW")
     @GetMapping
     public ResponseEntity<ExpenseLedgerResponse> getLedger(
 

@@ -3,6 +3,7 @@ package com.autoparts.erp.inventory.serviceimpl;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
 import com.autoparts.erp.auth.security.annotation.AuthenticatedUser;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.common.dto.PageResponse;
@@ -161,6 +162,7 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     @AuthenticatedUser
+    @RequiresPermission("INVENTORY.VIEW")
     public InventoryStockResponse findStockByProductUuid(
             UUID productUuid
     ) {
@@ -182,6 +184,7 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     @AuthenticatedUser
+    @RequiresPermission("INVENTORY.VIEW")
     public List<InventoryStockResponse> findAllStock() {
 
         return repository.findAllStock()
@@ -192,6 +195,7 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     @AuthenticatedUser
+    @RequiresPermission("INVENTORY.VIEW")
     public PageResponse<InventoryStockResponse> findStockPaged(
             int page,
             int size,
@@ -222,6 +226,7 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     @AuthenticatedUser
+    @RequiresPermission("INVENTORY.VIEW")
     public List<InventoryStockResponse> findLowStock() {
 
         return repository.findLowStock()
@@ -232,6 +237,7 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     @AuthenticatedUser
+    @RequiresPermission("INVENTORY.VIEW")
     public PageResponse<InventoryStockResponse> findLowStockPaged(
             int page,
             int size,
@@ -262,6 +268,7 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     @AuthenticatedUser
+    @RequiresPermission("INVENTORY.VIEW")
     public InventoryPageResponse<InventoryMovementResponse> findMovements(
             UUID productUuid,
             InventoryMovementType movementType,
@@ -326,6 +333,7 @@ public class InventoryServiceImpl implements InventoryService {
     @Override
     @Transactional
     @AdminOrManager
+    @RequiresPermission("INVENTORY.ADJUST")
     public InventoryStockResponse adjustStock(
             UUID productUuid,
             StockAdjustmentRequest request

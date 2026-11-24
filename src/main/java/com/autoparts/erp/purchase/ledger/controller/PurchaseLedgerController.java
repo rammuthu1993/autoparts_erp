@@ -1,5 +1,6 @@
 package com.autoparts.erp.purchase.ledger.controller;
 
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.purchase.ledger.dto.PurchaseLedgerResponse;
 import com.autoparts.erp.purchase.ledger.service.PurchaseLedgerService;
 
@@ -12,6 +13,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/purchases/ledger")
+@RequiresPermission("PURCHASES.LEDGER_VIEW")
 public class PurchaseLedgerController {
 
     private final PurchaseLedgerService ledgerService;

@@ -1,5 +1,6 @@
 package com.autoparts.erp.expense.ledger.serviceimpl;
 
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.common.exception.ClientValidationException;
 import com.autoparts.erp.common.util.PaginationUtils;
 import com.autoparts.erp.expense.ledger.dto.ExpenseLedgerResponse;
@@ -29,6 +30,7 @@ public class ExpenseLedgerServiceImpl implements ExpenseLedgerService {
     }
 
     @Override
+    @RequiresPermission("EXPENSES.LEDGER_VIEW")
     public ExpenseLedgerResponse getLedger(
         LocalDate fromDate,
         LocalDate toDate,

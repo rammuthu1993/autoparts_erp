@@ -19,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.autoparts.erp.auth.security.CurrentUserService;
 import com.autoparts.erp.auth.security.annotation.AdminOnly;
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.common.dto.PageResponse;
@@ -61,6 +62,7 @@ public class CashRegisterServiceImpl implements CashRegisterService {
     @Override
     @Transactional
     @AdminOnly
+    @RequiresPermission("CASH_REGISTER.CREATE")
     public CashRegisterResponse createRegister(
             CreateCashRegisterRequest request
     ) {
@@ -115,6 +117,7 @@ public class CashRegisterServiceImpl implements CashRegisterService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("CASH_REGISTER.VIEW")
     public List<CashRegisterResponse> findAllRegisters() {
 
         return cashRegisterRepository.findAllRegisters()
@@ -131,6 +134,7 @@ public class CashRegisterServiceImpl implements CashRegisterService {
     @Override
     @Transactional
     @SalesAccess
+    @RequiresPermission("CASH_REGISTER.OPEN")
     public CashSessionResponse openSession(
             UUID registerUuid,
             OpenCashSessionRequest request
@@ -208,6 +212,7 @@ public class CashRegisterServiceImpl implements CashRegisterService {
     @Override
     @Transactional
     @SalesAccess
+    @RequiresPermission("CASH_REGISTER.CLOSE")
     public CashSessionResponse closeSession(
             UUID sessionUuid,
             CloseCashSessionRequest request
@@ -293,6 +298,7 @@ public class CashRegisterServiceImpl implements CashRegisterService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("CASH_REGISTER.VIEW")
     public CashSessionResponse findLatestSession(UUID registerUuid) {
 
         CashRegisterSession session = cashRegisterRepository
@@ -312,6 +318,7 @@ public class CashRegisterServiceImpl implements CashRegisterService {
     @Override
     @Transactional
     @AdminOrManager
+    @RequiresPermission("CASH_REGISTER.OPEN")
     public CashMovementResponse createMovement(
             UUID sessionUuid,
             CreateCashMovementRequest request
@@ -427,6 +434,7 @@ public class CashRegisterServiceImpl implements CashRegisterService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("CASH_REGISTER.VIEW")
     public List<CashMovementResponse> findMovements(UUID sessionUuid) {
 
         CashRegisterSession session = cashRegisterRepository
@@ -443,6 +451,7 @@ public class CashRegisterServiceImpl implements CashRegisterService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("CASH_REGISTER.VIEW")
     public PageResponse<CashMovementResponse> findMovementsPaged(
             UUID sessionUuid,
             int page,

@@ -15,13 +15,15 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.autoparts.erp.ai.rag.ingestion.KnowledgeIngestionService;
 import com.autoparts.erp.ai.security.ErpAiExecutionContext;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 
 /**
  * Administrative controller for knowledge document approval lifecycle.
- * Restricted to authenticated ROLE_ADMIN and ROLE_MANAGER.
+ * Restricted to users with AI_ASSISTANT.DOCUMENT_MANAGE permission.
  */
 @RestController
 @RequestMapping("/api/v1/ai/knowledge/documents")
+@RequiresPermission("AI_ASSISTANT.DOCUMENT_MANAGE")
 public class KnowledgeDocumentAdminController {
 
     private final KnowledgeIngestionService ingestionService;
@@ -91,12 +93,10 @@ public class KnowledgeDocumentAdminController {
     }
 
     private ErpAiExecutionContext buildContext(Authentication authentication) {
-        String username = (authentication != null && authentication.getName() != null)
-                ? authentication.getName()
-                : "anonymous";
-        List<String> authorities = (authentication != null && authentication.getAuthorities() != null)
+        String userSubject = authentication != null ? authentication.getName() : "system";
+        List<String> roles = authentication != null
                 ? authentication.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList()
                 : List.of();
-        return ErpAiExecutionContext.create(UUID.randomUUID(), username, authorities);
+        return ErpAiExecutionContext.create(UUID.randomUUID(), userSubject, roles);
     }
 }

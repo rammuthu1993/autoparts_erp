@@ -20,6 +20,7 @@ import com.autoparts.erp.ai.dto.AiConversationMessagesResponse;
 import com.autoparts.erp.ai.dto.AiConversationTitleRequest;
 import com.autoparts.erp.ai.security.ErpAiExecutionContext;
 import com.autoparts.erp.ai.service.AiAssistantService;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.common.annotation.DeprecatedUnpagedEndpoint;
 import com.autoparts.erp.common.dto.PageResponse;
 
@@ -27,6 +28,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/ai")
+@RequiresPermission("AI_ASSISTANT.USE")
 public class AiAssistantController {
 
     private final AiAssistantService aiAssistantService;

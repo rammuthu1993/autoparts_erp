@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.autoparts.erp.ai.rag.evaluation.LiveGroundedAnswerEvaluationService;
 import com.autoparts.erp.ai.rag.evaluation.KnowledgeEvaluationCorpusService;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
@@ -20,6 +21,7 @@ import jakarta.validation.constraints.AssertTrue;
  */
 @RestController
 @RequestMapping("/api/v1/admin/ai-evaluation")
+@RequiresPermission("AI_ASSISTANT.EVALUATION_RUN")
 public class LiveGroundedAnswerEvaluationController {
 
     private final LiveGroundedAnswerEvaluationService evaluationService;

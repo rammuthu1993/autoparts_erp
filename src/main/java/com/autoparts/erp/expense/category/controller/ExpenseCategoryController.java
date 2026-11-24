@@ -1,6 +1,7 @@
 package com.autoparts.erp.expense.category.controller;
 
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.common.annotation.DeprecatedUnpagedEndpoint;
 import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.expense.category.dto.ExpenseCategoryCreateRequest;
@@ -30,6 +31,7 @@ public class ExpenseCategoryController {
     }
 
     @AdminOrManager
+    @RequiresPermission("EXPENSE_CATEGORIES.CREATE")
     @PostMapping
     public ResponseEntity<ExpenseCategoryResponse> create(
             @Valid @RequestBody ExpenseCategoryCreateRequest request
@@ -41,12 +43,14 @@ public class ExpenseCategoryController {
 
     @Deprecated(since = "2.0")
     @DeprecatedUnpagedEndpoint(limit = 500, pagedUrl = "/api/v1/expense-categories/paged", deprecationDate = "2026-11-22T00:00:00Z")
+    @RequiresPermission("EXPENSE_CATEGORIES.VIEW")
     @GetMapping
     public ResponseEntity<List<ExpenseCategoryResponse>> findAll() {
 
         return ResponseEntity.ok(service.findAll());
     }
 
+    @RequiresPermission("EXPENSE_CATEGORIES.VIEW")
     @GetMapping("/paged")
     public ResponseEntity<PageResponse<ExpenseCategoryResponse>> findPaged(
             @RequestParam(defaultValue = "0") int page,
@@ -60,6 +64,7 @@ public class ExpenseCategoryController {
         );
     }
 
+    @RequiresPermission("EXPENSE_CATEGORIES.VIEW")
     @GetMapping("/{uuid}")
     public ResponseEntity<ExpenseCategoryResponse> findByUuid(
             @PathVariable UUID uuid
@@ -68,6 +73,7 @@ public class ExpenseCategoryController {
     }
 
     @AdminOrManager
+    @RequiresPermission("EXPENSE_CATEGORIES.UPDATE")
     @PutMapping("/{uuid}")
     public ResponseEntity<ExpenseCategoryResponse> update(
             @PathVariable UUID uuid,
@@ -77,6 +83,7 @@ public class ExpenseCategoryController {
     }
 
     @AdminOrManager
+    @RequiresPermission("EXPENSE_CATEGORIES.DEACTIVATE")
     @PatchMapping("/{uuid}/deactivate")
     public ResponseEntity<Void> deactivate(
             @PathVariable UUID uuid

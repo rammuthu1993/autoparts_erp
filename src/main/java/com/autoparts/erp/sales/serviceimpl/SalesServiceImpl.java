@@ -14,6 +14,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
+
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.cashregister.enums.CashMovementSourceType;
 import com.autoparts.erp.cashregister.enums.CashMovementType;
@@ -92,6 +94,7 @@ public class SalesServiceImpl implements SalesService {
 
     @Override
     @Transactional
+    @RequiresPermission("SALES.CREATE")
     public SalesResponse create(SalesCreateRequest request) {
 
         logger.info(
@@ -447,6 +450,7 @@ public class SalesServiceImpl implements SalesService {
 
     @Override
     @Transactional
+    @RequiresPermission("SALES.COMPLETE")
     public SalesResponse complete(UUID saleUuid) {
 
         logger.info(
@@ -596,6 +600,7 @@ public class SalesServiceImpl implements SalesService {
 
     @Override
     @Transactional(readOnly = true)
+    @RequiresPermission("SALES.VIEW")
     public SalesResponse findByUuid(UUID saleUuid) {
 
         Sales sale = salesRepository.findByUuid(saleUuid)
@@ -651,6 +656,7 @@ public class SalesServiceImpl implements SalesService {
 
     @Override
     @Transactional(readOnly = true)
+    @RequiresPermission("SALES.VIEW")
     public List<SalesResponse> findAll() {
 
         return salesRepository.findAll()
@@ -698,6 +704,7 @@ public class SalesServiceImpl implements SalesService {
 
     @Override
     @Transactional(readOnly = true)
+    @RequiresPermission("SALES.VIEW")
     public PageResponse<SalesResponse> findPaged(
             int page,
             int size,
@@ -773,6 +780,7 @@ public class SalesServiceImpl implements SalesService {
     @Override
     @AdminOrManager
     @Transactional
+    @RequiresPermission("SALES.CANCEL")
     public SalesResponse cancel(UUID saleUuid) {
 
         logger.info(
@@ -974,6 +982,7 @@ public class SalesServiceImpl implements SalesService {
 
     @Override
     @Transactional
+    @RequiresPermission("SALES.PAYMENT_RECORD")
     public SalesResponse recordPayment(
         UUID saleUuid,
         SalesPaymentRequest request

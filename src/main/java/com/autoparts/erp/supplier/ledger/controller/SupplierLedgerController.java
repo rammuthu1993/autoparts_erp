@@ -1,5 +1,6 @@
 package com.autoparts.erp.supplier.ledger.controller;
 
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.supplier.ledger.dto.SupplierLedgerResponse;
 import com.autoparts.erp.supplier.ledger.service.SupplierLedgerService;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -11,6 +12,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/suppliers")
+@RequiresPermission("SUPPLIERS.LEDGER_VIEW")
 public class SupplierLedgerController {
 
     private final SupplierLedgerService supplierLedgerService;

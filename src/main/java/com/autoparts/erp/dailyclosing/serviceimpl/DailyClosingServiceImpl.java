@@ -19,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.autoparts.erp.auth.security.CurrentUserService;
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
 import com.autoparts.erp.auth.security.annotation.AuthenticatedUser;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.common.util.PaginationUtils;
@@ -57,6 +58,7 @@ public class DailyClosingServiceImpl
     @Override
     @Transactional
     @AdminOrManager
+    @RequiresPermission("DAILY_CLOSING.PERFORM")
     public DailyClosingResponse closeBusinessDate(
             LocalDate businessDate,
             String notes
@@ -173,6 +175,7 @@ public class DailyClosingServiceImpl
 
     @Override
     @AuthenticatedUser
+    @RequiresPermission("DAILY_CLOSING.VIEW")
     public DailyClosingResponse findByBusinessDate(
             LocalDate businessDate
     ) {
@@ -197,6 +200,7 @@ public class DailyClosingServiceImpl
 
     @Override
     @AuthenticatedUser
+    @RequiresPermission("DAILY_CLOSING.VIEW")
     public DailyClosingResponse findByUuid(UUID uuid) {
 
         if (uuid == null) {
@@ -211,6 +215,7 @@ public class DailyClosingServiceImpl
 
     @Override
     @AuthenticatedUser
+    @RequiresPermission("DAILY_CLOSING.VIEW")
     public PageResponse<DailyClosingResponse> findPaged(
             int page,
             int size,

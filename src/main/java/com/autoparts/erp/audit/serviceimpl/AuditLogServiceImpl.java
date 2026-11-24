@@ -18,6 +18,7 @@ import com.autoparts.erp.audit.model.AuditLog;
 import com.autoparts.erp.audit.repository.AuditLogRepository;
 import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.auth.security.CurrentUserService;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.common.util.PaginationUtils;
 
@@ -157,6 +158,7 @@ public class AuditLogServiceImpl implements AuditLogService {
 
     @Override
     @Transactional(readOnly = true)
+    @RequiresPermission("AUDIT_LOGS.VIEW")
     public List<AuditLog> getRecentLogs(int limit, int offset) {
 
         // Enforce consistent fixed safety ceiling of 50 for the deprecated endpoint
@@ -172,6 +174,7 @@ public class AuditLogServiceImpl implements AuditLogService {
 
     @Override
     @Transactional(readOnly = true)
+    @RequiresPermission("AUDIT_LOGS.VIEW")
     public PageResponse<AuditLog> findPaged(
             int page,
             int size,

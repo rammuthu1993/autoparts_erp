@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.sales.ledger.dto.SalesLedgerPageResponse;
 import com.autoparts.erp.sales.ledger.service.SalesLedgerService;
 
@@ -29,6 +30,7 @@ public class SalesLedgerController {
         this.salesLedgerService = salesLedgerService;
     }
 
+    @RequiresPermission("SALES.LEDGER_VIEW")
     @GetMapping
     public ResponseEntity<SalesLedgerPageResponse> getSalesLedger(
         @RequestParam @NotNull UUID customerUuid,

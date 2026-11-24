@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -23,9 +24,12 @@ import com.autoparts.erp.auth.dto.UserRoleRequest;
 import com.autoparts.erp.auth.dto.UserStatusRequest;
 import com.autoparts.erp.auth.dto.UserUpdateRequest;
 import com.autoparts.erp.auth.model.ManagedUser;
+import com.autoparts.erp.auth.repository.PermissionRepository;
 import com.autoparts.erp.auth.repository.UserManagementRepository;
 import com.autoparts.erp.auth.repository.UserRepository;
 import com.autoparts.erp.auth.security.CurrentUserService;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
+import com.autoparts.erp.auth.service.PermissionService;
 import com.autoparts.erp.auth.service.RefreshTokenService;
 import com.autoparts.erp.auth.service.UserService;
 import com.autoparts.erp.common.dto.PageResponse;
@@ -43,6 +47,29 @@ public class UserServiceImpl implements UserService {
     private final CurrentUserService currentUserService;
     private final RefreshTokenService refreshTokenService;
     private final UserRepository userRepository;
+    private final PermissionService permissionService;
+    private final PermissionRepository permissionRepository;
+
+    @Autowired
+    public UserServiceImpl(
+            UserManagementRepository repository,
+            PasswordEncoder passwordEncoder,
+            AuditLogService auditLogService,
+            CurrentUserService currentUserService,
+            RefreshTokenService refreshTokenService,
+            UserRepository userRepository,
+            PermissionService permissionService,
+            PermissionRepository permissionRepository
+    ) {
+        this.repository = repository;
+        this.passwordEncoder = passwordEncoder;
+        this.auditLogService = auditLogService;
+        this.currentUserService = currentUserService;
+        this.refreshTokenService = refreshTokenService;
+        this.userRepository = userRepository;
+        this.permissionService = permissionService;
+        this.permissionRepository = permissionRepository;
+    }
 
     public UserServiceImpl(
             UserManagementRepository repository,
@@ -52,12 +79,7 @@ public class UserServiceImpl implements UserService {
             RefreshTokenService refreshTokenService,
             UserRepository userRepository
     ) {
-        this.repository = repository;
-        this.passwordEncoder = passwordEncoder;
-        this.auditLogService = auditLogService;
-        this.currentUserService = currentUserService;
-        this.refreshTokenService = refreshTokenService;
-        this.userRepository = userRepository;
+        this(repository, passwordEncoder, auditLogService, currentUserService, refreshTokenService, userRepository, null, null);
     }
 
     // =========================================================
@@ -66,9 +88,13 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @RequiresPermission("USERS.CREATE")
     public UserResponse create(UserCreateRequest request) {
 
         String username = request.username().trim();
+        String email = request.email() != null && !request.email().isBlank()
+                ? request.email().trim().toLowerCase(Locale.ROOT)
+                : null;
 
         Set<String> roles = normalizeRoles(request.roleNames());
 
@@ -79,6 +105,13 @@ public class UserServiceImpl implements UserService {
             );
         }
 
+        if (email != null && repository.existsByEmail(email, null)) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Email already registered"
+            );
+        }
+
         String passwordHash =
                 passwordEncoder.encode(request.password());
 
@@ -86,6 +119,7 @@ public class UserServiceImpl implements UserService {
 
         Long userId = repository.create(
                 username,
+                email,
                 passwordHash,
                 uuid
         );
@@ -112,6 +146,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
+    @RequiresPermission("USERS.VIEW")
     public List<UserResponse> findAll() {
 
         return repository.findAll()
@@ -122,6 +157,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
+    @RequiresPermission("USERS.VIEW")
     public PageResponse<UserResponse> findPaged(
             int page,
             int size,
@@ -151,6 +187,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
+    @RequiresPermission("USERS.VIEW")
     public UserResponse findByUuid(UUID uuid) {
 
         ManagedUser user = getRequiredUser(uuid);
@@ -164,6 +201,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @RequiresPermission("USERS.UPDATE")
     public UserResponse update(
             UUID uuid,
             UserUpdateRequest request
@@ -172,6 +210,9 @@ public class UserServiceImpl implements UserService {
         ManagedUser existing = getRequiredUser(uuid);
 
         String username = request.username().trim();
+        String newEmail = request.email() != null && !request.email().isBlank()
+                ? request.email().trim().toLowerCase(Locale.ROOT)
+                : null;
 
         if (repository.existsByUsername(username, uuid)) {
             throw new ResponseStatusException(
@@ -180,10 +221,26 @@ public class UserServiceImpl implements UserService {
             );
         }
 
+        boolean emailChanged = false;
+        if (newEmail != null && !newEmail.equalsIgnoreCase(existing.email())) {
+            if (repository.existsByEmail(newEmail, uuid)) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "Email already registered"
+                );
+            }
+            emailChanged = true;
+        }
+
         Map<String, Object> oldValues =
                 userAuditValues(toResponse(existing));
 
-        repository.updateUsername(uuid, username);
+        if (newEmail != null) {
+            boolean emailVerified = emailChanged ? false : existing.emailVerified();
+            repository.updateUsernameAndEmail(uuid, username, newEmail, emailVerified);
+        } else {
+            repository.updateUsername(uuid, username);
+        }
 
         UserResponse updated = findByUuid(uuid);
 
@@ -191,7 +248,7 @@ public class UserServiceImpl implements UserService {
                 "UPDATE",
                 "USER",
                 uuid.toString(),
-                "Username updated",
+                emailChanged ? "User profile and email updated" : "Username updated",
                 oldValues,
                 userAuditValues(updated)
         );
@@ -205,6 +262,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @RequiresPermission("USERS.STATUS_UPDATE")
     public UserResponse updateStatus(
             UUID uuid,
             UserStatusRequest request
@@ -250,6 +308,10 @@ public class UserServiceImpl implements UserService {
 
         repository.updateEnabled(uuid, enabled);
 
+        if (permissionService != null) {
+            permissionService.evictUserRoleCache(existing.id());
+        }
+
         UserResponse updated = findByUuid(uuid);
 
         auditLogService.log(
@@ -275,6 +337,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @RequiresPermission("USERS.ROLES_ASSIGN")
     public UserResponse updateRoles(
             UUID uuid,
             UserRoleRequest request
@@ -316,6 +379,10 @@ public class UserServiceImpl implements UserService {
 
         repository.replaceRoles(existing.id(), newRoles);
 
+        if (permissionService != null) {
+            permissionService.evictUserRoleCache(existing.id());
+        }
+
         UserResponse updated = findByUuid(uuid);
 
         auditLogService.log(
@@ -336,12 +403,39 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @RequiresPermission("USERS.RESET_PASSWORD")
     public void resetPassword(
             UUID uuid,
             UserPasswordResetRequest request
     ) {
 
         ManagedUser existing = getRequiredUser(uuid);
+
+        if (currentUserService != null && permissionRepository != null) {
+            Long currentUserId = currentUserService.getCurrentUserId();
+            Set<String> callerRoles = permissionRepository.findRoleNamesByUserId(currentUserId);
+            Set<String> targetRoles = existing.roles();
+
+            boolean callerIsAdmin = callerRoles.contains("ADMIN");
+            boolean callerIsManager = callerRoles.contains("MANAGER");
+
+            if (callerIsAdmin) {
+                // Administrator may reset anyone's password
+            } else if (callerIsManager) {
+                // Manager may only reset Cashier passwords (cannot reset Admin or Manager)
+                if (targetRoles.contains("ADMIN") || targetRoles.contains("MANAGER")) {
+                    throw new ResponseStatusException(
+                            HttpStatus.FORBIDDEN,
+                            "Managers may only reset passwords for Cashiers"
+                    );
+                }
+            } else {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Access denied"
+                );
+            }
+        }
 
         String passwordHash =
                 passwordEncoder.encode(request.newPassword());
@@ -350,6 +444,10 @@ public class UserServiceImpl implements UserService {
         userRepository.resetFailedLoginAttempts(existing.username());
         // Revoke all refresh tokens so the user must authenticate again.
         refreshTokenService.revokeAllForUser(existing.id());
+
+        if (permissionService != null) {
+            permissionService.evictUserRoleCache(existing.id());
+        }
 
         auditLogService.log(
                 "UPDATE",
@@ -381,6 +479,8 @@ public class UserServiceImpl implements UserService {
         return new UserResponse(
                 user.uuid(),
                 user.username(),
+                user.email(),
+                user.emailVerified(),
                 user.enabled(),
                 user.roles(),
                 user.createdAt(),
@@ -428,6 +528,8 @@ public class UserServiceImpl implements UserService {
         Map<String, Object> values = new LinkedHashMap<>();
 
         values.put("username", user.username());
+        values.put("email", user.email());
+        values.put("emailVerified", user.emailVerified());
         values.put("enabled", user.enabled());
         values.put("roles", user.roles());
 

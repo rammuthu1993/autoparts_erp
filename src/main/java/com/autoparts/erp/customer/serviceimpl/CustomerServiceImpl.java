@@ -3,6 +3,7 @@ package com.autoparts.erp.customer.serviceimpl;
 
 import com.autoparts.erp.auth.security.annotation.AdminOnly;
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.security.annotation.RequiresPermission;
 import com.autoparts.erp.auth.security.annotation.SalesAccess;
 import com.autoparts.erp.audit.service.AuditLogService;
 import com.autoparts.erp.common.dto.PageResponse;
@@ -47,6 +48,7 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     @Transactional
     @AdminOrManager
+    @RequiresPermission("CUSTOMERS.CREATE")
     public CustomerResponse create(CustomerCreateRequest request) {
 
         Customer customer = new Customer(
@@ -87,6 +89,7 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("CUSTOMERS.VIEW")
     public List<CustomerResponse> findAll() {
 
         return customerRepository.findAll()
@@ -97,6 +100,7 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("CUSTOMERS.VIEW")
     public PageResponse<CustomerResponse> findPaged(
             int page,
             int size,
@@ -127,6 +131,7 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     @SalesAccess
+    @RequiresPermission("CUSTOMERS.VIEW")
     public CustomerResponse findByUuid(UUID uuid) {
 
         Customer customer = customerRepository.findByUuid(uuid)
@@ -142,6 +147,7 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     @Transactional
     @AdminOrManager
+    @RequiresPermission("CUSTOMERS.UPDATE")
     public CustomerResponse update(
         UUID uuid,
         CustomerUpdateRequest request
@@ -200,6 +206,7 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     @Transactional
     @AdminOnly
+    @RequiresPermission("CUSTOMERS.DEACTIVATE")
     public void deactivate(UUID uuid) {
 
         Customer customer = customerRepository.findByUuid(uuid)
