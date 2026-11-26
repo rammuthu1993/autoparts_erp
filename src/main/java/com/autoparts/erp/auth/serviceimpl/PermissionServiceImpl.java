@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -23,10 +24,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.autoparts.erp.audit.service.AuditLogService;
-import com.autoparts.erp.common.exception.ClientValidationException;
 import com.autoparts.erp.auth.dto.AssignRolePermissionsRequest;
 import com.autoparts.erp.auth.dto.PermissionResponse;
 import com.autoparts.erp.auth.dto.RolePermissionsResponse;
@@ -39,6 +41,7 @@ import com.autoparts.erp.auth.repository.UserManagementRepository;
 import com.autoparts.erp.auth.repository.UserRepository;
 import com.autoparts.erp.auth.security.CurrentUserService;
 import com.autoparts.erp.auth.service.PermissionService;
+import com.autoparts.erp.common.exception.ClientValidationException;
 import com.autoparts.erp.security.AuthenticatedUserDetails;
 
 @Service("permissionService")
@@ -52,11 +55,14 @@ public class PermissionServiceImpl implements PermissionService {
     private final CurrentUserService currentUserService;
     private final AuditLogService auditLogService;
 
-    // Cache: roleId -> Set<String> of active permission codes
-    private final ConcurrentMap<Long, Set<String>> rolePermissionsCache = new ConcurrentHashMap<>();
+    // Cache: roleName -> Set<String> of active permission codes
+    private final ConcurrentMap<String, Set<String>> rolePermissionsCache = new ConcurrentHashMap<>();
 
     // Cache: userId -> CacheEntry<Set<String>> of active role names with TTL
     private final ConcurrentMap<Long, CacheEntry<Set<String>>> userRolesCache = new ConcurrentHashMap<>();
+
+    // Cache of all enabled permission codes in catalogue
+    private volatile Set<String> allEnabledPermissionsCache = null;
 
     private static final Duration USER_ROLE_CACHE_TTL = Duration.ofSeconds(60);
 
@@ -109,20 +115,26 @@ public class PermissionServiceImpl implements PermissionService {
             return false;
         }
 
-        String normalizedCode = permissionCode.trim().toUpperCase();
+        String normalizedCode = permissionCode.trim().toUpperCase(Locale.ROOT);
 
-        // Live active roles from database/cache
-        Set<String> activeRoles = getActiveUserRoles(userId);
-        if (activeRoles.isEmpty()) {
+        // 1. Verify requested permission exists in the catalogue and is enabled (no blind bypass for ADMIN)
+        if (!isPermissionEnabled(normalizedCode)) {
             return false;
         }
 
-        // ADMIN role possesses all system permissions by definition
+        // 2. Fetch live active roles from database/cache (never blindly trust old JWT claims)
+        Set<String> activeRoles = getActiveUserRoles(userId);
+        if (activeRoles.isEmpty()) {
+            // User account is missing, disabled in database, or has no active roles
+            return false;
+        }
+
+        // 3. ADMIN possesses all valid enabled permissions in the catalogue
         if (activeRoles.contains("ADMIN") || activeRoles.contains("ROLE_ADMIN")) {
             return true;
         }
 
-        // Resolve effective permissions across all active user roles
+        // 4. Resolve effective permissions across all active user roles
         Set<String> effectivePermissions = getPermissionsForRoles(activeRoles);
         return effectivePermissions.contains(normalizedCode);
     }
@@ -150,10 +162,7 @@ public class PermissionServiceImpl implements PermissionService {
             return Collections.emptySet();
         }
         if (roles.contains("ADMIN") || roles.contains("ROLE_ADMIN")) {
-            return permissionRepository.findAll(null, null).stream()
-                    .filter(Permission::enabled)
-                    .map(Permission::code)
-                    .collect(Collectors.toSet());
+            return loadAllEnabledPermissions();
         }
         return getPermissionsForRoles(roles);
     }
@@ -254,8 +263,8 @@ public class PermissionServiceImpl implements PermissionService {
     @Override
     @Transactional
     public void assignRolePermissions(UUID roleUuid, AssignRolePermissionsRequest request) {
-        if (request == null || request.permissionCodes() == null || request.permissionCodes().isEmpty()) {
-            throw new ClientValidationException("At least one permission must be assigned to the role");
+        if (request == null || request.permissionCodes() == null) {
+            throw new ClientValidationException("Permission codes list must not be null");
         }
 
         Long roleId = permissionRepository.findRoleIdByUuid(roleUuid)
@@ -265,13 +274,16 @@ public class PermissionServiceImpl implements PermissionService {
         Set<String> requestedCodes = request.permissionCodes().stream()
                 .filter(Objects::nonNull)
                 .map(String::trim)
-                .map(String::toUpperCase)
+                .map(code -> code.toUpperCase(Locale.ROOT))
                 .collect(Collectors.toSet());
 
-        // Validate all submitted permission codes exist and are enabled
-        List<Permission> foundPermissions = permissionRepository.findByCodes(requestedCodes);
+        // Validate all submitted permission codes exist and are enabled (if any provided)
+        List<Permission> foundPermissions = requestedCodes.isEmpty()
+                ? List.of()
+                : permissionRepository.findByCodes(requestedCodes);
         Set<String> foundCodes = foundPermissions.stream()
                 .map(Permission::code)
+                .map(code -> code.toUpperCase(Locale.ROOT))
                 .collect(Collectors.toSet());
 
         Set<String> invalidCodes = new HashSet<>(requestedCodes);
@@ -291,7 +303,7 @@ public class PermissionServiceImpl implements PermissionService {
             );
             if (!requestedCodes.containsAll(criticalAdminPerms)) {
                 throw new ClientValidationException(
-                        "Cannot remove critical permissions (e.g. ROLES.PERMISSIONS_ASSIGN, USERS.ROLES_ASSIGN) from the ADMIN role."
+                        "Cannot remove critical permissions (e.g. ROLES.PERMISSIONS_ASSIGN, USERS.ROLES_ASSIGN, USERS.STATUS_UPDATE) from the ADMIN role."
                 );
             }
         }
@@ -299,13 +311,22 @@ public class PermissionServiceImpl implements PermissionService {
         // Old values for audit trail
         Set<String> oldPermCodes = permissionRepository.findPermissionCodesByRoleId(roleId);
 
-        // Assign permissions
+        // Assign permissions (supports empty permission list for non-ADMIN roles!)
         Long assignedByUserId = currentUserService.getCurrentUserId();
         List<Long> permIds = foundPermissions.stream().map(Permission::id).toList();
         permissionRepository.replaceRolePermissions(roleId, permIds, assignedByUserId);
 
-        // Invalidate caches immediately
-        evictRolePermissionCache(roleId);
+        // Transactional cache invalidation: evict after successful commit
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    evictRolePermissionCache(roleId);
+                }
+            });
+        } else {
+            evictRolePermissionCache(roleId);
+        }
 
         // Record audit trail
         auditLogService.log(
@@ -331,19 +352,16 @@ public class PermissionServiceImpl implements PermissionService {
 
     @Override
     public void evictRolePermissionCache(Long roleId) {
-        if (roleId != null) {
-            rolePermissionsCache.remove(roleId);
-        } else {
-            rolePermissionsCache.clear();
-        }
-        // When role permissions change, any cached user roles should also be refreshed
+        rolePermissionsCache.clear();
         userRolesCache.clear();
+        allEnabledPermissionsCache = null;
     }
 
     @Override
     public void evictAllCaches() {
         rolePermissionsCache.clear();
         userRolesCache.clear();
+        allEnabledPermissionsCache = null;
     }
 
     @Override
@@ -354,6 +372,31 @@ public class PermissionServiceImpl implements PermissionService {
     // =========================================================================
     // 4. HELPER METHODS
     // =========================================================================
+
+    private boolean isPermissionEnabled(String permissionCode) {
+        if (permissionCode == null || permissionCode.isBlank()) {
+            return false;
+        }
+        Set<String> enabled = allEnabledPermissionsCache;
+        if (enabled == null) {
+            enabled = loadAllEnabledPermissions();
+        }
+        return enabled.contains(permissionCode.trim().toUpperCase(Locale.ROOT));
+    }
+
+    private synchronized Set<String> loadAllEnabledPermissions() {
+        if (allEnabledPermissionsCache != null) {
+            return allEnabledPermissionsCache;
+        }
+        List<Permission> all = permissionRepository.findAll(null, null);
+        Set<String> enabled = all.stream()
+                .filter(Permission::enabled)
+                .map(Permission::code)
+                .map(code -> code.trim().toUpperCase(Locale.ROOT))
+                .collect(Collectors.toUnmodifiableSet());
+        allEnabledPermissionsCache = enabled;
+        return enabled;
+    }
 
     private Long resolveUserId(Authentication authentication) {
         if (authentication == null) {
@@ -401,7 +444,30 @@ public class PermissionServiceImpl implements PermissionService {
             return Collections.emptySet();
         }
 
-        // Resolve permissions for all roles
-        return permissionRepository.findPermissionCodesByRoleNames(roleNames);
+        Set<String> effective = new HashSet<>();
+        Set<String> uncached = new HashSet<>();
+
+        for (String roleName : roleNames) {
+            if (roleName == null || roleName.isBlank()) continue;
+            String normalizedRole = roleName.startsWith("ROLE_") ? roleName.substring(5) : roleName;
+            normalizedRole = normalizedRole.trim().toUpperCase(Locale.ROOT);
+            Set<String> cached = rolePermissionsCache.get(normalizedRole);
+            if (cached != null) {
+                effective.addAll(cached);
+            } else {
+                uncached.add(normalizedRole);
+            }
+        }
+
+        if (!uncached.isEmpty()) {
+            for (String role : uncached) {
+                Set<String> perms = permissionRepository.findPermissionCodesByRoleNames(Set.of(role));
+                Set<String> unmodifiable = Collections.unmodifiableSet(perms);
+                rolePermissionsCache.put(role, unmodifiable);
+                effective.addAll(unmodifiable);
+            }
+        }
+
+        return Collections.unmodifiableSet(effective);
     }
 }

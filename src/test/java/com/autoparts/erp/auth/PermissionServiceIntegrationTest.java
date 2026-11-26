@@ -43,7 +43,7 @@ class PermissionServiceIntegrationTest {
     static void configureProperties(DynamicPropertyRegistry registry) {
         String dbUser = resolveSecret("DB_USERNAME", "postgres");
         String dbPass = resolveSecret("DB_PASSWORD", "postgres");
-        String aiReaderPass = resolveSecret("AI_TOOL_DB_PASSWORD", "Muthu@1512");
+        String aiReaderPass = resolveSecret("AI_TOOL_DB_PASSWORD", "postgres");
 
         registry.add("DB_URL", () -> TEST_DB_URL);
         registry.add("DB_USERNAME", () -> dbUser);
@@ -131,7 +131,7 @@ class PermissionServiceIntegrationTest {
             WHERE r.name = 'CASHIER' AND p.code IN ('PRODUCTS.VIEW', 'SALES.VIEW', 'SALES.CREATE')
             ON CONFLICT (role_id, permission_id) DO NOTHING;
 
-            -- Assign selected permissions to MANAGER
+            -- Assign selected permissions to MANAGER (excludes sales refund and ai doc manage)
             INSERT INTO role_permissions (role_id, permission_id)
             SELECT r.id, p.id FROM roles r CROSS JOIN permissions p
             WHERE r.name = 'MANAGER' AND p.code IN ('PRODUCTS.VIEW', 'PRODUCTS.CREATE', 'SALES.VIEW', 'SALES.CREATE', 'SALES.CANCEL', 'PURCHASES.CREATE')
@@ -159,19 +159,26 @@ class PermissionServiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("ADMIN role possesses all permissions including governance permissions")
-    void testAdminPermissions() {
+    @DisplayName("ADMIN role possesses all enabled permissions but CANNOT bypass unknown or disabled permissions")
+    void testAdminPermissionsAndBypassPrevention() {
         String testUsername = "admin_perm_test_" + UUID.randomUUID().toString().substring(0, 8);
         UUID userUuid = UUID.randomUUID();
         Long userId = userManagementRepository.create(testUsername, "admin_test@example.com", passwordEncoder.encode("Test@123"), userUuid);
         userManagementRepository.replaceRoles(userId, Set.of("ADMIN"));
 
+        // Admin has all enabled catalogue permissions
         assertTrue(permissionService.hasPermission(userId, "SALES.CREATE"));
         assertTrue(permissionService.hasPermission(userId, "SALES.CANCEL"));
         assertTrue(permissionService.hasPermission(userId, "PURCHASES.CREATE"));
         assertTrue(permissionService.hasPermission(userId, "ROLES.PERMISSIONS_ASSIGN"));
         assertTrue(permissionService.hasPermission(userId, "USERS.ROLES_ASSIGN"));
         assertTrue(permissionService.hasPermission(userId, "USERS.STATUS_UPDATE"));
+
+        // Security Defense: Admin MUST NOT bypass unknown, invalid, or disabled permissions!
+        assertFalse(permissionService.hasPermission(userId, "NON_EXISTENT.PERMISSION"));
+        assertFalse(permissionService.hasPermission(userId, "ADMIN.HACK_ROOT"));
+        assertFalse(permissionService.hasPermission(userId, ""));
+        assertFalse(permissionService.hasPermission(userId, null));
     }
 
     @Test
@@ -226,6 +233,33 @@ class PermissionServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("Empty Permission Assignment: Clearing all permissions from a non-ADMIN role is permitted")
+    void testEmptyPermissionAssignmentPermittedForNonAdminRole() {
+        UUID cashierRoleUuid = jdbcTemplate.queryForObject(
+                "SELECT uuid FROM roles WHERE name = 'CASHIER'",
+                UUID.class
+        );
+
+        String testUsername = "cashier_empty_test_" + UUID.randomUUID().toString().substring(0, 8);
+        UUID userUuid = UUID.randomUUID();
+        Long userId = userManagementRepository.create(testUsername, "empty_perm@example.com", passwordEncoder.encode("Test@123"), userUuid);
+        userManagementRepository.replaceRoles(userId, Set.of("CASHIER"));
+
+        // Assign empty permission list to CASHIER
+        permissionService.assignRolePermissions(cashierRoleUuid, new AssignRolePermissionsRequest(Set.of()));
+
+        // Cashier now has 0 permissions
+        assertFalse(permissionService.hasPermission(userId, "SALES.CREATE"));
+        assertFalse(permissionService.hasPermission(userId, "SALES.VIEW"));
+
+        // Restore CASHIER permissions
+        permissionService.assignRolePermissions(cashierRoleUuid, new AssignRolePermissionsRequest(
+                Set.of("PRODUCTS.VIEW", "SALES.VIEW", "SALES.CREATE")
+        ));
+        assertTrue(permissionService.hasPermission(userId, "SALES.CREATE"));
+    }
+
+    @Test
     @DisplayName("Admin Role Protection: Attempting to remove critical permissions from ADMIN is rejected")
     void testAdminProtectionRejectsRemovalOfCriticalPermissions() {
         UUID adminRoleUuid = jdbcTemplate.queryForObject(
@@ -238,6 +272,11 @@ class PermissionServiceIntegrationTest {
                 permissionService.assignRolePermissions(adminRoleUuid, new AssignRolePermissionsRequest(
                         Set.of("PRODUCTS.VIEW", "SALES.VIEW")
                 ))
+        );
+
+        // Attempt to assign empty permissions to ADMIN
+        assertThrows(ClientValidationException.class, () ->
+                permissionService.assignRolePermissions(adminRoleUuid, new AssignRolePermissionsRequest(Set.of()))
         );
     }
 
@@ -254,6 +293,32 @@ class PermissionServiceIntegrationTest {
                         Set.of("INVALID.NON_EXISTENT.PERMISSION")
                 ))
         );
+    }
+
+    @Test
+    @DisplayName("Deactivated user immediately has zero permissions regardless of roles")
+    void testDeactivatedUserHasZeroPermissions() {
+        String testUsername = "deact_perm_user_" + UUID.randomUUID().toString().substring(0, 8);
+        UUID userUuid = UUID.randomUUID();
+        Long userId = userManagementRepository.create(testUsername, "deact_perm@example.com", passwordEncoder.encode("Test@123"), userUuid);
+        userManagementRepository.replaceRoles(userId, Set.of("ADMIN"));
+
+        // Active admin has permissions
+        assertTrue(permissionService.hasPermission(userId, "SALES.CREATE"));
+
+        // Deactivate user in database
+        userManagementRepository.updateEnabled(userUuid, false);
+        permissionService.evictUserRoleCache(userId);
+
+        // Deactivated user immediately has zero permissions
+        assertFalse(permissionService.hasPermission(userId, "SALES.CREATE"));
+        assertFalse(permissionService.hasPermission(userId, "PRODUCTS.VIEW"));
+        assertEquals(0, permissionService.getEffectivePermissionsForUser(userId).size());
+
+        // Re-enable
+        userManagementRepository.updateEnabled(userUuid, true);
+        permissionService.evictUserRoleCache(userId);
+        assertTrue(permissionService.hasPermission(userId, "SALES.CREATE"));
     }
 
     private static String resolveSecret(String propertyKey, String defaultVal) {

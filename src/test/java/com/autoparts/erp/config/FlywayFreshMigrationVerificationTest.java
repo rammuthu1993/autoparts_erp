@@ -45,7 +45,7 @@ class FlywayFreshMigrationVerificationTest {
                 return resolveSecretProperty("TEST_DB_USERNAME", "flyway_test_user");
             }
             if ("TEST_DB_PASSWORD".equals(key)) {
-                return resolveSecretProperty("DB_PASSWORD", "Muthu@1512");
+                return resolveSecretProperty("DB_PASSWORD", "postgres");
             }
             throw new IllegalStateException(
                     "Missing required setting " + key

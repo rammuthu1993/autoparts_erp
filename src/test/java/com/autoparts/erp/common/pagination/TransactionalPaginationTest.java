@@ -318,6 +318,7 @@ class TransactionalPaginationTest {
         assertEquals(20, result.size());
         assertEquals(1L, result.totalElements());
         assertEquals("Bosch", result.content().get(0).name());
+        assertEquals(brand.uuid(), result.content().get(0).uuid());
     }
 
     @Test

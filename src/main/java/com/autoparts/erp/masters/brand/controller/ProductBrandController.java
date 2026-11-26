@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/product-brands")
+@RequestMapping({"/api/v1/product-brands", "/api/v1/brands"})
 public class ProductBrandController {
 
     private final ProductBrandService service;

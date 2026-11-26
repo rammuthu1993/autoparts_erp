@@ -34,6 +34,14 @@ public class AuthenticatedUserDetails implements UserDetails {
         this.accountNonLocked = accountNonLocked;
     }
 
+    public AuthenticatedUserDetails(
+            Long userId,
+            String username,
+            Collection<? extends GrantedAuthority> authorities
+    ) {
+        this(userId, username, "", authorities, true, true);
+    }
+
     public Long getUserId() {
         return userId;
     }

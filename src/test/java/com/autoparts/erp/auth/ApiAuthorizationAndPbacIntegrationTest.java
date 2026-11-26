@@ -55,7 +55,7 @@ class ApiAuthorizationAndPbacIntegrationTest {
     static void configureProperties(DynamicPropertyRegistry registry) {
         String dbUser = resolveSecret("DB_USERNAME", "postgres");
         String dbPass = resolveSecret("DB_PASSWORD", "postgres");
-        String aiReaderPass = resolveSecret("AI_TOOL_DB_PASSWORD", "Muthu@1512");
+        String aiReaderPass = resolveSecret("AI_TOOL_DB_PASSWORD", "postgres");
 
         registry.add("DB_URL", () -> TEST_DB_URL);
         registry.add("DB_USERNAME", () -> dbUser);
@@ -136,6 +136,8 @@ class ApiAuthorizationAndPbacIntegrationTest {
                 ('SALES.VIEW', 'View Sales', 'View sales', 'SALES', 'VIEW'),
                 ('SALES.CREATE', 'Create Sales', 'Create sales', 'SALES', 'CREATE'),
                 ('SALES.CANCEL', 'Cancel Sales', 'Cancel sales', 'SALES', 'CANCEL'),
+                ('SALES_RETURNS.VIEW', 'View Sales Returns', 'View returns', 'SALES_RETURNS', 'VIEW'),
+                ('SALES_RETURNS.CREATE', 'Create Sales Returns', 'Create returns', 'SALES_RETURNS', 'CREATE'),
                 ('SALES_RETURNS.REFUND', 'Process Sales Refunds', 'Process refunds', 'SALES_RETURNS', 'REFUND'),
                 ('PURCHASES.VIEW', 'View Purchases', 'View purchases', 'PURCHASES', 'VIEW'),
                 ('PURCHASES.CREATE', 'Create Purchases', 'Create purchases', 'PURCHASES', 'CREATE'),
@@ -167,12 +169,13 @@ class ApiAuthorizationAndPbacIntegrationTest {
             WHERE r.name = 'CASHIER' AND p.code IN ('PRODUCTS.VIEW', 'SALES.VIEW', 'SALES.CREATE', 'INVENTORY.VIEW')
             ON CONFLICT (role_id, permission_id) DO NOTHING;
 
-            -- Assign selected permissions to MANAGER
+            -- Assign selected permissions to MANAGER (Notice: SALES_RETURNS.REFUND is excluded per approved role matrix)
             INSERT INTO role_permissions (role_id, permission_id)
             SELECT r.id, p.id FROM roles r CROSS JOIN permissions p
             WHERE r.name = 'MANAGER' AND p.code IN (
                 'PRODUCTS.VIEW', 'PRODUCTS.CREATE',
-                'SALES.VIEW', 'SALES.CREATE', 'SALES.CANCEL', 'SALES_RETURNS.REFUND',
+                'SALES.VIEW', 'SALES.CREATE', 'SALES.CANCEL',
+                'SALES_RETURNS.VIEW', 'SALES_RETURNS.CREATE',
                 'PURCHASES.VIEW', 'PURCHASES.CREATE', 'PURCHASES.RECEIVE',
                 'INVENTORY.VIEW', 'INVENTORY.ADJUST',
                 'REPORTS.VIEW',
@@ -294,8 +297,8 @@ class ApiAuthorizationAndPbacIntegrationTest {
 
         String cashier2 = "csh2_" + UUID.randomUUID().toString().substring(0, 8);
         UUID csh2Uuid = UUID.randomUUID();
-        Long cashierId = userManagementRepository.create(cashier2, cashier2 + "@example.com", passwordEncoder.encode("Test@123"), csh2Uuid);
-        userManagementRepository.replaceRoles(cashierId, Set.of("CASHIER"));
+        Long cashier2Id = userManagementRepository.create(cashier2, cashier2 + "@example.com", passwordEncoder.encode("Test@123"), csh2Uuid);
+        userManagementRepository.replaceRoles(cashier2Id, Set.of("CASHIER"));
 
         String cashierToken = createBearerToken(cashier1, List.of("CASHIER"), csh1Id);
 
@@ -304,6 +307,24 @@ class ApiAuthorizationAndPbacIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new UserPasswordResetRequest("NewPassword@123"))))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Password Reset Defense: Self-reset via administrative endpoint is rejected with 400 Bad Request")
+    void testSelfPasswordResetViaAdminEndpointRejected() throws Exception {
+        String adminUser = "self_adm_" + UUID.randomUUID().toString().substring(0, 8);
+        UUID adminUuid = UUID.randomUUID();
+        Long adminId = userManagementRepository.create(adminUser, adminUser + "@example.com", passwordEncoder.encode("Test@123"), adminUuid);
+        userManagementRepository.replaceRoles(adminId, Set.of("ADMIN"));
+
+        String adminToken = createBearerToken(adminUser, List.of("ADMIN"), adminId);
+
+        // Attempting to administratively reset one's own password should be rejected with 400 Bad Request
+        mockMvc.perform(patch("/api/v1/admin/users/" + adminUuid + "/password")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new UserPasswordResetRequest("SelfResetPass@123"))))
+                .andExpect(status().isBadRequest());
     }
 
     // =========================================================================
@@ -322,6 +343,23 @@ class ApiAuthorizationAndPbacIntegrationTest {
 
         mockMvc.perform(post("/api/v1/sales/" + UUID.randomUUID() + "/cancel")
                         .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("PBAC: Manager cannot process sales refunds (403 Forbidden - Admin only)")
+    void testManagerCannotProcessRefunds() throws Exception {
+        String manager = "mgr_refund_" + UUID.randomUUID().toString().substring(0, 8);
+        UUID mgrUuid = UUID.randomUUID();
+        Long mgrId = userManagementRepository.create(manager, manager + "@example.com", passwordEncoder.encode("Test@123"), mgrUuid);
+        userManagementRepository.replaceRoles(mgrId, Set.of("MANAGER"));
+
+        String token = createBearerToken(manager, List.of("MANAGER"), mgrId);
+
+        mockMvc.perform(post("/api/v1/sales-returns/" + UUID.randomUUID() + "/refund")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refundMethod\": \"CASH\"}"))
                 .andExpect(status().isForbidden());
     }
 
@@ -425,18 +463,10 @@ class ApiAuthorizationAndPbacIntegrationTest {
                         .content(objectMapper.writeValueAsString(new UserStatusRequest(false))))
                 .andExpect(status().isOk());
 
-        // Now try to deactivate soleAdmin using a temporarily enabled admin or check service
-        // Let's create an external admin caller that does not have the target id
-        String auditorUser = "auditor_adm_" + UUID.randomUUID().toString().substring(0, 8);
-        UUID auditorUuid = UUID.randomUUID();
-        Long auditorId = userManagementRepository.create(auditorUser, auditorUser + "@example.com", passwordEncoder.encode("Test@123"), auditorUuid);
-        userManagementRepository.replaceRoles(auditorId, Set.of("MANAGER")); // Not an admin!
-
-        // If caller is an admin, attempting to deactivate soleAdmin when soleAdmin is the ONLY admin:
-        // Let's re-enable callerAdmin to be the caller:
+        // Re-enable callerAdmin to be the caller:
         userManagementRepository.updateEnabled(callerAdminUuid, true);
-        // Now there are 2 active admins (soleAdmin and callerAdmin).
-        // Let's deactivate soleAdmin -> succeeds (leaves 1 admin)
+
+        // Deactivate soleAdmin -> succeeds (leaves callerAdmin active)
         mockMvc.perform(patch("/api/v1/admin/users/" + soleAdminUuid + "/status")
                         .header("Authorization", "Bearer " + createBearerToken(callerAdminUser, List.of("ADMIN"), callerAdminId))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -448,11 +478,8 @@ class ApiAuthorizationAndPbacIntegrationTest {
         userManagementRepository.updateEnabled(soleAdminUuid, true);
         userManagementRepository.updateEnabled(callerAdminUuid, false);
 
-        // Now soleAdmin is the SOLE active admin in the system!
-        // If another caller (e.g., manager with USERS.STATUS_UPDATE, or another authenticated admin) tries to deactivate soleAdmin:
-        // Set callerAdmin as active ADMIN again to test deactivation of soleAdmin when callerAdmin is disabled:
         // Because callerAdmin is disabled, countActiveAdmins is exactly 1 (soleAdmin)!
-        // If caller was an admin token:
+        // Attempting to deactivate soleAdmin now must fail with 409 Conflict:
         mockMvc.perform(patch("/api/v1/admin/users/" + soleAdminUuid + "/status")
                         .header("Authorization", "Bearer " + createBearerToken(callerAdminUser, List.of("ADMIN"), callerAdminId))
                         .contentType(MediaType.APPLICATION_JSON)

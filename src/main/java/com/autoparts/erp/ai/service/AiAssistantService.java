@@ -45,122 +45,82 @@ import com.autoparts.erp.ai.exception.AiAgentExecutionTimeoutException;
 @Service
 public class AiAssistantService {
 
-    private final ErpAiAgentService erpAiAgentService;
-    private final AiRepository aiRepository;
-    private final TransactionTemplate transactionTemplate;
-    @Autowired
-    private AiRateLimiterService aiRateLimiterService =
-            new AiRateLimiterService(20, 60, 10, 10000, System::nanoTime);
-    @Autowired
-    private AiMetricsService aiMetricsService = new AiMetricsService();
-    @Autowired
-    private AiConversationHistoryBudget historyBudget = new AiConversationHistoryBudget();
-    private static final Logger log =
-            LoggerFactory.getLogger(AiAssistantService.class);
+	private final ErpAiAgentService erpAiAgentService;
+	private final AiRepository aiRepository;
+	private final TransactionTemplate transactionTemplate;
+	@Autowired
+	private AiRateLimiterService aiRateLimiterService = new AiRateLimiterService(20, 60, 10, 10000, System::nanoTime);
+	@Autowired
+	private AiMetricsService aiMetricsService = new AiMetricsService();
+	@Autowired
+	private AiConversationHistoryBudget historyBudget = new AiConversationHistoryBudget();
+	private static final Logger log = LoggerFactory.getLogger(AiAssistantService.class);
 
-    public AiAssistantService(
-            ErpAiAgentService erpAiAgentService,
-            AiRepository aiRepository,
-            PlatformTransactionManager transactionManager
-    ) {
-        this.erpAiAgentService = erpAiAgentService;
-        this.aiRepository = aiRepository;
-        this.transactionTemplate = new TransactionTemplate(transactionManager);
-    }
+	public AiAssistantService(ErpAiAgentService erpAiAgentService, AiRepository aiRepository,
+			PlatformTransactionManager transactionManager) {
+		this.erpAiAgentService = erpAiAgentService;
+		this.aiRepository = aiRepository;
+		this.transactionTemplate = new TransactionTemplate(transactionManager);
+	}
 
-    // ---------------------------------------------
-    // CHAT
-    // ---------------------------------------------
+	// ---------------------------------------------
+	// CHAT
+	// ---------------------------------------------
 
-    public AiChatResponse chat(
-            UUID conversationId,
-            String message,
-            String userSubject
-    ) {
-        return chat(
-                conversationId,
-                message,
-                userSubject,
-                ErpAiContextHolder.getContext().orElse(null)
-        );
-    }
+	public AiChatResponse chat(UUID conversationId, String message, String userSubject) {
+		return chat(conversationId, message, userSubject, ErpAiContextHolder.getContext().orElse(null));
+	}
 
-    public AiChatResponse chat(
-            UUID conversationId,
-            String message,
-            String userSubject,
-            ErpAiExecutionContext executionContext
-    ) {
-        long requestStarted = System.nanoTime();
-        try {
-            return chatInternal(conversationId, message, userSubject, executionContext);
-        } finally {
-            aiMetricsService.recordRequestDuration(System.nanoTime() - requestStarted);
-        }
-    }
+	public AiChatResponse chat(UUID conversationId, String message, String userSubject,
+			ErpAiExecutionContext executionContext) {
+		long requestStarted = System.nanoTime();
+		try {
+			return chatInternal(conversationId, message, userSubject, executionContext);
+		} finally {
+			aiMetricsService.recordRequestDuration(System.nanoTime() - requestStarted);
+		}
+	}
 
-    private AiChatResponse chatInternal(
-            UUID conversationId,
-            String message,
-            String userSubject,
-            ErpAiExecutionContext executionContext
-    ) {
+	private AiChatResponse chatInternal(UUID conversationId, String message, String userSubject,
+			ErpAiExecutionContext executionContext) {
 
-        validateMessage(message);
-        validateUserSubject(userSubject);
-        aiRateLimiterService.checkUserRequest(userSubject);
-        if (executionContext == null) {
-            throw new AccessDeniedException(
-                    "Trusted AI execution context is required"
-            );
-        }
+		validateMessage(message);
+		validateUserSubject(userSubject);
+		aiRateLimiterService.checkUserRequest(userSubject);
+		if (executionContext == null) {
+			throw new AccessDeniedException("Trusted AI execution context is required");
+		}
 
-        if (!userSubject.equals(executionContext.userSubject())) {
-            throw new AccessDeniedException(
-                    "Execution context userSubject does not match authenticated user"
-            );
-        }
+		if (!userSubject.equals(executionContext.userSubject())) {
+			throw new AccessDeniedException("Execution context userSubject does not match authenticated user");
+		}
 
-        UUID activeConversationId = conversationId;
+		UUID activeConversationId = conversationId;
 
-        // Create a new conversation if conversationId is null.
-        if (activeConversationId == null) {
+		// Create a new conversation if conversationId is null.
+		if (activeConversationId == null) {
 
-            activeConversationId = UUID.randomUUID();
+			activeConversationId = UUID.randomUUID();
 
-            String title = generateConversationTitle(message);
+			String title = generateConversationTitle(message);
 
-            aiRepository.createConversation(
-                    activeConversationId,
-                    userSubject,
-                    title
-            );
+			aiRepository.createConversation(activeConversationId, userSubject, title);
 
-        } else {
+		} else {
 
-            // Verify conversation ownership.
-            boolean exists = aiRepository.conversationExists(
-                    activeConversationId,
-                    userSubject
-            );
+			// Verify conversation ownership.
+			boolean exists = aiRepository.conversationExists(activeConversationId, userSubject);
 
-            if (!exists) {
-                throw new AccessDeniedException(
-                        "Conversation not found or access denied"
-                );
-            }
-        }
+			if (!exists) {
+				throw new AccessDeniedException("Conversation not found or access denied");
+			}
+		}
 
-        // Save user message.
-        aiRepository.saveMessage(
-                activeConversationId,
-                "USER",
-                message
-        );
+		// Save user message.
+		aiRepository.saveMessage(activeConversationId, "USER", message);
 
-        // Load conversation history.
-        List<Map<String, Object>> history =
-                aiRepository.getMessages(activeConversationId);
+		// Load conversation history.
+		List<Map<String, Object>> history = aiRepository.getMessages(activeConversationId);
 
 //        List<Message> messages = new ArrayList<>();
 
@@ -178,540 +138,356 @@ public class AiAssistantService {
 //                messages.add(new AssistantMessage(content));
 //            }
 //        }
-        
-        List<Message> messages = history.stream()
-                .map(this::mapToSpringAiMessage)
-                .toList();
-        messages = historyBudget.trim(messages);
-
-        // Create agent execution record.
-        UUID runId = aiRepository.createAgentRun(
-                activeConversationId,
-                userSubject
-        );
-
-        ErpAiExecutionContext effectiveContext = executionContext;
-        if (effectiveContext != null) {
-            if (!userSubject.equals(effectiveContext.userSubject())) {
-                log.warn(
-                        "AI execution context userSubject mismatch rejected. Authenticated: '{}', Context: '{}', Conversation: {}",
-                        userSubject,
-                        effectiveContext.userSubject(),
-                        activeConversationId
-                );
-                throw new AccessDeniedException(
-                        "Security context userSubject does not match authenticated user."
-                );
-            }
-
-            if (!activeConversationId.equals(effectiveContext.conversationId())) {
-                effectiveContext = ErpAiExecutionContext.create(
-                        activeConversationId,
-                        userSubject,
-                        effectiveContext.authorities()
-                );
-            }
-        }
-
-        try {
-
-            // Execute LangGraph4j agent with propagated execution context.
-        	String assistantResponse = erpAiAgentService.chat(
-        	        activeConversationId,
-        	        runId,
-        	        messages,
-        	        effectiveContext
-        	);
-        	
-            if (!StringUtils.hasText(assistantResponse)) {
-                throw new IllegalStateException(
-                        "AI agent returned an empty response"
-                );
-            }
-
-            completeRunAndSaveAssistantMessage(
-                    activeConversationId,
-                    runId,
-                    assistantResponse
-            );
-
-            return new AiChatResponse(
-                    activeConversationId,
-                    assistantResponse,
-                    Instant.now()
-            );
-
-        } catch (AiAgentRunCompletionException exception) {
-            log.error(
-                    "Unable to persist AI agent completion. Conversation: {}, Run: {}",
-                    activeConversationId,
-                    runId,
-                    exception
-            );
-            throw exception;
-
-        } catch (AiExecutionInProgressException exception) {
-            log.info(
-                    "AI execution rejected because the conversation is already active. Conversation: {}, Run: {}",
-                    activeConversationId,
-                    runId
-            );
-            recordStatusPreservingException(
-                    runId,
-                    AiAgentRunStatus.FAILED,
-                    exception.getMessage(),
-                    exception
-            );
-            throw exception;
-
-        } catch (AiAgentExecutionTimeoutException exception) {
-
-            log.warn(
-                    "AI agent execution timed out. Conversation: {}, Run: {}",
-                    activeConversationId,
-                    runId
-            );
-
-            recordStatusPreservingException(
-                    runId,
-                    AiAgentRunStatus.FAILED,
-                    exception.getMessage(),
-                    exception
-            );
-
-            throw new AiProviderTimeoutException(
-                    "AI agent execution exceeded the configured time limit. Please try again.",
-                    exception
-            );
-        } catch (CancellationException exception) {
-
-            log.info(
-                    "AI agent execution cancelled. Conversation: {}, Run: {}",
-                    activeConversationId,
-                    runId
-            );
-
-            recordStatusPreservingException(
-                    runId,
-                    AiAgentRunStatus.CANCELLED,
-                    "Execution cancelled by user",
-                    exception
-            );
-
-            throw exception;
-
-        } catch (RuntimeException exception) {
-
-            log.error(
-                    "AI agent execution failed. Conversation: {}, Run: {}",
-                    activeConversationId,
-                    runId,
-                    exception
-            );
-
-            String errorMessage = exception.getMessage();
-
-            if (!StringUtils.hasText(errorMessage)) {
-                errorMessage = "AI agent execution failed";
-            }
-
-            if (errorMessage.length() > 1000) {
-                errorMessage = errorMessage.substring(0, 1000);
-            }
-
-            recordStatusPreservingException(
-                    runId,
-                    AiAgentRunStatus.FAILED,
-                    errorMessage,
-                    exception
-            );
-
-            if (isTimeoutException(exception)) {
-                throw new AiProviderTimeoutException(
-                        "Sarvam AI provider request timed out. Please try again.",
-                        exception
-                );
-            }
-
-            AiProviderResponseException providerResponseException =
-                    findCause(exception, AiProviderResponseException.class);
-            if (providerResponseException != null) {
-                throw new AiProviderResponseException(
-                        providerResponseException.getMessage(),
-                        exception
-                );
-            }
-
-            throw exception;
-        }
-    }
-
-    private static <T extends Throwable> T findCause(
-            Throwable exception,
-            Class<T> exceptionType
-    ) {
-        Throwable current = exception;
-
-        while (current != null) {
-            if (exceptionType.isInstance(current)) {
-                return exceptionType.cast(current);
-            }
-            current = current.getCause();
-        }
-
-        return null;
-    }
-
-    private void completeRunAndSaveAssistantMessage(
-            UUID conversationId,
-            UUID runId,
-            String assistantResponse) {
-        transactionTemplate.execute(status -> {
-            int updated = aiRepository.updateAgentRunStatus(
-                    runId,
-                    AiAgentRunStatus.COMPLETED,
-                    null
-            );
-
-            if (updated != 1) {
-                AiAgentRun persistedRun = aiRepository.getAgentRun(runId);
-                if (updated == 0
-                        && persistedRun != null
-                        && persistedRun.status() == AiAgentRunStatus.COMPLETED) {
-                    return null;
-                }
-
-                String persistedStatus = persistedRun == null
-                        ? "missing"
-                        : persistedRun.status().name();
-                throw new AiAgentRunCompletionException(
-                        "Unable to mark AI agent run "
-                                + runId
-                                + " as COMPLETED; persisted status is "
-                                + persistedStatus
-                );
-            }
-
-            aiRepository.saveMessage(
-                    conversationId,
-                    "ASSISTANT",
-                    assistantResponse
-            );
-            return null;
-        });
-    }
-
-    private void recordStatusPreservingException(
-            UUID runId,
-            AiAgentRunStatus status,
-            String errorMessage,
-            RuntimeException originalException) {
-        try {
-            aiRepository.updateAgentRunStatus(runId, status, errorMessage);
-        } catch (RuntimeException | Error persistenceFailure) {
-            if (persistenceFailure != originalException) {
-                originalException.addSuppressed(persistenceFailure);
-            }
-            log.error(
-                    "Unable to persist AI agent run status {} for run {}",
-                    status,
-                    runId,
-                    persistenceFailure
-            );
-        }
-    }
-
-    private static class AiAgentRunCompletionException extends IllegalStateException {
-
-        private AiAgentRunCompletionException(String message) {
-            super(message);
-        }
-    }
-    
-    private Message mapToSpringAiMessage(Map<String, Object> row) {
-
-        String role = String.valueOf(row.get("role"));
-        String content = String.valueOf(row.get("content"));
-
-        return switch (role.toUpperCase()) {
-            case "USER" -> new UserMessage(content);
-            case "ASSISTANT" -> new AssistantMessage(content);
-            default -> throw new IllegalArgumentException(
-                    "Unsupported message role: " + role
-            );
-        };
-    }
-    // ---------------------------------------------
-    // GET ALL CONVERSATIONS
-    // ---------------------------------------------
-
-    @Deprecated(since = "2.0")
-    public List<AiConversationResponse> getConversations(
-            String userSubject
-    ) {
-
-        validateUserSubject(userSubject);
-
-        return aiRepository.getConversations(userSubject);
-    }
-
-    public PageResponse<AiConversationResponse> getConversationsPaged(
-            String userSubject,
-            int page,
-            int size,
-            String sortBy,
-            String sortDir
-    ) {
-        validateUserSubject(userSubject);
-
-        int safePage = Math.max(page, 0);
-        int safeSize = (size <= 0) ? 20 : Math.min(size, 100);
-        int offset = PaginationUtils.calculateOffsetForNormalized(safePage, safeSize);
-
-        List<AiConversationResponse> content = aiRepository.getConversationsPaged(
-                userSubject,
-                offset,
-                safeSize,
-                sortBy,
-                sortDir
-        );
-
-        long total = aiRepository.countConversations(userSubject);
-
-        return PageResponse.of(content, safePage, safeSize, total);
-    }
-
-    // ---------------------------------------------
-    // GET CONVERSATION MESSAGES
-    // ---------------------------------------------
-
-    public AiConversationMessagesResponse getConversationMessages(
-            UUID conversationId,
-            String userSubject
-    ) {
-
-        validateUserSubject(userSubject);
-        validateConversationOwnership(conversationId, userSubject);
-
-        List<AiMessageResponse> messages =
-                aiRepository.getConversationMessages(conversationId);
-
-        return new AiConversationMessagesResponse(
-                conversationId,
-                messages
-        );
-    }
-
-    // ---------------------------------------------
-    // RENAME CONVERSATION
-    // ---------------------------------------------
-
-    @Transactional
-    public AiConversationResponse renameConversation(
-            UUID conversationId,
-            String userSubject,
-            String title
-    ) {
-
-        validateUserSubject(userSubject);
-
-        if (conversationId == null) {
-            throw new ClientValidationException(
-                    "Conversation ID is required"
-            );
-        }
-
-        if (!StringUtils.hasText(title)) {
-            throw new ClientValidationException(
-                    "Conversation title cannot be empty"
-            );
-        }
-
-        String cleanTitle = title.trim();
-
-        if (cleanTitle.length() > 200) {
-            throw new ClientValidationException(
-                    "Conversation title cannot exceed 200 characters"
-            );
-        }
-
-        int updatedRows = aiRepository.updateConversationTitle(
-                conversationId,
-                userSubject,
-                cleanTitle
-        );
-
-        if (updatedRows == 0) {
-            throw new AccessDeniedException(
-                    "Conversation not found or access denied"
-            );
-        }
-
-        AiConversationResponse updatedConversation =
-                aiRepository.getConversationById(
-                        conversationId,
-                        userSubject
-                );
-
-        if (updatedConversation == null) {
-            throw new AccessDeniedException(
-                    "Conversation not found or access denied"
-            );
-        }
-
-        return updatedConversation;
-    }
-
-    // ---------------------------------------------
-    // ARCHIVE CONVERSATION
-    // ---------------------------------------------
-
-    @Transactional
-    public void archiveConversation(
-            UUID conversationId,
-            String userSubject
-    ) {
-
-        validateUserSubject(userSubject);
-
-        if (conversationId == null) {
-            throw new ClientValidationException(
-                    "Conversation ID is required"
-            );
-        }
-
-        int updatedRows = aiRepository.archiveConversation(
-                conversationId,
-                userSubject
-        );
-
-        if (updatedRows == 0) {
-            throw new AccessDeniedException(
-                    "Conversation not found or access denied"
-            );
-        }
-    }
-
-    // ---------------------------------------------
-    // COMMON VALIDATION
-    // ---------------------------------------------
-
-    private void validateMessage(String message) {
-
-        if (!StringUtils.hasText(message)) {
-            throw new ClientValidationException(
-                    "Chat message cannot be empty"
-            );
-        }
-        if (message.length() > 8000) {
-            throw new ClientValidationException("Chat message cannot exceed 8000 characters");
-        }
-    }
-
-    private void validateUserSubject(String userSubject) {
-
-        if (!StringUtils.hasText(userSubject)) {
-            throw new AccessDeniedException(
-                    "Authenticated user is required"
-            );
-        }
-    }
-
-    private void validateConversationOwnership(
-            UUID conversationId,
-            String userSubject
-    ) {
-
-        if (conversationId == null
-                || !aiRepository.conversationExists(
-                        conversationId,
-                        userSubject
-                )) {
-
-            throw new AccessDeniedException(
-                    "Conversation not found or access denied"
-            );
-        }
-    }
-
-    private String generateConversationTitle(String message) {
-
-        String title = message.trim();
-
-        if (title.length() > 100) {
-            title = title.substring(0, 100);
-        }
-
-        return title;
-    }
-    
-    private boolean isTimeoutException(Throwable exception) {
-
-        Throwable current = exception;
-
-        while (current != null) {
-
-            if (current instanceof java.net.SocketTimeoutException
-                    || current instanceof java.net.http.HttpTimeoutException) {
-                return true;
-            }
-
-            String className = current.getClass().getSimpleName();
-            String message = current.getMessage();
-
-            if ("InterruptedIOException".equals(className)
-                    && message != null
-                    && message.toLowerCase().contains("timeout")) {
-                return true;
-            }
-
-            current = current.getCause();
-        }
-
-        return false;
-    }
-    
-    public boolean cancel(
-            UUID conversationId,
-            String userSubject
-    ) {
-
-        validateUserSubject(userSubject);
-
-        boolean exists = aiRepository.conversationExists(
-                conversationId,
-                userSubject
-        );
-
-        if (!exists) {
-            throw new AccessDeniedException(
-                    "Conversation not found or access denied"
-            );
-        }
-
-        Optional<UUID> runIdOptional =
-                erpAiAgentService.cancel(conversationId);
-
-        if (runIdOptional.isEmpty()) {
-            return false;
-        }
-
-        UUID runId = runIdOptional.get();
-
-        int updated = aiRepository.updateAgentRunStatus(
-                runId,
-                AiAgentRunStatus.CANCELLED,
-                "Execution cancelled by user"
-        );
-
-        if (updated == 1) {
-            return true;
-        }
-
-        // Another thread may already have changed the status.
-        AiAgentRun run = aiRepository.getAgentRun(runId);
-
-        return run != null
-                && run.status() == AiAgentRunStatus.CANCELLED;
-    }
+
+		List<Message> messages = history.stream().map(this::mapToSpringAiMessage).toList();
+		messages = historyBudget.trim(messages);
+
+		// Create agent execution record.
+		UUID runId = aiRepository.createAgentRun(activeConversationId, userSubject);
+
+		ErpAiExecutionContext effectiveContext = executionContext;
+		if (effectiveContext != null) {
+			if (!userSubject.equals(effectiveContext.userSubject())) {
+				log.warn(
+						"AI execution context userSubject mismatch rejected. Authenticated: '{}', Context: '{}', Conversation: {}",
+						userSubject, effectiveContext.userSubject(), activeConversationId);
+				throw new AccessDeniedException("Security context userSubject does not match authenticated user.");
+			}
+
+			if (!activeConversationId.equals(effectiveContext.conversationId())) {
+				effectiveContext = ErpAiExecutionContext.create(activeConversationId, userSubject,
+						effectiveContext.authorities());
+			}
+		}
+
+		try {
+
+			// Execute LangGraph4j agent with propagated execution context.
+			String assistantResponse = erpAiAgentService.chat(activeConversationId, runId, messages, effectiveContext);
+
+			if (!StringUtils.hasText(assistantResponse)) {
+				throw new IllegalStateException("AI agent returned an empty response");
+			}
+
+			completeRunAndSaveAssistantMessage(activeConversationId, runId, assistantResponse);
+
+			return new AiChatResponse(activeConversationId, assistantResponse, Instant.now());
+
+		} catch (AiAgentRunCompletionException exception) {
+			log.error("Unable to persist AI agent completion. Conversation: {}, Run: {}", activeConversationId, runId,
+					exception);
+			throw exception;
+
+		} catch (AiExecutionInProgressException exception) {
+			log.info("AI execution rejected because the conversation is already active. Conversation: {}, Run: {}",
+					activeConversationId, runId);
+			recordStatusPreservingException(runId, AiAgentRunStatus.FAILED, exception.getMessage(), exception);
+			throw exception;
+
+		} catch (AiAgentExecutionTimeoutException exception) {
+
+			log.warn("AI agent execution timed out. Conversation: {}, Run: {}", activeConversationId, runId);
+
+			recordStatusPreservingException(runId, AiAgentRunStatus.FAILED, exception.getMessage(), exception);
+
+			throw new AiProviderTimeoutException(
+					"AI agent execution exceeded the configured time limit. Please try again.", exception);
+		} catch (CancellationException exception) {
+
+			log.info("AI agent execution cancelled. Conversation: {}, Run: {}", activeConversationId, runId);
+
+			recordStatusPreservingException(runId, AiAgentRunStatus.CANCELLED, "Execution cancelled by user",
+					exception);
+
+			throw exception;
+
+		} catch (RuntimeException exception) {
+
+			log.error("AI agent execution failed. Conversation: {}, Run: {}", activeConversationId, runId, exception);
+
+			String errorMessage = exception.getMessage();
+
+			if (!StringUtils.hasText(errorMessage)) {
+				errorMessage = "AI agent execution failed";
+			}
+
+			if (errorMessage.length() > 1000) {
+				errorMessage = errorMessage.substring(0, 1000);
+			}
+
+			recordStatusPreservingException(runId, AiAgentRunStatus.FAILED, errorMessage, exception);
+
+			if (isTimeoutException(exception)) {
+				throw new AiProviderTimeoutException("Sarvam AI provider request timed out. Please try again.",
+						exception);
+			}
+
+			AiProviderResponseException providerResponseException = findCause(exception,
+					AiProviderResponseException.class);
+			if (providerResponseException != null) {
+				throw new AiProviderResponseException(providerResponseException.getMessage(), exception);
+			}
+
+			throw exception;
+		}
+	}
+
+	private static <T extends Throwable> T findCause(Throwable exception, Class<T> exceptionType) {
+		Throwable current = exception;
+
+		while (current != null) {
+			if (exceptionType.isInstance(current)) {
+				return exceptionType.cast(current);
+			}
+			current = current.getCause();
+		}
+
+		return null;
+	}
+
+	private void completeRunAndSaveAssistantMessage(UUID conversationId, UUID runId, String assistantResponse) {
+		transactionTemplate.execute(status -> {
+			int updated = aiRepository.updateAgentRunStatus(runId, AiAgentRunStatus.COMPLETED, null);
+
+			if (updated != 1) {
+				AiAgentRun persistedRun = aiRepository.getAgentRun(runId);
+				if (updated == 0 && persistedRun != null && persistedRun.status() == AiAgentRunStatus.COMPLETED) {
+					return null;
+				}
+
+				String persistedStatus = persistedRun == null ? "missing" : persistedRun.status().name();
+				throw new AiAgentRunCompletionException("Unable to mark AI agent run " + runId
+						+ " as COMPLETED; persisted status is " + persistedStatus);
+			}
+
+			aiRepository.saveMessage(conversationId, "ASSISTANT", assistantResponse);
+			return null;
+		});
+	}
+
+	private void recordStatusPreservingException(UUID runId, AiAgentRunStatus status, String errorMessage,
+			RuntimeException originalException) {
+		try {
+			aiRepository.updateAgentRunStatus(runId, status, errorMessage);
+		} catch (RuntimeException | Error persistenceFailure) {
+			if (persistenceFailure != originalException) {
+				originalException.addSuppressed(persistenceFailure);
+			}
+			log.error("Unable to persist AI agent run status {} for run {}", status, runId, persistenceFailure);
+		}
+	}
+
+	private static class AiAgentRunCompletionException extends IllegalStateException {
+
+		private AiAgentRunCompletionException(String message) {
+			super(message);
+		}
+	}
+
+	private Message mapToSpringAiMessage(Map<String, Object> row) {
+
+		String role = String.valueOf(row.get("role"));
+		String content = String.valueOf(row.get("content"));
+
+		return switch (role.toUpperCase()) {
+		case "USER" -> new UserMessage(content);
+		case "ASSISTANT" -> new AssistantMessage(content);
+		default -> throw new IllegalArgumentException("Unsupported message role: " + role);
+		};
+	}
+	// ---------------------------------------------
+	// GET ALL CONVERSATIONS
+	// ---------------------------------------------
+
+	@Deprecated(since = "2.0")
+	public List<AiConversationResponse> getConversations(String userSubject) {
+
+		validateUserSubject(userSubject);
+
+		return aiRepository.getConversations(userSubject);
+	}
+
+	public PageResponse<AiConversationResponse> getConversationsPaged(String userSubject, int page, int size,
+			String sortBy, String sortDir) {
+		validateUserSubject(userSubject);
+
+		int safePage = Math.max(page, 0);
+		int safeSize = (size <= 0) ? 20 : Math.min(size, 100);
+		int offset = PaginationUtils.calculateOffsetForNormalized(safePage, safeSize);
+
+		List<AiConversationResponse> content = aiRepository.getConversationsPaged(userSubject, offset, safeSize, sortBy,
+				sortDir);
+
+		long total = aiRepository.countConversations(userSubject);
+
+		return PageResponse.of(content, safePage, safeSize, total);
+	}
+
+	// ---------------------------------------------
+	// GET CONVERSATION MESSAGES
+	// ---------------------------------------------
+
+	public AiConversationMessagesResponse getConversationMessages(UUID conversationId, String userSubject) {
+
+		validateUserSubject(userSubject);
+		validateConversationOwnership(conversationId, userSubject);
+
+		List<AiMessageResponse> messages = aiRepository.getConversationMessages(conversationId);
+
+		return new AiConversationMessagesResponse(conversationId, messages);
+	}
+
+	// ---------------------------------------------
+	// RENAME CONVERSATION
+	// ---------------------------------------------
+
+	@Transactional
+	public AiConversationResponse renameConversation(UUID conversationId, String userSubject, String title) {
+
+		validateUserSubject(userSubject);
+
+		if (conversationId == null) {
+			throw new ClientValidationException("Conversation ID is required");
+		}
+
+		if (!StringUtils.hasText(title)) {
+			throw new ClientValidationException("Conversation title cannot be empty");
+		}
+
+		String cleanTitle = title.trim();
+
+		if (cleanTitle.length() > 200) {
+			throw new ClientValidationException("Conversation title cannot exceed 200 characters");
+		}
+
+		int updatedRows = aiRepository.updateConversationTitle(conversationId, userSubject, cleanTitle);
+
+		if (updatedRows == 0) {
+			throw new AccessDeniedException("Conversation not found or access denied");
+		}
+
+		AiConversationResponse updatedConversation = aiRepository.getConversationById(conversationId, userSubject);
+
+		if (updatedConversation == null) {
+			throw new AccessDeniedException("Conversation not found or access denied");
+		}
+
+		return updatedConversation;
+	}
+
+	// ---------------------------------------------
+	// ARCHIVE CONVERSATION
+	// ---------------------------------------------
+
+	@Transactional
+	public void archiveConversation(UUID conversationId, String userSubject) {
+
+		validateUserSubject(userSubject);
+
+		if (conversationId == null) {
+			throw new ClientValidationException("Conversation ID is required");
+		}
+
+		int updatedRows = aiRepository.archiveConversation(conversationId, userSubject);
+
+		if (updatedRows == 0) {
+			throw new AccessDeniedException("Conversation not found or access denied");
+		}
+	}
+
+	// ---------------------------------------------
+	// COMMON VALIDATION
+	// ---------------------------------------------
+
+	private void validateMessage(String message) {
+
+		if (!StringUtils.hasText(message)) {
+			throw new ClientValidationException("Chat message cannot be empty");
+		}
+		if (message.length() > 8000) {
+			throw new ClientValidationException("Chat message cannot exceed 8000 characters");
+		}
+	}
+
+	private void validateUserSubject(String userSubject) {
+
+		if (!StringUtils.hasText(userSubject)) {
+			throw new AccessDeniedException("Authenticated user is required");
+		}
+	}
+
+	private void validateConversationOwnership(UUID conversationId, String userSubject) {
+
+		if (conversationId == null || !aiRepository.conversationExists(conversationId, userSubject)) {
+
+			throw new AccessDeniedException("Conversation not found or access denied");
+		}
+	}
+
+	private String generateConversationTitle(String message) {
+
+		String title = message.trim();
+
+		if (title.length() > 100) {
+			title = title.substring(0, 100);
+		}
+
+		return title;
+	}
+
+	private boolean isTimeoutException(Throwable exception) {
+
+		Throwable current = exception;
+
+		while (current != null) {
+
+			if (current instanceof java.net.SocketTimeoutException
+					|| current instanceof java.net.http.HttpTimeoutException) {
+				return true;
+			}
+
+			String className = current.getClass().getSimpleName();
+			String message = current.getMessage();
+
+			if ("InterruptedIOException".equals(className) && message != null
+					&& message.toLowerCase().contains("timeout")) {
+				return true;
+			}
+
+			current = current.getCause();
+		}
+
+		return false;
+	}
+
+	public boolean cancel(UUID conversationId, String userSubject) {
+
+		validateUserSubject(userSubject);
+
+		boolean exists = aiRepository.conversationExists(conversationId, userSubject);
+
+		if (!exists) {
+			throw new AccessDeniedException("Conversation not found or access denied");
+		}
+
+		Optional<UUID> runIdOptional = erpAiAgentService.cancel(conversationId);
+
+		if (runIdOptional.isEmpty()) {
+			return false;
+		}
+
+		UUID runId = runIdOptional.get();
+
+		int updated = aiRepository.updateAgentRunStatus(runId, AiAgentRunStatus.CANCELLED,
+				"Execution cancelled by user");
+
+		if (updated == 1) {
+			return true;
+		}
+
+		// Another thread may already have changed the status.
+		AiAgentRun run = aiRepository.getAgentRun(runId);
+
+		return run != null && run.status() == AiAgentRunStatus.CANCELLED;
+	}
 }

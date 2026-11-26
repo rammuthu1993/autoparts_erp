@@ -45,7 +45,7 @@ class ActuatorAndOpenApiIntegrationTest {
     static void configureProperties(DynamicPropertyRegistry registry) {
         String dbUser = resolveSecret("DB_USERNAME", "postgres");
         String dbPass = resolveSecret("DB_PASSWORD", "postgres");
-        String aiReaderPass = resolveSecret("AI_TOOL_DB_PASSWORD", "Muthu@1512");
+        String aiReaderPass = resolveSecret("AI_TOOL_DB_PASSWORD", "postgres");
 
         registry.add("DB_URL", () -> TEST_DB_URL);
         registry.add("DB_USERNAME", () -> dbUser);

@@ -234,6 +234,7 @@ public class ProductBrandServiceImpl implements ProductBrandService {
 
         return new BrandResponse(
             brand.id(),
+            brand.uuid(),
             brand.name(),
             brand.description(),
             brand.active(),

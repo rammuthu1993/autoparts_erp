@@ -411,29 +411,40 @@ public class UserServiceImpl implements UserService {
 
         ManagedUser existing = getRequiredUser(uuid);
 
-        if (currentUserService != null && permissionRepository != null) {
+        if (currentUserService != null) {
             Long currentUserId = currentUserService.getCurrentUserId();
-            Set<String> callerRoles = permissionRepository.findRoleNamesByUserId(currentUserId);
-            Set<String> targetRoles = existing.roles();
 
-            boolean callerIsAdmin = callerRoles.contains("ADMIN");
-            boolean callerIsManager = callerRoles.contains("MANAGER");
+            // Self-reset prevention: Cannot use administrative reset on oneself
+            if (currentUserId != null && currentUserId.equals(existing.id())) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Self-reset is not allowed through the administrative reset endpoint. Use the change-password endpoint instead."
+                );
+            }
 
-            if (callerIsAdmin) {
-                // Administrator may reset anyone's password
-            } else if (callerIsManager) {
-                // Manager may only reset Cashier passwords (cannot reset Admin or Manager)
-                if (targetRoles.contains("ADMIN") || targetRoles.contains("MANAGER")) {
+            if (permissionRepository != null) {
+                Set<String> callerRoles = permissionRepository.findRoleNamesByUserId(currentUserId);
+                Set<String> targetRoles = existing.roles();
+
+                boolean callerIsAdmin = callerRoles.contains("ADMIN");
+                boolean callerIsManager = callerRoles.contains("MANAGER");
+
+                if (callerIsAdmin) {
+                    // Administrator may reset subordinate users
+                } else if (callerIsManager) {
+                    // Manager may only reset Cashier passwords (cannot reset Admin or Manager)
+                    if (targetRoles.contains("ADMIN") || targetRoles.contains("MANAGER")) {
+                        throw new ResponseStatusException(
+                                HttpStatus.FORBIDDEN,
+                                "Managers may only reset passwords for Cashiers"
+                        );
+                    }
+                } else {
                     throw new ResponseStatusException(
                             HttpStatus.FORBIDDEN,
-                            "Managers may only reset passwords for Cashiers"
+                            "Access denied"
                     );
                 }
-            } else {
-                throw new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "Access denied"
-                );
             }
         }
 
