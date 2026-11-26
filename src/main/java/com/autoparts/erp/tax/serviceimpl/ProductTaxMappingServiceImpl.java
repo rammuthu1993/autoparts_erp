@@ -51,10 +51,8 @@ public class ProductTaxMappingServiceImpl
         ProductTaxMappingCreateRequest request
     ) {
 
-        validateEffectiveDates(
-            request.effectiveFrom(),
-            request.effectiveTo()
-        );
+        LocalDate effectiveFrom = request.effectiveFrom() == null ? LocalDate.now() : request.effectiveFrom();
+        validateEffectiveDates(effectiveFrom, request.effectiveTo());
 
         // Lock product row to serialize mapping changes for this product.
         Long productId = mappingRepository
@@ -63,21 +61,20 @@ public class ProductTaxMappingServiceImpl
                 TaxErrorCode.PRODUCT_NOT_FOUND
             ));
 
-        TaxRate taxRate = taxRateRepository
-            .findByUuid(request.taxRateUuid())
-            .orElseThrow(() -> new ApiException(
-                TaxErrorCode.TAX_RATE_NOT_FOUND
-            ));
+        TaxRate taxRate = (request.taxRateUuid() == null
+            ? taxRateRepository.findCurrentByGstRate(new java.math.BigDecimal("18.00"), effectiveFrom)
+            : taxRateRepository.findByUuid(request.taxRateUuid()))
+            .orElseThrow(() -> new ApiException(TaxErrorCode.TAX_RATE_NOT_FOUND));
 
         validateTaxRatePeriod(
             taxRate,
-            request.effectiveFrom(),
+            effectiveFrom,
             request.effectiveTo()
         );
 
         if (mappingRepository.existsOverlappingMapping(
             productId,
-            request.effectiveFrom(),
+            effectiveFrom,
             request.effectiveTo()
         )) {
             throw new ApiException(
@@ -93,7 +90,7 @@ public class ProductTaxMappingServiceImpl
                     productId,
                     taxRate.id(),
                     request.hsnCode(),
-                    request.effectiveFrom(),
+                    effectiveFrom,
                     request.effectiveTo()
                 );
 

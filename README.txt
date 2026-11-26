@@ -1,18 +1,19 @@
-Phase 4 product-search prefix fix
+Dynamic Sales Status Backend Patch
 
-Replace:
-src/main/java/com/autoparts/erp/ai/service/ErpAiIntentClassifier.java
+Copy the included src/ files over the matching paths in the backend project.
+Flyway migration V44 creates sales_statuses and sales_payment_statuses, seeds the
+requested status/payment values, replaces the old CHECK constraints with foreign
+keys, and preserves existing sales rows.
 
-This change adds removal of leading "matching" and "containing" qualifiers
-during iterative search-text cleanup. It preserves the existing classifier
-intent rules and does not modify LangGraph4j or tests.
+New read endpoints:
+- GET /api/v1/sales/status-options
+- GET /api/v1/sales/payment-status-options
 
-Expected:
-"Find products matching brake pad" -> PRODUCT_SEARCH, searchText "brake pad"
+Both endpoints require SALES.VIEW.
 
-Apply by extracting this ZIP into the project root:
-D:\Projects\autoparts-erp
+Draft balance is now grand_total - paid_amount and its payment status is calculated.
+Backend creation/completion/cancellation/payment logic checks that the applicable
+status code exists and is active in the corresponding master table.
 
-Then run:
-.\mvnw.cmd "-Dtest=ErpAiIntentClassifierTest" test
-.\mvnw.cmd clean test
+The lifecycle transition rules remain enforced by the sales service; the lookup
+tables drive the available status values and labels exposed to the UI.

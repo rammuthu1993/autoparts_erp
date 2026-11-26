@@ -28,6 +28,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import com.autoparts.erp.tax.service.ProductTaxMappingService;
 
 @ExtendWith(MockitoExtension.class)
 class MasterCollectionPaginationTest {
@@ -60,7 +61,8 @@ class MasterCollectionPaginationTest {
     void productFindPagedCapsMaxPageSizeAt100() {
         var service = new ProductServiceImpl(
                 productRepository,
-                mock(com.autoparts.erp.audit.service.AuditLogService.class)
+                mock(com.autoparts.erp.audit.service.AuditLogService.class),
+                mock(ProductTaxMappingService.class)
         );
 
         when(productRepository.findPaged(eq(0), eq(100), any(), any(), any(), any(), any()))
@@ -125,7 +127,8 @@ class MasterCollectionPaginationTest {
     void productFindPagedIntegerOverflowThrowsClientValidationException() {
         var service = new ProductServiceImpl(
                 productRepository,
-                mock(AuditLogService.class)
+                mock(AuditLogService.class),
+                mock(ProductTaxMappingService.class)
         );
 
         assertThrows(ClientValidationException.class, () ->

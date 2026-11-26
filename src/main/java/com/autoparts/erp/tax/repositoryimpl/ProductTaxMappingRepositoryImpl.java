@@ -152,7 +152,7 @@ public class ProductTaxMappingRepositoryImpl implements ProductTaxMappingReposit
             .addValue("uuid", uuid)
             .addValue("productId", productId)
             .addValue("taxRateId", taxRateId)
-            .addValue("hsnCode", hsnCode.trim())
+            .addValue("hsnCode", hsnCode == null || hsnCode.isBlank() ? null : hsnCode.trim())
             .addValue("effectiveFrom", effectiveFrom)
             .addValue("effectiveTo", effectiveTo);
 

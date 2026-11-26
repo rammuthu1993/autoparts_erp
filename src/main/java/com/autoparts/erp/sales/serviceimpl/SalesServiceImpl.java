@@ -103,27 +103,13 @@ public class SalesServiceImpl implements SalesService {
         );
 
         validateRequest(request);
+        requireConfiguredSalesStatus(SalesStatus.DRAFT);
 
         UUID saleUuid = UUID.randomUUID();
 
-        logger.info(
-            "Generating invoice number for sale date {}",
-            request.saleDate()
-        );
-
-        String invoiceNumber =
-            salesRepository.generateInvoiceNumber(request.saleDate());
-
-        if (salesRepository.existsInvoiceNumber(invoiceNumber)) {
-            logger.warn(
-                "Duplicate invoice number generated: {}",
-                invoiceNumber
-            );
-
-            throw new ApiException(
-                SalesErrorCode.SALES_DUPLICATE_INVOICE
-            );
-        }
+        // Drafts use a temporary identifier. GST invoice numbers are allocated
+        // only when the draft is confirmed/completed.
+        String invoiceNumber = "DRF-" + saleUuid.toString().substring(0, 8).toUpperCase();
 
         BigDecimal subtotal = BigDecimal.ZERO;
         BigDecimal totalDiscount = BigDecimal.ZERO;
@@ -297,7 +283,10 @@ public class SalesServiceImpl implements SalesService {
         sgstTotal = money(sgstTotal);
         igstTotal = money(igstTotal);
         taxTotal = money(taxTotal);
-        grandTotal = money(grandTotal);
+        BigDecimal calculatedGrandTotal = money(grandTotal);
+        grandTotal = calculatedGrandTotal
+            .setScale(0, RoundingMode.HALF_UP)
+            .setScale(MONEY_SCALE, RoundingMode.UNNECESSARY);
 
         BigDecimal paidAmount = calculatePaymentTotal(
             request.payments()
@@ -315,12 +304,11 @@ public class SalesServiceImpl implements SalesService {
             );
         }
 
-        BigDecimal balanceAmount = money(
-            grandTotal.subtract(paidAmount)
-        );
-
-        SalesPaymentStatus paymentStatus =
-            calculatePaymentStatus(paidAmount, grandTotal);
+        // Keep draft amounts visible. The draft balance is the invoice total
+        // less any advance amount recorded with the draft.
+        BigDecimal balanceAmount = money(grandTotal.subtract(paidAmount));
+        SalesPaymentStatus paymentStatus = calculatePaymentStatus(paidAmount, grandTotal);
+        requireConfiguredPaymentStatus(paymentStatus);
 
         Long customerId = null;
         String customerName = null;
@@ -457,12 +445,14 @@ public class SalesServiceImpl implements SalesService {
             "Sales invoice completion started for UUID {}",
             saleUuid
         );
+        requireConfiguredSalesStatus(SalesStatus.COMPLETED);
 
         Sales sale = salesRepository.findByUuidForUpdate(saleUuid)
             .orElseThrow(() ->
                 new ApiException(SalesErrorCode.SALES_NOT_FOUND)
             );
 
+        requireConfiguredSalesStatus(SalesStatus.COMPLETED);
         if (sale.status() == SalesStatus.COMPLETED) {
             throw new ApiException(
                 SalesErrorCode.SALES_ALREADY_COMPLETED
@@ -545,10 +535,20 @@ public class SalesServiceImpl implements SalesService {
             }
         }
 
+        BigDecimal issuedBalanceAmount = money(sale.grandTotal().subtract(sale.paidAmount()));
+        SalesPaymentStatus issuedPaymentStatus =
+            calculatePaymentStatus(sale.paidAmount(), sale.grandTotal());
+        requireConfiguredPaymentStatus(issuedPaymentStatus);
+
+        String finalInvoiceNumber = salesRepository.generateInvoiceNumber(sale.saleDate());
+        if (salesRepository.existsInvoiceNumber(finalInvoiceNumber)) {
+            throw new ApiException(SalesErrorCode.SALES_DUPLICATE_INVOICE);
+        }
+
         Sales completedSale = new Sales(
             sale.id(),
             sale.uuid(),
-            sale.invoiceNumber(),
+            finalInvoiceNumber,
             sale.customerId(),
             sale.customerName(),
             sale.customerPhone(),
@@ -562,9 +562,9 @@ public class SalesServiceImpl implements SalesService {
             sale.totalTaxAmount(),
             sale.grandTotal(),
             sale.paidAmount(),
-            sale.balanceAmount(),
+            issuedBalanceAmount,
             SalesStatus.COMPLETED,
-            sale.paymentStatus(),
+            issuedPaymentStatus,
             sale.notes(),
             sale.createdAt(),
             sale.updatedAt()
@@ -781,12 +781,14 @@ public class SalesServiceImpl implements SalesService {
     @AdminOrManager
     @Transactional
     @RequiresPermission("SALES.CANCEL")
-    public SalesResponse cancel(UUID saleUuid) {
+    public SalesResponse cancel(UUID saleUuid, String reason) {
 
         logger.info(
             "Sales cancellation started for UUID {}",
             saleUuid
         );
+        requireConfiguredSalesStatus(SalesStatus.CANCELLED);
+        requireConfiguredPaymentStatus(SalesPaymentStatus.UNPAID);
 
         Sales sale = salesRepository.findByUuidForUpdate(saleUuid)
             .orElseThrow(() ->
@@ -794,10 +796,13 @@ public class SalesServiceImpl implements SalesService {
             );
 
         if (sale.status() == SalesStatus.COMPLETED) {
-            // Completed invoices require a return/refund workflow.
-            throw new ApiException(
-                SalesErrorCode.SALES_ALREADY_COMPLETED
-            );
+            // Issued invoices must use the credit-note/return workflow until
+            // stock reversal and refund settlement are performed together.
+            throw new ApiException(SalesErrorCode.SALES_ALREADY_COMPLETED);
+        }
+
+        if (reason == null || reason.isBlank()) {
+            throw new IllegalArgumentException("Cancellation reason is required");
         }
 
         if (sale.status() == SalesStatus.CANCELLED) {
@@ -806,6 +811,8 @@ public class SalesServiceImpl implements SalesService {
             );
         }
 
+        requireConfiguredSalesStatus(SalesStatus.CANCELLED);
+        requireConfiguredPaymentStatus(SalesPaymentStatus.UNPAID);
         Sales cancelledSale = new Sales(
             sale.id(),
             sale.uuid(),
@@ -823,21 +830,22 @@ public class SalesServiceImpl implements SalesService {
             sale.totalTaxAmount(),
             sale.grandTotal(),
             sale.paidAmount(),
-            sale.balanceAmount(),
+            BigDecimal.ZERO.setScale(MONEY_SCALE),
             SalesStatus.CANCELLED,
-            sale.paymentStatus(),
+            SalesPaymentStatus.UNPAID,
             sale.notes(),
             sale.createdAt(),
             sale.updatedAt()
         );
 
         salesRepository.updateSale(cancelledSale);
+        salesRepository.saveCancellationReason(sale.id(), reason);
         
         auditLogService.log(
                 "CANCEL",
                 "SALES",
                 cancelledSale.invoiceNumber(),
-                "Sales draft cancelled",
+                "Sales draft cancelled: " + reason,
                 Map.of(
                         "status", sale.status().name()
                 ),
@@ -878,11 +886,13 @@ public class SalesServiceImpl implements SalesService {
             sale.igstAmount(),
             sale.totalTaxAmount(),
             sale.grandTotal(),
+            money(sale.grandTotal().subtract(sale.taxableAmount()).subtract(sale.totalTaxAmount())),
             sale.paidAmount(),
-            sale.balanceAmount(),
+            sale.status() == SalesStatus.CANCELLED ? BigDecimal.ZERO.setScale(MONEY_SCALE) : sale.balanceAmount(),
             sale.status(),
-            sale.paymentStatus(),
+            sale.status() == SalesStatus.CANCELLED ? null : sale.paymentStatus(),
             sale.notes(),
+            salesRepository.findCancellationReason(sale.id()).orElse(null),
             products,
             payments,
             sale.createdAt(),
@@ -942,6 +952,18 @@ public class SalesServiceImpl implements SalesService {
         }
 
         return SalesPaymentStatus.PARTIALLY_PAID;
+    }
+
+    private void requireConfiguredSalesStatus(SalesStatus status) {
+        if (!salesRepository.isSalesStatusConfigured(status.name())) {
+            throw new IllegalStateException("Sales status is missing or inactive in sales_statuses: " + status.name());
+        }
+    }
+
+    private void requireConfiguredPaymentStatus(SalesPaymentStatus status) {
+        if (!salesRepository.isSalesPaymentStatusConfigured(status.name())) {
+            throw new IllegalStateException("Payment status is missing or inactive in sales_payment_statuses: " + status.name());
+        }
     }
 
     // ---------------------------------------------------------
@@ -1044,6 +1066,7 @@ public class SalesServiceImpl implements SalesService {
                 paidAmount,
                 sale.grandTotal()
             );
+        requireConfiguredPaymentStatus(paymentStatus);
 
         // 6. Create payment record.
         SalesPayment payment = new SalesPayment(

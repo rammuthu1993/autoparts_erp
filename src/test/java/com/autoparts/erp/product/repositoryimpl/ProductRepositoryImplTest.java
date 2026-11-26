@@ -140,6 +140,15 @@ class ProductRepositoryImplTest {
                 "CODE128",
                 true,
                 null,
+                null,
+                UUID.randomUUID(),
+                "GST 18%",
+                null,
+                new BigDecimal("18.00"),
+                new BigDecimal("9.00"),
+                new BigDecimal("9.00"),
+                new BigDecimal("18.00"),
+                java.time.LocalDate.now(),
                 null
         );
     }

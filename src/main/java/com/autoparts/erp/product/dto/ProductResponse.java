@@ -2,6 +2,7 @@ package com.autoparts.erp.product.dto;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.LocalDate;
 import java.util.UUID;
 
 public record ProductResponse(
@@ -23,5 +24,14 @@ public record ProductResponse(
         String barcodeType,
         boolean active,
         OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
+        OffsetDateTime updatedAt,
+        UUID taxRateUuid,
+        String taxName,
+        String hsnCode,
+        BigDecimal gstRate,
+        BigDecimal cgstRate,
+        BigDecimal sgstRate,
+        BigDecimal igstRate,
+        LocalDate taxEffectiveFrom,
+        LocalDate taxEffectiveTo
 ) {}

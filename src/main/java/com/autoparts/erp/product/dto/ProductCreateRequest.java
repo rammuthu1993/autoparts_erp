@@ -2,6 +2,7 @@ package com.autoparts.erp.product.dto;
 
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
+import java.util.UUID;
 
 public record ProductCreateRequest(
         @NotBlank
@@ -44,5 +45,11 @@ public record ProductCreateRequest(
 
         @NotBlank
         @Size(max = 20)
-        String unit
+        String unit,
+
+        UUID taxRateUuid,
+
+        @Size(max = 20)
+        @Pattern(regexp = "^[0-9A-Za-z]*$", message = "Invalid HSN code")
+        String hsnCode
 ) {}

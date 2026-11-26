@@ -32,6 +32,8 @@ public interface TaxRateRepository {
 
     Optional<TaxRate> findByUuid(UUID uuid);
 
+    Optional<TaxRate> findCurrentByGstRate(BigDecimal gstRate, LocalDate onDate);
+
     List<TaxRate> findAll();
 
     List<TaxRate> findPaged(

@@ -9,8 +9,17 @@ import java.util.UUID;
 import com.autoparts.erp.sales.model.Sales;
 import com.autoparts.erp.sales.model.SalesProduct;
 import com.autoparts.erp.sales.model.SalesPayment;
+import com.autoparts.erp.sales.dto.SalesStatusOption;
 
 public interface SalesRepository {
+
+    List<SalesStatusOption> findSalesStatuses();
+
+    List<SalesStatusOption> findSalesPaymentStatuses();
+
+    boolean isSalesStatusConfigured(String code);
+
+    boolean isSalesPaymentStatusConfigured(String code);
 
     Sales createSale(Sales sale);
 
@@ -53,4 +62,8 @@ public interface SalesRepository {
     String generateInvoiceNumber(LocalDate saleDate);
     
     Optional<UUID> findUuidById(Long saleId);
+
+    void saveCancellationReason(Long saleId, String reason);
+
+    Optional<String> findCancellationReason(Long saleId);
 }

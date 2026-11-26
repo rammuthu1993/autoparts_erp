@@ -44,7 +44,16 @@ public class ProductRepositoryImpl implements ProductRepository {
                     rs.getString("barcode_type"),
                     rs.getBoolean("active"),
                     rs.getObject("created_at", java.time.OffsetDateTime.class),
-                    rs.getObject("updated_at", java.time.OffsetDateTime.class)
+                    rs.getObject("updated_at", java.time.OffsetDateTime.class),
+                    rs.getObject("tax_rate_uuid", UUID.class),
+                    rs.getString("tax_name"),
+                    rs.getString("hsn_code"),
+                    rs.getBigDecimal("gst_rate"),
+                    rs.getBigDecimal("cgst_rate"),
+                    rs.getBigDecimal("sgst_rate"),
+                    rs.getBigDecimal("igst_rate"),
+                    rs.getObject("tax_effective_from", java.time.LocalDate.class),
+                    rs.getObject("tax_effective_to", java.time.LocalDate.class)
             );
 
     private static final String SELECT_PRODUCT = """
@@ -55,10 +64,34 @@ public class ProductRepositoryImpl implements ProductRepository {
                    p.purchase_price, p.selling_price,
                    p.qty, p.minimum_stock, p.unit,
                    p.barcode, p.barcode_type,
-                   p.active, p.created_at, p.updated_at
+                   p.active, p.created_at, p.updated_at,
+                   tax.tax_rate_uuid, tax.tax_name, tax.hsn_code,
+                   tax.gst_rate, tax.cgst_rate, tax.sgst_rate, tax.igst_rate,
+                   tax.tax_effective_from, tax.tax_effective_to
             FROM products p
             JOIN product_categories c ON c.id = p.category_id
             JOIN product_brands b ON b.id = p.brand_id
+            LEFT JOIN LATERAL (
+                SELECT tr.uuid AS tax_rate_uuid,
+                       tr.tax_name,
+                       ptm.hsn_code,
+                       tr.gst_rate,
+                       tr.cgst_rate,
+                       tr.sgst_rate,
+                       tr.igst_rate,
+                       ptm.effective_from AS tax_effective_from,
+                       ptm.effective_to AS tax_effective_to
+                FROM product_tax_mapping ptm
+                JOIN tax_rates tr ON tr.id = ptm.tax_rate_id
+                WHERE ptm.product_id = p.id
+                  AND ptm.effective_from <= CURRENT_DATE
+                  AND (ptm.effective_to IS NULL OR ptm.effective_to > CURRENT_DATE)
+                  AND tr.active = TRUE
+                  AND tr.effective_from <= CURRENT_DATE
+                  AND (tr.effective_to IS NULL OR tr.effective_to > CURRENT_DATE)
+                ORDER BY ptm.effective_from DESC, ptm.id DESC
+                LIMIT 1
+            ) tax ON TRUE
             """;
 
     @Override

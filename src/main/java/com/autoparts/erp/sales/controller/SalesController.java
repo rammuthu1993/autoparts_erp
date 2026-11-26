@@ -15,6 +15,9 @@ import com.autoparts.erp.sales.dto.SalesCreateRequest;
 import com.autoparts.erp.sales.dto.SalesResponse;
 import com.autoparts.erp.sales.service.SalesService;
 import com.autoparts.erp.sales.dto.SalesPaymentRequest;
+import com.autoparts.erp.sales.dto.SalesCancelRequest;
+import com.autoparts.erp.sales.dto.SalesStatusOption;
+import com.autoparts.erp.sales.repository.SalesRepository;
 
 import jakarta.validation.Valid;
 
@@ -23,9 +26,23 @@ import jakarta.validation.Valid;
 public class SalesController {
 
     private final SalesService salesService;
+    private final SalesRepository salesRepository;
 
-    public SalesController(SalesService salesService) {
+    public SalesController(SalesService salesService, SalesRepository salesRepository) {
         this.salesService = salesService;
+        this.salesRepository = salesRepository;
+    }
+
+    @RequiresPermission("SALES.VIEW")
+    @GetMapping("/status-options")
+    public ResponseEntity<List<SalesStatusOption>> statusOptions() {
+        return ResponseEntity.ok(salesRepository.findSalesStatuses());
+    }
+
+    @RequiresPermission("SALES.VIEW")
+    @GetMapping("/payment-status-options")
+    public ResponseEntity<List<SalesStatusOption>> paymentStatusOptions() {
+        return ResponseEntity.ok(salesRepository.findSalesPaymentStatuses());
     }
 
     @SalesAccess
@@ -89,10 +106,11 @@ public class SalesController {
     @RequiresPermission("SALES.CANCEL")
     @PostMapping("/{saleUuid}/cancel")
     public ResponseEntity<SalesResponse> cancel(
-        @PathVariable UUID saleUuid
+        @PathVariable UUID saleUuid,
+        @Valid @RequestBody SalesCancelRequest request
     ) {
         return ResponseEntity.ok(
-            salesService.cancel(saleUuid)
+            salesService.cancel(saleUuid, request.reason())
         );
     }
     

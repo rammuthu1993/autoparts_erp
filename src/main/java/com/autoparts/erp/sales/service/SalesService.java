@@ -28,7 +28,7 @@ public interface SalesService {
         String sortDir
     );
 
-    SalesResponse cancel(UUID saleUuid);
+    SalesResponse cancel(UUID saleUuid, String reason);
     
     SalesResponse recordPayment(
     	    UUID saleUuid,

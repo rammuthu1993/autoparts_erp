@@ -23,6 +23,7 @@ import com.autoparts.erp.sales.model.Sales;
 import com.autoparts.erp.sales.model.SalesProduct;
 import com.autoparts.erp.sales.model.SalesPayment;
 import com.autoparts.erp.sales.repository.SalesRepository;
+import com.autoparts.erp.sales.dto.SalesStatusOption;
 
 @Repository
 public class SalesRepositoryImpl implements SalesRepository {
@@ -31,6 +32,48 @@ public class SalesRepositoryImpl implements SalesRepository {
 
     public SalesRepositoryImpl(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
+    }
+
+    @Override
+    public List<SalesStatusOption> findSalesStatuses() {
+        return jdbcTemplate.query("""
+            SELECT code, label, sort_order
+            FROM sales_statuses
+            WHERE active = TRUE
+            ORDER BY sort_order, code
+            """, new MapSqlParameterSource(),
+            (rs, rowNum) -> new SalesStatusOption(
+                rs.getString("code"), rs.getString("label"), rs.getInt("sort_order")
+            ));
+    }
+
+    @Override
+    public List<SalesStatusOption> findSalesPaymentStatuses() {
+        return jdbcTemplate.query("""
+            SELECT code, label, sort_order
+            FROM sales_payment_statuses
+            WHERE active = TRUE
+            ORDER BY sort_order, code
+            """, new MapSqlParameterSource(),
+            (rs, rowNum) -> new SalesStatusOption(
+                rs.getString("code"), rs.getString("label"), rs.getInt("sort_order")
+            ));
+    }
+
+    @Override
+    public boolean isSalesStatusConfigured(String code) {
+        Integer count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM sales_statuses WHERE code = :code AND active = TRUE",
+            new MapSqlParameterSource("code", code), Integer.class);
+        return count != null && count > 0;
+    }
+
+    @Override
+    public boolean isSalesPaymentStatusConfigured(String code) {
+        Integer count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM sales_payment_statuses WHERE code = :code AND active = TRUE",
+            new MapSqlParameterSource("code", code), Integer.class);
+        return count != null && count > 0;
     }
 
     private final RowMapper<Sales> saleRowMapper = (rs, rowNum) ->
@@ -92,6 +135,7 @@ public class SalesRepositoryImpl implements SalesRepository {
                 sgst_amount,
                 igst_amount,
                 total_tax_amount,
+                round_off_amount,
                 grand_total,
                 paid_amount,
                 balance_amount,
@@ -104,7 +148,7 @@ public class SalesRepositoryImpl implements SalesRepository {
             VALUES (
                 :uuid, :invoiceNumber, :customerId, :customerName, :customerPhone, :saleDate,
                 :subtotal, :discountAmount, :taxableAmount, :cgstAmount, :sgstAmount, :igstAmount,
-                :totalTaxAmount, :grandTotal, :paidAmount, :balanceAmount, :status, :paymentStatus, :notes,
+                :totalTaxAmount, :roundOffAmount, :grandTotal, :paidAmount, :balanceAmount, :status, :paymentStatus, :notes,
                 CURRENT_TIMESTAMP,
                 CURRENT_TIMESTAMP
             )
@@ -125,6 +169,7 @@ public class SalesRepositoryImpl implements SalesRepository {
                 .addValue("sgstAmount", sale.sgstAmount())
                 .addValue("igstAmount", sale.igstAmount())
                 .addValue("totalTaxAmount", sale.totalTaxAmount())
+                .addValue("roundOffAmount", sale.grandTotal().subtract(sale.taxableAmount()).subtract(sale.totalTaxAmount()))
                 .addValue("grandTotal", sale.grandTotal())
                 .addValue("paidAmount", sale.paidAmount())
                 .addValue("balanceAmount", sale.balanceAmount())
@@ -144,13 +189,15 @@ public class SalesRepositoryImpl implements SalesRepository {
 
         String sql = """
             UPDATE sales
-            SET subtotal = :subtotal,
+            SET invoice_number = :invoiceNumber,
+                subtotal = :subtotal,
                 discount_amount = :discountAmount,
                 taxable_amount = :taxableAmount,
                 cgst_amount = :cgstAmount,
                 sgst_amount = :sgstAmount,
                 igst_amount = :igstAmount,
                 total_tax_amount = :totalTaxAmount,
+                round_off_amount = :roundOffAmount,
                 grand_total = :grandTotal,
                 paid_amount = :paidAmount,
                 balance_amount = :balanceAmount,
@@ -162,6 +209,7 @@ public class SalesRepositoryImpl implements SalesRepository {
             """;
 
         MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("invoiceNumber", sale.invoiceNumber())
                 .addValue("subtotal", sale.subtotal())
                 .addValue("discountAmount", sale.discountAmount())
                 .addValue("taxableAmount", sale.taxableAmount())
@@ -169,6 +217,7 @@ public class SalesRepositoryImpl implements SalesRepository {
                 .addValue("sgstAmount", sale.sgstAmount())
                 .addValue("igstAmount", sale.igstAmount())
                 .addValue("totalTaxAmount", sale.totalTaxAmount())
+                .addValue("roundOffAmount", sale.grandTotal().subtract(sale.taxableAmount()).subtract(sale.totalTaxAmount()))
                 .addValue("grandTotal", sale.grandTotal())
                 .addValue("paidAmount", sale.paidAmount())
                 .addValue("balanceAmount", sale.balanceAmount())
@@ -515,8 +564,11 @@ public class SalesRepositoryImpl implements SalesRepository {
 
     @Override
     public String generateInvoiceNumber(LocalDate saleDate) {
-
-        String prefix = "SAL-" + saleDate.toString().replace("-", "");
+        int financialYearStart = saleDate.getMonthValue() >= 4
+            ? saleDate.getYear() : saleDate.getYear() - 1;
+        int financialYearEnd = financialYearStart + 1;
+        String prefix = String.format("INV/%02d-%02d",
+            financialYearStart % 100, financialYearEnd % 100);
 
         String lockSql = """
             SELECT last_number
@@ -525,59 +577,61 @@ public class SalesRepositoryImpl implements SalesRepository {
             FOR UPDATE
             """;
 
-        Long currentNumber = jdbcTemplate.query(
-            lockSql,
+        Long currentNumber = jdbcTemplate.query(lockSql,
             new MapSqlParameterSource("prefix", prefix),
-            (rs, rowNum) -> rs.getLong("last_number")
-        ).stream().findFirst().orElse(null);
+            (rs, rowNum) -> rs.getLong("last_number"))
+            .stream().findFirst().orElse(null);
 
         if (currentNumber == null) {
             try {
-                jdbcTemplate.update(
-                    """
-                        INSERT INTO sales_invoice_counters (
-                            invoice_prefix,
-                            last_number,
-                            updated_at
-                        )
-                        VALUES (:prefix, 0, CURRENT_TIMESTAMP)
-                    """,
-                    new MapSqlParameterSource("prefix", prefix)
-                );
-            } catch (DuplicateKeyException ex) {
-                currentNumber = jdbcTemplate.query(
-                    lockSql,
-                    new MapSqlParameterSource("prefix", prefix),
-                    (rs, rowNum) -> rs.getLong("last_number")
-                ).stream().findFirst().orElse(0L);
+                jdbcTemplate.update("""
+                    INSERT INTO sales_invoice_counters (
+                        invoice_prefix, last_number, updated_at
+                    ) VALUES (:prefix, 0, CURRENT_TIMESTAMP)
+                    ON CONFLICT (invoice_prefix) DO NOTHING
+                    """, new MapSqlParameterSource("prefix", prefix));
+            } catch (DuplicateKeyException ignored) {
+                // Another transaction initialized the financial-year counter.
             }
-
-            currentNumber = jdbcTemplate.query(
-                lockSql,
+            currentNumber = jdbcTemplate.query(lockSql,
                 new MapSqlParameterSource("prefix", prefix),
-                (rs, rowNum) -> rs.getLong("last_number")
-            ).stream().findFirst().orElse(0L);
+                (rs, rowNum) -> rs.getLong("last_number"))
+                .stream().findFirst().orElse(0L);
         }
 
-        Long nextNumber = currentNumber + 1;
+        long nextNumber = currentNumber + 1;
+        if (nextNumber > 99999) {
+            throw new IllegalStateException("Financial-year invoice number limit reached");
+        }
 
-        MapSqlParameterSource updateParams = new MapSqlParameterSource()
+        jdbcTemplate.update("""
+            UPDATE sales_invoice_counters
+            SET last_number = :nextNumber, updated_at = CURRENT_TIMESTAMP
+            WHERE invoice_prefix = :prefix
+            """, new MapSqlParameterSource()
                 .addValue("nextNumber", nextNumber)
-                .addValue("prefix", prefix);
+                .addValue("prefix", prefix));
 
-        jdbcTemplate.update(
-            """
-                UPDATE sales_invoice_counters
-                SET last_number = :nextNumber,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE invoice_prefix = :prefix
-            """,
-            updateParams
-        );
-
-        return prefix + "-" + String.format("%05d", nextNumber);
+        return prefix + "/" + String.format("%05d", nextNumber);
     }
-    
+
+    @Override
+    public void saveCancellationReason(Long saleId, String reason) {
+        jdbcTemplate.update(
+            "UPDATE sales SET cancellation_reason = :reason WHERE id = :saleId",
+            new MapSqlParameterSource().addValue("reason", reason).addValue("saleId", saleId));
+    }
+
+    @Override
+    public Optional<String> findCancellationReason(Long saleId) {
+        List<String> reasons = jdbcTemplate.query(
+            "SELECT cancellation_reason FROM sales WHERE id = :saleId",
+            new MapSqlParameterSource("saleId", saleId),
+            (rs, rowNum) -> rs.getString("cancellation_reason")
+        );
+        return reasons.isEmpty() ? Optional.empty() : Optional.ofNullable(reasons.get(0));
+    }
+
     @Override
     public Optional<UUID> findUuidById(Long saleId) {
 

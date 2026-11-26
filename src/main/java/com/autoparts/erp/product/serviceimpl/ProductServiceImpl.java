@@ -15,6 +15,8 @@ import com.autoparts.erp.product.model.Product;
 import com.autoparts.erp.product.model.ProductErrorCode;
 import com.autoparts.erp.product.repository.ProductRepository;
 import com.autoparts.erp.product.service.ProductService;
+import com.autoparts.erp.tax.dto.ProductTaxMappingCreateRequest;
+import com.autoparts.erp.tax.service.ProductTaxMappingService;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,13 +34,16 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository repository;
     private final AuditLogService auditLogService;
+    private final ProductTaxMappingService productTaxMappingService;
 
     public ProductServiceImpl(
             ProductRepository repository,
-            AuditLogService auditLogService
+            AuditLogService auditLogService,
+            ProductTaxMappingService productTaxMappingService
     ) {
         this.repository = repository;
         this.auditLogService = auditLogService;
+        this.productTaxMappingService = productTaxMappingService;
     }
 
     @Override
@@ -93,7 +98,20 @@ public class ProductServiceImpl implements ProductService {
                     BARCODE_TYPE_CODE_128
             );
 
-            ProductResponse response = toResponse(product);
+            // Every new product receives an effective tax mapping immediately.
+            // If no tax rate is selected, the mapping service uses the current 18% rate.
+            productTaxMappingService.create(
+                    product.uuid(),
+                    new ProductTaxMappingCreateRequest(
+                            request.taxRateUuid(),
+                            request.hsnCode(),
+                            java.time.LocalDate.now(),
+                            null
+                    )
+            );
+
+            // Re-read after mapping creation so the create response includes GST fields.
+            ProductResponse response = findByUuid(product.uuid());
 
             auditLogService.log(
                     "CREATE",
@@ -269,6 +287,10 @@ public class ProductServiceImpl implements ProductService {
         values.put("unit", product.unit());
         values.put("barcode", product.barcode());
         values.put("barcodeType", product.barcodeType());
+        values.put("taxRateUuid", product.taxRateUuid());
+        values.put("taxName", product.taxName());
+        values.put("gstRate", product.gstRate());
+        values.put("hsnCode", product.hsnCode());
         values.put("active", product.active());
         return values;
     }
@@ -293,7 +315,16 @@ public class ProductServiceImpl implements ProductService {
                 product.barcodeType(),
                 product.active(),
                 product.createdAt(),
-                product.updatedAt()
+                product.updatedAt(),
+                product.taxRateUuid(),
+                product.taxName(),
+                product.hsnCode(),
+                product.gstRate(),
+                product.cgstRate(),
+                product.sgstRate(),
+                product.igstRate(),
+                product.taxEffectiveFrom(),
+                product.taxEffectiveTo()
         );
     }
 }

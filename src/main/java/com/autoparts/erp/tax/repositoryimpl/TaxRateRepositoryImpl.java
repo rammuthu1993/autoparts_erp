@@ -198,6 +198,21 @@ public class TaxRateRepositoryImpl implements TaxRateRepository {
     }
 
     @Override
+    public Optional<TaxRate> findCurrentByGstRate(BigDecimal gstRate, LocalDate onDate) {
+        String sql = SELECT_COLUMNS + """
+            WHERE active = TRUE
+              AND gst_rate = :gstRate
+              AND effective_from <= :onDate
+              AND (effective_to IS NULL OR effective_to > :onDate)
+            ORDER BY effective_from DESC, id DESC
+            LIMIT 1
+            """;
+        return jdbcTemplate.query(sql, new MapSqlParameterSource()
+            .addValue("gstRate", gstRate)
+            .addValue("onDate", onDate), taxRateRowMapper).stream().findFirst();
+    }
+
+    @Override
     public Optional<TaxRate> findByUuid(UUID uuid) {
         String sql = SELECT_COLUMNS + """
             WHERE uuid = :uuid
