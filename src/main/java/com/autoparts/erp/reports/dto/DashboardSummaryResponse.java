@@ -29,6 +29,10 @@ public record DashboardSummaryResponse(
 
             BigDecimal collectionTotal,
 
+            BigDecimal refundTotal,
+
+            BigDecimal netCollectionTotal,
+
             BigDecimal cashCollections,
 
             BigDecimal upiCollections,

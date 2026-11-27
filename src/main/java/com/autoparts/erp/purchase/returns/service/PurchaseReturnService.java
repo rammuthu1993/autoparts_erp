@@ -7,6 +7,7 @@ import com.autoparts.erp.purchase.returns.dto.SupplierCreditResponse;
 import com.autoparts.erp.purchase.returns.dto.SupplierRefundRequest;
 
 import java.util.UUID;
+import java.util.List;
 
 public interface PurchaseReturnService {
 
@@ -16,6 +17,8 @@ public interface PurchaseReturnService {
     );
 
     PurchaseReturnResponse findReturnByUuid(UUID returnUuid);
+
+    List<PurchaseReturnResponse> findReturnsByPurchaseUuid(UUID purchaseUuid);
 
     SupplierCreditResponse recordRefund(
         UUID creditUuid,

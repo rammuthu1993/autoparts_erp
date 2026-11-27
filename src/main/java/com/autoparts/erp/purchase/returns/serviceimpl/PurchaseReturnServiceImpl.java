@@ -318,6 +318,17 @@ public class PurchaseReturnServiceImpl implements PurchaseReturnService {
     }
 
     @Override
+    @AuthenticatedUser
+    @RequiresPermission("PURCHASE_RETURNS.VIEW")
+    public List<PurchaseReturnResponse> findReturnsByPurchaseUuid(UUID purchaseUuid) {
+        PurchaseInfo purchase = repository.findPurchaseByUuid(purchaseUuid)
+            .orElseThrow(() -> notFound("Purchase not found"));
+        return repository.findReturnsByPurchaseId(purchase.id()).stream()
+            .map(value -> buildResponse(value, purchase))
+            .toList();
+    }
+
+    @Override
     @Transactional
     @AdminOrManager
     @RequiresPermission("PURCHASE_RETURNS.CREATE")

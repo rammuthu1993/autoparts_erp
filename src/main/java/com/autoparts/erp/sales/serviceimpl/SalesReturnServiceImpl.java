@@ -4,6 +4,7 @@ package com.autoparts.erp.sales.serviceimpl;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -649,8 +650,14 @@ public class SalesReturnServiceImpl implements SalesReturnService {
         BigDecimal refundableAmount =
                 salesReturn.totalReturnAmount().subtract(refundedAmount);
 
+        String returnNumber = "SR-%s-%06d".formatted(
+                salesReturn.returnDate().toLocalDate().format(DateTimeFormatter.BASIC_ISO_DATE),
+                salesReturn.id()
+        );
+
         return new SalesReturnResponse(
                 salesReturn.uuid(),
+                returnNumber,
                 sale.uuid(),
                 sale.invoiceNumber(),
                 salesReturn.returnDate(),

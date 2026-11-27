@@ -455,4 +455,195 @@ public class InventoryRepositoryImpl implements InventoryRepository {
 
         return count == null ? 0L : count;
     }
+
+    @Override
+    public com.autoparts.erp.inventory.dto.InventorySummaryResponse getInventorySummary() {
+        String sql = """
+            SELECT
+                COUNT(*) AS total_active,
+                COUNT(*) FILTER (WHERE qty > minimum_stock) AS in_stock,
+                COUNT(*) FILTER (WHERE qty > 0 AND qty <= minimum_stock) AS low_stock,
+                COUNT(*) FILTER (WHERE qty <= 0) AS out_of_stock
+            FROM products
+            WHERE active = TRUE
+            """;
+        return jdbcTemplate.queryForObject(sql, new MapSqlParameterSource(), (rs, rowNum) ->
+            new com.autoparts.erp.inventory.dto.InventorySummaryResponse(
+                rs.getLong("total_active"),
+                rs.getLong("in_stock"),
+                rs.getLong("low_stock"),
+                rs.getLong("out_of_stock")
+            )
+        );
+    }
+
+    @Override
+    public List<InventoryStock> findStockPaged(
+            int offset,
+            int limit,
+            String search,
+            String stockStatus,
+            String sortBy,
+            String sortDir
+    ) {
+        StringBuilder sql = new StringBuilder(STOCK_SELECT);
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        applyStockSearch(sql, params, search);
+        applyStockStatusFilter(sql, stockStatus);
+
+        String sortColumn = INVENTORY_STOCK_SORT_ALLOWLIST.getOrDefault(sortBy, "p.name");
+        String direction = "DESC".equalsIgnoreCase(sortDir) ? "DESC" : "ASC";
+        sql.append(" ORDER BY ").append(sortColumn).append(" ").append(direction);
+        if (!"p.id".equals(sortColumn)) {
+            sql.append(", p.id ASC");
+        }
+        sql.append(" LIMIT :limit OFFSET :offset");
+
+        params.addValue("limit", Math.max(1, Math.min(limit, 100)));
+        params.addValue("offset", Math.max(0, offset));
+
+        return jdbcTemplate.query(sql.toString(), params, stockRowMapper);
+    }
+
+    @Override
+    public long countStockPaged(String search, String stockStatus) {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM products p WHERE p.active = TRUE ");
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        applyStockSearch(sql, params, search);
+        applyStockStatusFilter(sql, stockStatus);
+
+        Long count = jdbcTemplate.queryForObject(sql.toString(), params, Long.class);
+        return count != null ? count : 0L;
+    }
+
+    private void applyStockStatusFilter(StringBuilder sql, String stockStatus) {
+        if (stockStatus == null || stockStatus.isBlank() || "ALL".equalsIgnoreCase(stockStatus)) {
+            return;
+        }
+        String normalized = stockStatus.trim().toUpperCase();
+        switch (normalized) {
+            case "IN_STOCK" -> sql.append(" AND p.qty > p.minimum_stock ");
+            case "LOW_STOCK" -> sql.append(" AND p.qty > 0 AND p.qty <= p.minimum_stock ");
+            case "OUT_OF_STOCK" -> sql.append(" AND p.qty <= 0 ");
+            default -> { }
+        }
+    }
+
+    @Override
+    public List<InventoryMovement> findMovements(
+            UUID productUuid,
+            InventoryMovementType movementType,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String search,
+            int limit,
+            int offset
+    ) {
+        String searchPattern = search != null && !search.isBlank() ? "%" + search.trim() + "%" : null;
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("productUuid", productUuid)
+                .addValue("movementType", movementType == null ? null : movementType.name())
+                .addValue("fromDate", fromDate)
+                .addValue("toDate", toDate)
+                .addValue("searchPattern", searchPattern)
+                .addValue("limit", limit)
+                .addValue("offset", offset);
+
+        return jdbcTemplate.query(
+                MOVEMENT_SELECT + """
+                          AND (
+                                CAST(:searchPattern AS VARCHAR) IS NULL
+                                OR p.name ILIKE CAST(:searchPattern AS VARCHAR)
+                                OR p.product_code ILIKE CAST(:searchPattern AS VARCHAR)
+                                OR COALESCE(im.notes, '') ILIKE CAST(:searchPattern AS VARCHAR)
+                              )
+                        ORDER BY im.created_at DESC, im.id DESC
+                        LIMIT :limit OFFSET :offset
+                        """,
+                params,
+                movementRowMapper
+        );
+    }
+
+    @Override
+    public long countMovements(
+            UUID productUuid,
+            InventoryMovementType movementType,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String search
+    ) {
+        String searchPattern = search != null && !search.isBlank() ? "%" + search.trim() + "%" : null;
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("productUuid", productUuid)
+                .addValue("movementType", movementType == null ? null : movementType.name())
+                .addValue("fromDate", fromDate)
+                .addValue("toDate", toDate)
+                .addValue("searchPattern", searchPattern);
+
+        Long count = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM inventory_movements im
+                JOIN products p ON p.id = im.product_id
+                WHERE (CAST(:productUuid AS UUID) IS NULL OR p.uuid = CAST(:productUuid AS UUID))
+                  AND (
+                        CAST(:movementType AS VARCHAR) IS NULL
+                        OR im.movement_type = CAST(:movementType AS VARCHAR)
+                      )
+                  AND (
+                        CAST(:fromDate AS DATE) IS NULL
+                        OR im.created_at >= CAST(:fromDate AS DATE)
+                      )
+                  AND (
+                        CAST(:toDate AS DATE) IS NULL
+                        OR im.created_at < CAST(:toDate AS DATE) + INTERVAL '1 day'
+                      )
+                  AND (
+                        CAST(:searchPattern AS VARCHAR) IS NULL
+                        OR p.name ILIKE CAST(:searchPattern AS VARCHAR)
+                        OR p.product_code ILIKE CAST(:searchPattern AS VARCHAR)
+                        OR COALESCE(im.notes, '') ILIKE CAST(:searchPattern AS VARCHAR)
+                      )
+                """,
+                params,
+                Long.class
+        );
+
+        return count == null ? 0L : count;
+    }
+
+    @Override
+    public Optional<InventoryMovement> findMovementByUuid(UUID movementUuid) {
+        String sql = """
+            SELECT
+                im.uuid AS movement_uuid,
+                im.product_id,
+                p.uuid AS product_uuid,
+                p.product_code,
+                p.name AS product_name,
+                im.movement_type,
+                im.reference_type,
+                im.reference_id,
+                im.quantity_change,
+                im.quantity_before,
+                im.quantity_after,
+                im.notes,
+                im.created_at
+            FROM inventory_movements im
+            JOIN products p ON p.id = im.product_id
+            WHERE im.uuid = :movementUuid
+            """;
+        return jdbcTemplate.query(sql, new MapSqlParameterSource("movementUuid", movementUuid), movementRowMapper)
+                .stream().findFirst();
+    }
+
+    @Override
+    public void addQuarantineOrScrapQuantity(Long productId, BigDecimal quantity, boolean scrap) {
+        String col = scrap ? "scrap_qty" : "quarantine_qty";
+        String sql = "UPDATE products SET " + col + " = " + col + " + :qty, updated_at = CURRENT_TIMESTAMP WHERE id = :productId";
+        jdbcTemplate.update(sql, new MapSqlParameterSource().addValue("qty", quantity).addValue("productId", productId));
+    }
 }

@@ -68,6 +68,23 @@ public class ProductController {
         return ResponseEntity.ok(productService.findPaged(page, size, search, categoryId, brandId, sortBy, sortDir));
     }
 
+    /**
+     * Fast lookup endpoint intended for POS autocomplete and barcode/part-number
+     * searches. It reuses the same repository search semantics as the paged
+     * product register instead of introducing a second search implementation.
+     */
+    @RequiresPermission("PRODUCTS.VIEW")
+    @GetMapping("/search")
+    public ResponseEntity<PageResponse<ProductResponse>> search(
+            @RequestParam(name = "q", required = false) String query,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return ResponseEntity.ok(productService.findPaged(
+                page, size, query, null, null, "name", "asc"
+        ));
+    }
+
     @RequiresPermission("PRODUCTS.VIEW")
     @GetMapping("/{uuid}")
     public ResponseEntity<ProductResponse> findByUuid(@PathVariable UUID uuid) {

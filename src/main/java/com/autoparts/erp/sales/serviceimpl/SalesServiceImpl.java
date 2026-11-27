@@ -50,8 +50,30 @@ import com.autoparts.erp.tax.repository.ProductTaxMappingRepository;
 import com.autoparts.erp.tax.repository.TaxRateRepository;
 import java.util.Map;
 
+import com.autoparts.erp.auth.security.CurrentUserService;
 import com.autoparts.erp.auth.security.annotation.AdminOrManager;
+import com.autoparts.erp.auth.service.PermissionService;
 import com.autoparts.erp.audit.service.AuditLogService;
+import com.autoparts.erp.dailyclosing.repository.DailyClosingRepository;
+import com.autoparts.erp.sales.dto.SalesCancelRequest;
+import com.autoparts.erp.sales.dto.SalesCancellationPreviewResponse;
+import com.autoparts.erp.sales.dto.SalesCancellationRefundAllocation;
+import com.autoparts.erp.sales.dto.SalesCancellationRefundConfirmRequest;
+import com.autoparts.erp.sales.dto.SalesCancellationResponse;
+import com.autoparts.erp.sales.enums.CancellationRefundStatus;
+import com.autoparts.erp.sales.enums.GstAdjustmentType;
+import com.autoparts.erp.sales.model.SalesCancellationRefund;
+import com.autoparts.erp.sales.model.SalesInvoiceCancellation;
+import com.autoparts.erp.sales.model.SalesInvoiceCancellationItem;
+import com.autoparts.erp.sales.model.SalesReturn;
+import com.autoparts.erp.sales.model.SalesReturnProduct;
+import com.autoparts.erp.sales.repository.SalesCancellationRepository;
+import com.autoparts.erp.sales.repository.SalesReturnRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @Service
 @SalesAccess
@@ -69,6 +91,14 @@ public class SalesServiceImpl implements SalesService {
     private final CustomerRepository customerRepository;
     private final CashRegisterService cashRegisterService;
     private final AuditLogService auditLogService;
+    private final SalesReturnRepository salesReturnRepository;
+    private final SalesCancellationRepository salesCancellationRepository;
+    private final DailyClosingRepository dailyClosingRepository;
+    private final CurrentUserService currentUserService;
+    private final PermissionService permissionService;
+
+    @Value("${erp.sales.cancellation.block-closed-daily-period:false}")
+    private boolean blockClosedDailyPeriod;
 
     public SalesServiceImpl(
             SalesRepository salesRepository,
@@ -79,6 +109,37 @@ public class SalesServiceImpl implements SalesService {
             CashRegisterService cashRegisterService,
             AuditLogService auditLogService
     ) {
+        this(
+            salesRepository,
+            inventoryService,
+            productTaxMappingRepository,
+            taxRateRepository,
+            customerRepository,
+            cashRegisterService,
+            auditLogService,
+            null,
+            null,
+            null,
+            null,
+            null
+        );
+    }
+
+    @Autowired
+    public SalesServiceImpl(
+            SalesRepository salesRepository,
+            InventoryService inventoryService,
+            ProductTaxMappingRepository productTaxMappingRepository,
+            TaxRateRepository taxRateRepository,
+            CustomerRepository customerRepository,
+            CashRegisterService cashRegisterService,
+            AuditLogService auditLogService,
+            SalesReturnRepository salesReturnRepository,
+            SalesCancellationRepository salesCancellationRepository,
+            DailyClosingRepository dailyClosingRepository,
+            CurrentUserService currentUserService,
+            PermissionService permissionService
+    ) {
         this.salesRepository = salesRepository;
         this.inventoryService = inventoryService;
         this.productTaxMappingRepository = productTaxMappingRepository;
@@ -86,6 +147,11 @@ public class SalesServiceImpl implements SalesService {
         this.customerRepository = customerRepository;
         this.cashRegisterService = cashRegisterService;
         this.auditLogService = auditLogService;
+        this.salesReturnRepository = salesReturnRepository;
+        this.salesCancellationRepository = salesCancellationRepository;
+        this.dailyClosingRepository = dailyClosingRepository;
+        this.currentUserService = currentUserService;
+        this.permissionService = permissionService;
     }
 
     // ---------------------------------------------------------
@@ -782,37 +848,61 @@ public class SalesServiceImpl implements SalesService {
     @Transactional
     @RequiresPermission("SALES.CANCEL")
     public SalesResponse cancel(UUID saleUuid, String reason) {
+        return cancel(saleUuid, new SalesCancelRequest(reason));
+    }
 
-        logger.info(
-            "Sales cancellation started for UUID {}",
-            saleUuid
-        );
+    @Override
+    @AdminOrManager
+    @Transactional
+    @RequiresPermission("SALES.CANCEL")
+    public SalesResponse cancel(UUID saleUuid, SalesCancelRequest request) {
+
+        logger.info("Sales cancellation started for UUID {}", saleUuid);
         requireConfiguredSalesStatus(SalesStatus.CANCELLED);
         requireConfiguredPaymentStatus(SalesPaymentStatus.UNPAID);
+
+        if (request == null) {
+            throw new ApiException(SalesErrorCode.INVALID_CANCELLATION_REASON);
+        }
+
+        String trimmedReason = request.reason() != null ? request.reason().trim() : "";
+        if (trimmedReason.isEmpty() || trimmedReason.length() > 500) {
+            throw new ApiException(SalesErrorCode.INVALID_CANCELLATION_REASON);
+        }
+
+        String idempotencyKey = normalizeOptionalText(request.idempotencyKey());
+        if (idempotencyKey != null && salesCancellationRepository != null) {
+            var existingByKey = salesCancellationRepository.findByIdempotencyKey(idempotencyKey);
+            if (existingByKey.isPresent()) {
+                Sales lockedSale = salesRepository.findByUuidForUpdate(saleUuid)
+                    .orElseThrow(() -> new ApiException(SalesErrorCode.SALES_NOT_FOUND));
+                if (existingByKey.get().saleId().equals(lockedSale.id())) {
+                    logger.info("Idempotent replay for sales cancellation UUID {} with key {}", saleUuid, idempotencyKey);
+                    return findByUuid(saleUuid);
+                }
+                throw new ApiException(SalesErrorCode.SALES_CANCELLATION_CONFLICT);
+            }
+        }
 
         Sales sale = salesRepository.findByUuidForUpdate(saleUuid)
-            .orElseThrow(() ->
-                new ApiException(SalesErrorCode.SALES_NOT_FOUND)
-            );
-
-        if (sale.status() == SalesStatus.COMPLETED) {
-            // Issued invoices must use the credit-note/return workflow until
-            // stock reversal and refund settlement are performed together.
-            throw new ApiException(SalesErrorCode.SALES_ALREADY_COMPLETED);
-        }
-
-        if (reason == null || reason.isBlank()) {
-            throw new IllegalArgumentException("Cancellation reason is required");
-        }
+            .orElseThrow(() -> new ApiException(SalesErrorCode.SALES_NOT_FOUND));
 
         if (sale.status() == SalesStatus.CANCELLED) {
-            throw new ApiException(
-                SalesErrorCode.SALES_ALREADY_CANCELLED
-            );
+            throw new ApiException(SalesErrorCode.SALES_ALREADY_CANCELLED);
         }
 
-        requireConfiguredSalesStatus(SalesStatus.CANCELLED);
-        requireConfiguredPaymentStatus(SalesPaymentStatus.UNPAID);
+        if (sale.status() == SalesStatus.DRAFT) {
+            return cancelDraftSale(sale, trimmedReason);
+        }
+
+        if (sale.status() != SalesStatus.COMPLETED) {
+            throw new ApiException(SalesErrorCode.SALES_CANCELLATION_CONFLICT);
+        }
+
+        return cancelIssuedSale(sale, trimmedReason, request, idempotencyKey);
+    }
+
+    private SalesResponse cancelDraftSale(Sales sale, String reason) {
         Sales cancelledSale = new Sales(
             sale.id(),
             sale.uuid(),
@@ -840,27 +930,709 @@ public class SalesServiceImpl implements SalesService {
 
         salesRepository.updateSale(cancelledSale);
         salesRepository.saveCancellationReason(sale.id(), reason);
-        
+
         auditLogService.log(
-                "CANCEL",
-                "SALES",
-                cancelledSale.invoiceNumber(),
-                "Sales draft cancelled: " + reason,
-                Map.of(
-                        "status", sale.status().name()
-                ),
-                Map.of(
-                        "status", cancelledSale.status().name()
-                )
+            "CANCEL",
+            "SALES",
+            cancelledSale.invoiceNumber(),
+            "Sales draft cancelled: " + reason,
+            Map.of("status", sale.status().name()),
+            Map.of("status", cancelledSale.status().name())
         );
 
-        logger.info(
-            "Sales cancellation successful for UUID {}",
-            saleUuid
-        );
-
-        return findByUuid(saleUuid);
+        logger.info("Sales draft cancellation successful for UUID {}", sale.uuid());
+        return findByUuid(sale.uuid());
     }
+
+    private SalesResponse cancelIssuedSale(
+        Sales sale,
+        String reason,
+        SalesCancelRequest request,
+        String idempotencyKey
+    ) {
+        enforceCancelIssuedPermission();
+
+        if (salesCancellationRepository == null || salesReturnRepository == null || currentUserService == null) {
+            throw new IllegalStateException("Issued invoice cancellation dependencies are not configured");
+        }
+
+        if (salesCancellationRepository.findBySaleId(sale.id()).isPresent()) {
+            throw new ApiException(SalesErrorCode.SALES_ALREADY_CANCELLED);
+        }
+
+        if (blockClosedDailyPeriod
+            && dailyClosingRepository != null
+            && dailyClosingRepository.findByBusinessDate(sale.saleDate()).isPresent()) {
+            throw new ApiException(SalesErrorCode.SALES_CANCELLATION_PERIOD_LOCKED);
+        }
+
+        List<SalesProduct> saleProducts = salesRepository.findProductsBySaleId(sale.id());
+        List<SalesPayment> payments = salesRepository.findPaymentsBySaleId(sale.id());
+        validateFinancialConsistency(sale, payments);
+
+        List<SalesReturn> previousReturns = salesReturnRepository.findReturnsBySaleId(sale.id());
+        BigDecimal previouslyPaidAmount = money(sale.paidAmount());
+        BigDecimal previouslyReturnedAmount = money(previousReturns.stream()
+            .map(SalesReturn::totalReturnAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add));
+        BigDecimal previouslyRefundedAmount = money(salesReturnRepository.getTotalRefundedAmountBySaleId(sale.id()));
+
+        if (previouslyReturnedAmount.compareTo(sale.grandTotal()) > 0
+            || previouslyRefundedAmount.compareTo(previouslyPaidAmount) > 0) {
+            throw new ApiException(SalesErrorCode.SALES_CANCELLATION_CONFLICT);
+        }
+
+        BigDecimal cancelledInvoiceAmount = money(sale.grandTotal().subtract(previouslyReturnedAmount).max(BigDecimal.ZERO));
+        BigDecimal refundableAmount = money(previouslyPaidAmount.subtract(previouslyRefundedAmount).max(BigDecimal.ZERO));
+        BigDecimal receivableAdjustmentAmount = money(cancelledInvoiceAmount.subtract(refundableAmount).max(BigDecimal.ZERO));
+
+        List<ItemCancellationPlan> itemPlans = buildItemCancellationPlans(saleProducts);
+        List<RefundPlan> refundPlans = buildRefundPlans(sale, payments, refundableAmount, request);
+
+        Long currentUserId = currentUserService.getCurrentUserId();
+        OffsetDateTime now = OffsetDateTime.now();
+
+        CancellationRefundStatus overallRefundStatus = determineOverallRefundStatus(refundableAmount, refundPlans);
+        PaymentMethod primaryRefundMethod = refundPlans.size() == 1 ? refundPlans.get(0).paymentMethod() : null;
+        String primaryRefundRef = refundPlans.size() == 1 ? refundPlans.get(0).referenceNumber() : normalizeOptionalText(request.refundReference());
+        OffsetDateTime confirmedAt = overallRefundStatus == CancellationRefundStatus.SUCCESSFUL ? now : null;
+        Long confirmedBy = overallRefundStatus == CancellationRefundStatus.SUCCESSFUL ? currentUserId : null;
+
+        GstAdjustmentType gstAdjustmentType = previouslyReturnedAmount.compareTo(BigDecimal.ZERO) > 0
+            ? GstAdjustmentType.CREDIT_NOTE_REQUIRED
+            : GstAdjustmentType.INVOICE_CANCELLATION;
+        String gstAdjustmentRef = normalizeOptionalText(request.gstAdjustmentReference());
+        if (gstAdjustmentRef == null) {
+            gstAdjustmentRef = "CANC-" + sale.invoiceNumber();
+        }
+
+        SalesInvoiceCancellation cancellation = salesCancellationRepository.createCancellation(
+            new SalesInvoiceCancellation(
+                null,
+                UUID.randomUUID(),
+                sale.id(),
+                sale.invoiceNumber(),
+                idempotencyKey,
+                reason,
+                currentUserId,
+                now,
+                money(sale.grandTotal()),
+                money(sale.taxableAmount()),
+                money(sale.cgstAmount()),
+                money(sale.sgstAmount()),
+                money(sale.igstAmount()),
+                money(sale.totalTaxAmount()),
+                previouslyPaidAmount,
+                previouslyReturnedAmount,
+                previouslyRefundedAmount,
+                cancelledInvoiceAmount,
+                refundableAmount,
+                primaryRefundMethod,
+                overallRefundStatus,
+                primaryRefundRef,
+                confirmedAt,
+                confirmedBy,
+                receivableAdjustmentAmount,
+                gstAdjustmentType,
+                gstAdjustmentRef,
+                null,
+                null,
+                "NOT_APPLICABLE",
+                null,
+                "NOT_APPLICABLE",
+                normalizeOptionalText(request.notes()),
+                null,
+                null
+            )
+        );
+
+        for (ItemCancellationPlan plan : itemPlans) {
+            salesCancellationRepository.createCancellationItem(new SalesInvoiceCancellationItem(
+                null,
+                UUID.randomUUID(),
+                cancellation.id(),
+                plan.salesProduct().id(),
+                plan.salesProduct().productId(),
+                plan.salesProduct().productCode(),
+                plan.salesProduct().productName(),
+                plan.salesProduct().quantity(),
+                plan.previouslyReturnedQuantity(),
+                plan.remainingQuantityToRestore(),
+                plan.salesProduct().unit(),
+                plan.taxableReversed(),
+                plan.cgstReversed(),
+                plan.sgstReversed(),
+                plan.igstReversed(),
+                plan.totalTaxReversed(),
+                plan.lineTotalReversed(),
+                null
+            ));
+
+            if (plan.remainingQuantityToRestore().compareTo(BigDecimal.ZERO) > 0) {
+                inventoryService.restoreStockFromSalesCancellation(
+                    plan.salesProduct().productId(),
+                    plan.remainingQuantityToRestore(),
+                    cancellation.id(),
+                    sale.invoiceNumber()
+                );
+            }
+        }
+
+        for (RefundPlan plan : refundPlans) {
+            UUID refundUuid = UUID.randomUUID();
+            SalesCancellationRefund refund = salesCancellationRepository.createCancellationRefund(
+                new SalesCancellationRefund(
+                    null,
+                    refundUuid,
+                    cancellation.id(),
+                    sale.id(),
+                    plan.originalPaymentId(),
+                    plan.paymentMethod(),
+                    plan.amount(),
+                    plan.status(),
+                    plan.referenceNumber(),
+                    now,
+                    plan.status() == CancellationRefundStatus.SUCCESSFUL ? now : null,
+                    plan.status() == CancellationRefundStatus.SUCCESSFUL ? currentUserId : null,
+                    plan.notes(),
+                    null,
+                    null
+                )
+            );
+
+            if (refund.paymentMethod() == PaymentMethod.CASH) {
+                cashRegisterService.recordTransactionMovement(
+                    CashMovementType.OUT,
+                    CashMovementSourceType.SALES_CANCELLATION_REFUND,
+                    refund.uuid(),
+                    refund.amount(),
+                    "Invoice cancellation refund for " + sale.invoiceNumber()
+                );
+            }
+        }
+
+        Sales cancelledSale = new Sales(
+            sale.id(),
+            sale.uuid(),
+            sale.invoiceNumber(),
+            sale.customerId(),
+            sale.customerName(),
+            sale.customerPhone(),
+            sale.saleDate(),
+            sale.subtotal(),
+            sale.discountAmount(),
+            sale.taxableAmount(),
+            sale.cgstAmount(),
+            sale.sgstAmount(),
+            sale.igstAmount(),
+            sale.totalTaxAmount(),
+            sale.grandTotal(),
+            sale.paidAmount(),
+            BigDecimal.ZERO.setScale(MONEY_SCALE),
+            SalesStatus.CANCELLED,
+            SalesPaymentStatus.UNPAID,
+            sale.notes(),
+            sale.createdAt(),
+            sale.updatedAt()
+        );
+
+        salesRepository.updateSale(cancelledSale);
+        salesRepository.saveCancellationReason(sale.id(), reason);
+
+        auditLogService.log(
+            "CANCEL_ISSUED",
+            "SALES",
+            sale.invoiceNumber(),
+            "Issued sales invoice cancelled: " + reason,
+            Map.of(
+                "status", sale.status().name(),
+                "paidAmount", previouslyPaidAmount,
+                "balanceAmount", sale.balanceAmount()
+            ),
+            Map.of(
+                "status", SalesStatus.CANCELLED.name(),
+                "cancellationUuid", cancellation.uuid().toString(),
+                "refundAmount", refundableAmount,
+                "refundStatus", overallRefundStatus.name(),
+                "receivableAdjustmentAmount", receivableAdjustmentAmount,
+                "gstAdjustmentType", gstAdjustmentType.name()
+            )
+        );
+
+        logger.info("Issued sales invoice {} cancelled successfully. Refund: {}, Receivable adj: {}",
+            sale.invoiceNumber(), refundableAmount, receivableAdjustmentAmount);
+
+        return findByUuid(sale.uuid());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @RequiresPermission("SALES.CANCEL_ISSUED")
+    public SalesCancellationPreviewResponse getCancellationPreview(UUID saleUuid) {
+        Sales sale = salesRepository.findByUuid(saleUuid)
+            .orElseThrow(() -> new ApiException(SalesErrorCode.SALES_NOT_FOUND));
+
+        List<SalesProduct> saleProducts = salesRepository.findProductsBySaleId(sale.id());
+        List<SalesPayment> payments = salesRepository.findPaymentsBySaleId(sale.id());
+        List<SalesReturn> previousReturns = salesReturnRepository != null
+            ? salesReturnRepository.findReturnsBySaleId(sale.id())
+            : List.of();
+
+        BigDecimal previouslyPaidAmount = money(sale.paidAmount());
+        BigDecimal previouslyReturnedAmount = money(previousReturns.stream()
+            .map(SalesReturn::totalReturnAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add));
+        BigDecimal previouslyRefundedAmount = salesReturnRepository != null
+            ? money(salesReturnRepository.getTotalRefundedAmountBySaleId(sale.id()))
+            : BigDecimal.ZERO.setScale(MONEY_SCALE);
+
+        BigDecimal cancelledInvoiceAmount = money(sale.grandTotal().subtract(previouslyReturnedAmount).max(BigDecimal.ZERO));
+        BigDecimal refundableAmount = money(previouslyPaidAmount.subtract(previouslyRefundedAmount).max(BigDecimal.ZERO));
+        BigDecimal receivableAdjustmentAmount = money(cancelledInvoiceAmount.subtract(refundableAmount).max(BigDecimal.ZERO));
+
+        List<ItemCancellationPlan> itemPlans = buildItemCancellationPlans(saleProducts);
+
+        BigDecimal taxableReversed = money(itemPlans.stream().map(ItemCancellationPlan::taxableReversed).reduce(BigDecimal.ZERO, BigDecimal::add));
+        BigDecimal cgstReversed = money(itemPlans.stream().map(ItemCancellationPlan::cgstReversed).reduce(BigDecimal.ZERO, BigDecimal::add));
+        BigDecimal sgstReversed = money(itemPlans.stream().map(ItemCancellationPlan::sgstReversed).reduce(BigDecimal.ZERO, BigDecimal::add));
+        BigDecimal igstReversed = money(itemPlans.stream().map(ItemCancellationPlan::igstReversed).reduce(BigDecimal.ZERO, BigDecimal::add));
+        BigDecimal totalTaxReversed = money(itemPlans.stream().map(ItemCancellationPlan::totalTaxReversed).reduce(BigDecimal.ZERO, BigDecimal::add));
+
+        boolean dailyPeriodClosed = dailyClosingRepository != null
+            && dailyClosingRepository.findByBusinessDate(sale.saleDate()).isPresent();
+
+        boolean eligible = sale.status() == SalesStatus.COMPLETED
+            && !(blockClosedDailyPeriod && dailyPeriodClosed);
+        String ineligibilityReason = null;
+        if (sale.status() == SalesStatus.CANCELLED) {
+            ineligibilityReason = "Invoice is already cancelled";
+        } else if (sale.status() == SalesStatus.DRAFT) {
+            ineligibilityReason = "Draft invoices should use draft cancellation";
+        } else if (blockClosedDailyPeriod && dailyPeriodClosed) {
+            ineligibilityReason = "Daily closing has already been completed for " + sale.saleDate();
+        }
+
+        List<String> warnings = new ArrayList<>();
+        if (previouslyReturnedAmount.compareTo(BigDecimal.ZERO) > 0) {
+            warnings.add("Partial sales returns exist; only remaining unreturned stock and net paid amounts will be reversed.");
+        }
+        if (dailyPeriodClosed && !blockClosedDailyPeriod) {
+            warnings.add("Business date " + sale.saleDate() + " has a daily closing record; cancellation refund will post to the current open session.");
+        }
+        boolean hasCashPayment = payments.stream().anyMatch(p -> p.paymentMethod() == PaymentMethod.CASH);
+        if (refundableAmount.compareTo(BigDecimal.ZERO) > 0 && hasCashPayment) {
+            warnings.add("Cash refunds require an open cash register session for the current user.");
+        }
+
+        GstAdjustmentType gstAdjustmentType = previouslyReturnedAmount.compareTo(BigDecimal.ZERO) > 0
+            ? GstAdjustmentType.CREDIT_NOTE_REQUIRED
+            : GstAdjustmentType.INVOICE_CANCELLATION;
+
+        List<SalesPaymentResponse> paymentResponses = payments.stream()
+            .map(p -> new SalesPaymentResponse(
+                p.uuid(), p.paymentMethod(), p.amount(), p.referenceNumber(), p.paymentDate(), p.notes()
+            ))
+            .toList();
+
+        List<SalesCancellationPreviewResponse.PreviewItem> previewItems = itemPlans.stream()
+            .map(plan -> new SalesCancellationPreviewResponse.PreviewItem(
+                plan.salesProduct().uuid(),
+                plan.salesProduct().productUuid(),
+                plan.salesProduct().productCode(),
+                plan.salesProduct().productName(),
+                plan.salesProduct().unit(),
+                plan.salesProduct().quantity(),
+                plan.previouslyReturnedQuantity(),
+                plan.remainingQuantityToRestore(),
+                plan.taxableReversed(),
+                plan.totalTaxReversed(),
+                plan.lineTotalReversed()
+            ))
+            .toList();
+
+        return new SalesCancellationPreviewResponse(
+            sale.uuid(),
+            sale.invoiceNumber(),
+            sale.saleDate(),
+            sale.customerName(),
+            sale.customerPhone(),
+            sale.status(),
+            eligible,
+            ineligibilityReason,
+            money(sale.grandTotal()),
+            previouslyPaidAmount,
+            previouslyReturnedAmount,
+            previouslyRefundedAmount,
+            money(sale.balanceAmount()),
+            cancelledInvoiceAmount,
+            refundableAmount,
+            receivableAdjustmentAmount,
+            gstAdjustmentType,
+            taxableReversed,
+            cgstReversed,
+            sgstReversed,
+            igstReversed,
+            totalTaxReversed,
+            refundableAmount.compareTo(BigDecimal.ZERO) > 0 && hasCashPayment,
+            dailyPeriodClosed,
+            paymentResponses,
+            previewItems,
+            warnings
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @RequiresPermission("SALES.VIEW")
+    public SalesCancellationResponse getCancellation(UUID saleUuid) {
+        Sales sale = salesRepository.findByUuid(saleUuid)
+            .orElseThrow(() -> new ApiException(SalesErrorCode.SALES_NOT_FOUND));
+
+        if (salesCancellationRepository == null) {
+            throw new ApiException(SalesErrorCode.SALES_CANCELLATION_NOT_FOUND);
+        }
+
+        return salesCancellationRepository.findDetailedBySaleId(sale.id())
+            .orElseThrow(() -> new ApiException(SalesErrorCode.SALES_CANCELLATION_NOT_FOUND));
+    }
+
+    @Override
+    @AdminOrManager
+    @Transactional
+    @RequiresPermission("SALES.CANCEL_ISSUED")
+    public SalesCancellationResponse confirmCancellationRefund(
+        UUID saleUuid,
+        UUID refundUuid,
+        SalesCancellationRefundConfirmRequest request
+    ) {
+        if (salesCancellationRepository == null || currentUserService == null) {
+            throw new IllegalStateException("Cancellation repository is not configured");
+        }
+
+        Sales sale = salesRepository.findByUuidForUpdate(saleUuid)
+            .orElseThrow(() -> new ApiException(SalesErrorCode.SALES_NOT_FOUND));
+
+        SalesInvoiceCancellation cancellation = salesCancellationRepository.findBySaleId(sale.id())
+            .orElseThrow(() -> new ApiException(SalesErrorCode.SALES_CANCELLATION_NOT_FOUND));
+
+        SalesCancellationRefund refund = salesCancellationRepository.findRefundByUuidForUpdate(refundUuid)
+            .orElseThrow(() -> new ApiException(SalesErrorCode.SALES_CANCELLATION_REFUND_NOT_FOUND));
+
+        if (!refund.cancellationId().equals(cancellation.id())) {
+            throw new ApiException(SalesErrorCode.SALES_CANCELLATION_REFUND_NOT_FOUND);
+        }
+
+        if (refund.status() == CancellationRefundStatus.SUCCESSFUL && request.status() == CancellationRefundStatus.SUCCESSFUL) {
+            throw new ApiException(SalesErrorCode.SALES_CANCELLATION_REFUND_INVALID);
+        }
+
+        if (request.status() == CancellationRefundStatus.NOT_REQUIRED) {
+            throw new ApiException(SalesErrorCode.SALES_CANCELLATION_REFUND_INVALID);
+        }
+
+        Long currentUserId = currentUserService.getCurrentUserId();
+        OffsetDateTime now = OffsetDateTime.now();
+        String ref = normalizeOptionalText(request.referenceNumber());
+        if (ref == null) {
+            ref = refund.referenceNumber();
+        }
+
+        SalesCancellationRefund updatedRefund = salesCancellationRepository.updateCancellationRefund(
+            new SalesCancellationRefund(
+                refund.id(),
+                refund.uuid(),
+                refund.cancellationId(),
+                refund.saleId(),
+                refund.originalPaymentId(),
+                refund.paymentMethod(),
+                refund.amount(),
+                request.status(),
+                ref,
+                refund.refundDate(),
+                request.status() == CancellationRefundStatus.SUCCESSFUL ? now : refund.confirmedAt(),
+                request.status() == CancellationRefundStatus.SUCCESSFUL ? currentUserId : refund.confirmedBy(),
+                normalizeOptionalText(request.notes()) != null ? normalizeOptionalText(request.notes()) : refund.notes(),
+                refund.createdAt(),
+                now
+            )
+        );
+
+        List<SalesCancellationRefund> allRefunds = salesCancellationRepository.findRefundsByCancellationId(cancellation.id());
+        CancellationRefundStatus overallStatus = aggregateRefundStatus(allRefunds);
+        salesCancellationRepository.updateCancellation(
+            new SalesInvoiceCancellation(
+                cancellation.id(),
+                cancellation.uuid(),
+                cancellation.saleId(),
+                cancellation.invoiceNumber(),
+                cancellation.idempotencyKey(),
+                cancellation.cancellationReason(),
+                cancellation.cancelledBy(),
+                cancellation.cancelledAt(),
+                cancellation.originalGrandTotal(),
+                cancellation.originalTaxableAmount(),
+                cancellation.originalCgstAmount(),
+                cancellation.originalSgstAmount(),
+                cancellation.originalIgstAmount(),
+                cancellation.originalTotalTaxAmount(),
+                cancellation.previouslyPaidAmount(),
+                cancellation.previouslyReturnedAmount(),
+                cancellation.previouslyRefundedAmount(),
+                cancellation.cancelledInvoiceAmount(),
+                cancellation.refundAmount(),
+                cancellation.refundMethod(),
+                overallStatus,
+                ref,
+                overallStatus == CancellationRefundStatus.SUCCESSFUL ? now : null,
+                overallStatus == CancellationRefundStatus.SUCCESSFUL ? currentUserId : null,
+                cancellation.receivableAdjustmentAmount(),
+                cancellation.gstAdjustmentType(),
+                cancellation.gstAdjustmentReference(),
+                cancellation.creditNoteNumber(),
+                cancellation.irn(),
+                cancellation.irnStatus(),
+                cancellation.ewayBillNumber(),
+                cancellation.ewayBillStatus(),
+                cancellation.notes(),
+                cancellation.createdAt(),
+                now
+            )
+        );
+
+        auditLogService.log(
+            "UPDATE",
+            "SALES_CANCELLATION_REFUND",
+            updatedRefund.uuid().toString(),
+            "Cancellation refund status updated to " + request.status().name(),
+            Map.of("status", refund.status().name()),
+            Map.of("status", updatedRefund.status().name(), "referenceNumber", ref != null ? ref : "")
+        );
+
+        return getCancellation(saleUuid);
+    }
+
+    private void enforceCancelIssuedPermission() {
+        if (permissionService == null) {
+            return;
+        }
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !permissionService.hasPermission(auth, "SALES.CANCEL_ISSUED")) {
+            throw new AccessDeniedException("You do not have permission to cancel an issued sales invoice.");
+        }
+    }
+
+    private void validateFinancialConsistency(Sales sale, List<SalesPayment> payments) {
+        BigDecimal sumPayments = money(payments.stream()
+            .map(SalesPayment::amount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add));
+        if (sumPayments.subtract(money(sale.paidAmount())).abs().compareTo(new BigDecimal("0.01")) > 0) {
+            throw new ApiException(SalesErrorCode.SALES_CANCELLATION_CONFLICT);
+        }
+        BigDecimal expectedBalance = money(sale.grandTotal().subtract(sale.paidAmount()));
+        if (expectedBalance.subtract(money(sale.balanceAmount())).abs().compareTo(new BigDecimal("0.01")) > 0) {
+            throw new ApiException(SalesErrorCode.SALES_CANCELLATION_CONFLICT);
+        }
+    }
+
+    private List<ItemCancellationPlan> buildItemCancellationPlans(List<SalesProduct> saleProducts) {
+        List<SalesProduct> sorted = saleProducts.stream()
+            .sorted(Comparator.comparing(SalesProduct::productId))
+            .toList();
+
+        List<ItemCancellationPlan> plans = new ArrayList<>();
+        for (SalesProduct sp : sorted) {
+            List<SalesReturnProduct> prevReturns = salesReturnRepository != null
+                ? salesReturnRepository.findReturnedProductsBySaleProductId(sp.id())
+                : List.of();
+
+            BigDecimal prevQty = prevReturns.stream()
+                .map(SalesReturnProduct::quantity)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal remainingQty = sp.quantity().subtract(prevQty);
+
+            if (remainingQty.compareTo(BigDecimal.ZERO) < 0) {
+                throw new ApiException(SalesErrorCode.SALES_CANCELLATION_CONFLICT);
+            }
+
+            BigDecimal prevTaxable = prevReturns.stream().map(SalesReturnProduct::taxableAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal prevCgst = prevReturns.stream().map(SalesReturnProduct::cgstAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal prevSgst = prevReturns.stream().map(SalesReturnProduct::sgstAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal prevIgst = prevReturns.stream().map(SalesReturnProduct::igstAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal prevTotalTax = prevReturns.stream().map(SalesReturnProduct::totalTaxAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal prevLineTotal = prevReturns.stream().map(SalesReturnProduct::lineTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            plans.add(new ItemCancellationPlan(
+                sp,
+                prevQty,
+                remainingQty,
+                money(sp.taxableAmount().subtract(prevTaxable).max(BigDecimal.ZERO)),
+                money(sp.cgstAmount().subtract(prevCgst).max(BigDecimal.ZERO)),
+                money(sp.sgstAmount().subtract(prevSgst).max(BigDecimal.ZERO)),
+                money(sp.igstAmount().subtract(prevIgst).max(BigDecimal.ZERO)),
+                money(sp.totalTaxAmount().subtract(prevTotalTax).max(BigDecimal.ZERO)),
+                money(sp.lineTotal().subtract(prevLineTotal).max(BigDecimal.ZERO))
+            ));
+        }
+        return plans;
+    }
+
+    private List<RefundPlan> buildRefundPlans(
+        Sales sale,
+        List<SalesPayment> payments,
+        BigDecimal refundableAmount,
+        SalesCancelRequest request
+    ) {
+        if (refundableAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return List.of();
+        }
+
+        boolean confirmExternal = Boolean.TRUE.equals(request.confirmExternalRefund());
+        String defaultRef = normalizeOptionalText(request.refundReference());
+
+        if (request.refundAllocations() != null && !request.refundAllocations().isEmpty()) {
+            BigDecimal allocatedTotal = money(request.refundAllocations().stream()
+                .map(SalesCancellationRefundAllocation::amount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add));
+
+            if (allocatedTotal.compareTo(refundableAmount) != 0) {
+                throw new ApiException(SalesErrorCode.SALES_CANCELLATION_REFUND_INVALID);
+            }
+
+            List<RefundPlan> plans = new ArrayList<>();
+            for (SalesCancellationRefundAllocation alloc : request.refundAllocations()) {
+                if (alloc.paymentMethod() == null || alloc.paymentMethod() == PaymentMethod.CREDIT) {
+                    throw new ApiException(SalesErrorCode.SALES_CANCELLATION_REFUND_INVALID);
+                }
+                Long originalPaymentId = null;
+                if (alloc.originalPaymentUuid() != null) {
+                    SalesPayment matched = payments.stream()
+                        .filter(p -> p.uuid().equals(alloc.originalPaymentUuid()))
+                        .findFirst()
+                        .orElseThrow(() -> new ApiException(SalesErrorCode.SALES_CANCELLATION_REFUND_INVALID));
+                    originalPaymentId = matched.id();
+                }
+                String ref = normalizeOptionalText(alloc.referenceNumber());
+                if (ref == null) {
+                    ref = defaultRef;
+                }
+                CancellationRefundStatus status = resolveInitialRefundStatus(alloc.paymentMethod(), confirmExternal, ref);
+                plans.add(new RefundPlan(originalPaymentId, alloc.paymentMethod(), money(alloc.amount()), status, ref, null));
+            }
+            return plans;
+        }
+
+        if (request.refundMethod() != null) {
+            if (request.refundMethod() == PaymentMethod.CREDIT) {
+                throw new ApiException(SalesErrorCode.SALES_CANCELLATION_REFUND_INVALID);
+            }
+            Long originalPaymentId = payments.size() == 1 ? payments.get(0).id() : null;
+            CancellationRefundStatus status = resolveInitialRefundStatus(request.refundMethod(), confirmExternal, defaultRef);
+            return List.of(new RefundPlan(originalPaymentId, request.refundMethod(), refundableAmount, status, defaultRef, null));
+        }
+
+        // Default: trace refunds back to original non-CREDIT payments up to refundableAmount.
+        List<RefundPlan> autoPlans = new ArrayList<>();
+        BigDecimal remaining = refundableAmount;
+        for (SalesPayment payment : payments) {
+            if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+                break;
+            }
+            if (payment.paymentMethod() == PaymentMethod.CREDIT) {
+                continue;
+            }
+            BigDecimal chunk = money(payment.amount().min(remaining));
+            if (chunk.compareTo(BigDecimal.ZERO) > 0) {
+                String ref = defaultRef != null ? defaultRef : payment.referenceNumber();
+                CancellationRefundStatus status = resolveInitialRefundStatus(payment.paymentMethod(), confirmExternal, ref);
+                autoPlans.add(new RefundPlan(payment.id(), payment.paymentMethod(), chunk, status, ref, null));
+                remaining = money(remaining.subtract(chunk));
+            }
+        }
+
+        if (remaining.compareTo(BigDecimal.ZERO) > 0) {
+            // Fallback if original payment was CREDIT or unallocated: require explicit method or default to CASH.
+            CancellationRefundStatus status = resolveInitialRefundStatus(PaymentMethod.CASH, confirmExternal, defaultRef);
+            autoPlans.add(new RefundPlan(null, PaymentMethod.CASH, remaining, status, defaultRef, null));
+        }
+
+        return autoPlans;
+    }
+
+    private CancellationRefundStatus resolveInitialRefundStatus(
+        PaymentMethod method,
+        boolean confirmExternal,
+        String reference
+    ) {
+        if (method == PaymentMethod.CASH) {
+            return CancellationRefundStatus.SUCCESSFUL;
+        }
+        if (confirmExternal && reference != null && !reference.isBlank()) {
+            return CancellationRefundStatus.SUCCESSFUL;
+        }
+        return CancellationRefundStatus.PENDING;
+    }
+
+    private CancellationRefundStatus determineOverallRefundStatus(
+        BigDecimal refundableAmount,
+        List<RefundPlan> plans
+    ) {
+        if (refundableAmount.compareTo(BigDecimal.ZERO) <= 0 || plans.isEmpty()) {
+            return CancellationRefundStatus.NOT_REQUIRED;
+        }
+        boolean allSuccess = plans.stream().allMatch(p -> p.status() == CancellationRefundStatus.SUCCESSFUL);
+        if (allSuccess) {
+            return CancellationRefundStatus.SUCCESSFUL;
+        }
+        return CancellationRefundStatus.PENDING;
+    }
+
+    private CancellationRefundStatus aggregateRefundStatus(List<SalesCancellationRefund> refunds) {
+        if (refunds.isEmpty()) {
+            return CancellationRefundStatus.NOT_REQUIRED;
+        }
+        if (refunds.stream().allMatch(r -> r.status() == CancellationRefundStatus.SUCCESSFUL)) {
+            return CancellationRefundStatus.SUCCESSFUL;
+        }
+        if (refunds.stream().anyMatch(r -> r.status() == CancellationRefundStatus.FAILED)) {
+            return CancellationRefundStatus.FAILED;
+        }
+        if (refunds.stream().anyMatch(r -> r.status() == CancellationRefundStatus.PROCESSING)) {
+            return CancellationRefundStatus.PROCESSING;
+        }
+        if (refunds.stream().allMatch(r -> r.status() == CancellationRefundStatus.REVERSED)) {
+            return CancellationRefundStatus.REVERSED;
+        }
+        return CancellationRefundStatus.PENDING;
+    }
+
+    private String normalizeOptionalText(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private record ItemCancellationPlan(
+        SalesProduct salesProduct,
+        BigDecimal previouslyReturnedQuantity,
+        BigDecimal remainingQuantityToRestore,
+        BigDecimal taxableReversed,
+        BigDecimal cgstReversed,
+        BigDecimal sgstReversed,
+        BigDecimal igstReversed,
+        BigDecimal totalTaxReversed,
+        BigDecimal lineTotalReversed
+    ) {}
+
+    private record RefundPlan(
+        Long originalPaymentId,
+        PaymentMethod paymentMethod,
+        BigDecimal amount,
+        CancellationRefundStatus status,
+        String referenceNumber,
+        String notes
+    ) {}
 
     // ---------------------------------------------------------
     // BUILD SALES RESPONSE

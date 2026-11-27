@@ -16,6 +16,9 @@ import com.autoparts.erp.sales.dto.SalesResponse;
 import com.autoparts.erp.sales.service.SalesService;
 import com.autoparts.erp.sales.dto.SalesPaymentRequest;
 import com.autoparts.erp.sales.dto.SalesCancelRequest;
+import com.autoparts.erp.sales.dto.SalesCancellationPreviewResponse;
+import com.autoparts.erp.sales.dto.SalesCancellationRefundConfirmRequest;
+import com.autoparts.erp.sales.dto.SalesCancellationResponse;
 import com.autoparts.erp.sales.dto.SalesStatusOption;
 import com.autoparts.erp.sales.repository.SalesRepository;
 
@@ -103,6 +106,26 @@ public class SalesController {
         );
     }
 
+    @RequiresPermission("SALES.CANCEL_ISSUED")
+    @GetMapping("/{saleUuid}/cancellation-preview")
+    public ResponseEntity<SalesCancellationPreviewResponse> cancellationPreview(
+        @PathVariable UUID saleUuid
+    ) {
+        return ResponseEntity.ok(
+            salesService.getCancellationPreview(saleUuid)
+        );
+    }
+
+    @RequiresPermission("SALES.VIEW")
+    @GetMapping("/{saleUuid}/cancellation")
+    public ResponseEntity<SalesCancellationResponse> getCancellation(
+        @PathVariable UUID saleUuid
+    ) {
+        return ResponseEntity.ok(
+            salesService.getCancellation(saleUuid)
+        );
+    }
+
     @RequiresPermission("SALES.CANCEL")
     @PostMapping("/{saleUuid}/cancel")
     public ResponseEntity<SalesResponse> cancel(
@@ -110,7 +133,19 @@ public class SalesController {
         @Valid @RequestBody SalesCancelRequest request
     ) {
         return ResponseEntity.ok(
-            salesService.cancel(saleUuid, request.reason())
+            salesService.cancel(saleUuid, request)
+        );
+    }
+
+    @RequiresPermission("SALES.CANCEL_ISSUED")
+    @PostMapping("/{saleUuid}/cancellation/refunds/{refundUuid}/confirm")
+    public ResponseEntity<SalesCancellationResponse> confirmCancellationRefund(
+        @PathVariable UUID saleUuid,
+        @PathVariable UUID refundUuid,
+        @Valid @RequestBody SalesCancellationRefundConfirmRequest request
+    ) {
+        return ResponseEntity.ok(
+            salesService.confirmCancellationRefund(saleUuid, refundUuid, request)
         );
     }
     

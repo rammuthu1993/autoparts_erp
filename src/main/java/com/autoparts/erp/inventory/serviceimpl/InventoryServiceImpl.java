@@ -196,10 +196,31 @@ public class InventoryServiceImpl implements InventoryService {
     @Override
     @AuthenticatedUser
     @RequiresPermission("INVENTORY.VIEW")
+    public com.autoparts.erp.inventory.dto.InventorySummaryResponse getInventorySummary() {
+        return repository.getInventorySummary();
+    }
+
+    @Override
+    @AuthenticatedUser
+    @RequiresPermission("INVENTORY.VIEW")
     public PageResponse<InventoryStockResponse> findStockPaged(
             int page,
             int size,
             String search,
+            String sortBy,
+            String sortDir
+    ) {
+        return findStockPaged(page, size, search, null, sortBy, sortDir);
+    }
+
+    @Override
+    @AuthenticatedUser
+    @RequiresPermission("INVENTORY.VIEW")
+    public PageResponse<InventoryStockResponse> findStockPaged(
+            int page,
+            int size,
+            String search,
+            String stockStatus,
             String sortBy,
             String sortDir
     ) {
@@ -211,11 +232,12 @@ public class InventoryServiceImpl implements InventoryService {
                 offset,
                 safeSize,
                 search,
+                stockStatus,
                 sortBy,
                 sortDir
         ).stream().map(this::toStockResponse).toList();
 
-        long total = repository.countStockPaged(search);
+        long total = repository.countStockPaged(search, stockStatus);
         return PageResponse.of(content, safePage, safeSize, total);
     }
 
@@ -614,6 +636,136 @@ public class InventoryServiceImpl implements InventoryService {
                 InventoryReferenceType.SALES_RETURN,
                 salesReturnId,
                 "Stock restored from sales return"
+        );
+    }
+
+    @Override
+    @Transactional
+    @SalesAccess
+    public InventoryStock restoreStockFromSalesCancellation(
+            Long productId,
+            BigDecimal quantity,
+            Long cancellationId,
+            String invoiceNumber
+    ) {
+        validateStockQuantity(quantity);
+
+        InventoryStock stock = getStockForUpdate(productId);
+
+        String notes = invoiceNumber != null && !invoiceNumber.isBlank()
+                ? "Stock restored from invoice cancellation " + invoiceNumber
+                : "Stock restored from sales invoice cancellation";
+
+        return applyStockChange(
+                stock,
+                quantity,
+                InventoryMovementType.SALES_CANCELLATION,
+                InventoryReferenceType.SALE_CANCELLATION,
+                cancellationId,
+                notes
+        );
+    }
+
+    @Override
+    @AuthenticatedUser
+    @RequiresPermission("INVENTORY.VIEW")
+    public InventoryPageResponse<InventoryMovementResponse> findMovements(
+            UUID productUuid,
+            InventoryMovementType movementType,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String search,
+            int page,
+            int size
+    ) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        int offset = PaginationUtils.calculateOffsetForNormalized(safePage, safeSize);
+
+        List<InventoryMovementResponse> content = repository.findMovements(
+                productUuid, movementType, fromDate, toDate, search, safeSize, offset
+        ).stream().map(this::toMovementResponse).toList();
+
+        long total = repository.countMovements(productUuid, movementType, fromDate, toDate, search);
+        int totalPages = safeSize == 0 ? 0 : (int) Math.ceil((double) total / safeSize);
+        return new InventoryPageResponse<>(content, safePage, safeSize, total, totalPages);
+    }
+
+    @Override
+    @AuthenticatedUser
+    @RequiresPermission("INVENTORY.VIEW")
+    public InventoryMovementResponse findMovementByUuid(UUID movementUuid) {
+        InventoryMovement movement = repository.findMovementByUuid(movementUuid)
+                .orElseThrow(() -> new ApiException(InventoryErrorCode.INVENTORY_PRODUCT_NOT_FOUND));
+        return toMovementResponse(movement);
+    }
+
+    @Override
+    @Transactional
+    @AdminOrManager
+    @RequiresPermission("INVENTORY.RECONCILE")
+    public InventoryStockResponse reconcileStock(
+            UUID productUuid,
+            com.autoparts.erp.inventory.dto.StockReconciliationRequest request
+    ) {
+        if (request == null || request.physicalQuantity() == null || request.physicalQuantity().compareTo(BigDecimal.ZERO) < 0) {
+            throw new ApiException(InventoryErrorCode.INVALID_STOCK_QUANTITY);
+        }
+        if (request.reason() == null || request.reason().isBlank()) {
+            throw new ApiException(InventoryErrorCode.INVALID_STOCK_ADJUSTMENT);
+        }
+
+        InventoryStock stock = repository.findStockByUuidForUpdate(productUuid)
+                .orElseThrow(() -> new ApiException(InventoryErrorCode.INVENTORY_PRODUCT_NOT_FOUND));
+
+        BigDecimal systemQty = stock.quantity();
+        BigDecimal physicalQty = request.physicalQuantity();
+        validateStockQuantity(physicalQty.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ONE : physicalQty);
+
+        BigDecimal delta = physicalQty.subtract(systemQty);
+        if (delta.compareTo(BigDecimal.ZERO) == 0) {
+            return toStockResponse(stock);
+        }
+
+        String reason = request.reason().trim();
+        String notes = request.notes() != null && !request.notes().isBlank() ? request.notes().trim() : null;
+        Long adjustmentId = repository.createAdjustment(UUID.randomUUID(), "RECONCILIATION: " + reason, notes);
+
+        InventoryStock updated = applyStockChange(
+                stock,
+                delta,
+                InventoryMovementType.RECONCILIATION,
+                InventoryReferenceType.RECONCILIATION,
+                adjustmentId,
+                "Physical reconciliation (" + reason + "): system=" + systemQty + ", counted=" + physicalQty
+        );
+
+        auditLogService.log(
+                "RECONCILE",
+                "INVENTORY",
+                stock.productCode(),
+                "Stock reconciled: " + reason,
+                Map.of("quantity", systemQty),
+                Map.of("quantity", updated.quantity(), "physicalCount", physicalQty, "delta", delta)
+        );
+
+        return toStockResponse(updated);
+    }
+
+    @Override
+    @Transactional
+    @SalesAccess
+    public void recordQuarantineOrScrapReturn(Long productId, BigDecimal quantity, boolean scrap, Long salesReturnId) {
+        validateStockQuantity(quantity);
+        getStockForUpdate(productId);
+        repository.addQuarantineOrScrapQuantity(productId, quantity, scrap);
+        auditLogService.log(
+                scrap ? "SCRAP_RETURN" : "QUARANTINE_RETURN",
+                "INVENTORY",
+                String.valueOf(productId),
+                (scrap ? "Scrap" : "Quarantine") + " quantity recorded from sales return " + salesReturnId,
+                null,
+                Map.of("productId", productId, "quantity", quantity, "salesReturnId", salesReturnId)
         );
     }
 }

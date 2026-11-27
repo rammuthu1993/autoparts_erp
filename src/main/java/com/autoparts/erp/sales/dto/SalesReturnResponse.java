@@ -9,6 +9,7 @@ import com.autoparts.erp.sales.enums.SalesReturnStatus;
 
 public record SalesReturnResponse(
     UUID uuid,
+    String returnNumber,
     UUID saleUuid,
     String invoiceNumber,
     OffsetDateTime returnDate,

@@ -110,12 +110,29 @@ public class ReportRepositoryImpl implements ReportRepository {
                 )
         );
 
+        String refundSql = """
+                SELECT COALESCE(SUM(sr.amount), 0) AS refund_total
+                FROM sales_refunds sr
+                JOIN sales_returns sret ON sret.id = sr.sales_return_id
+                JOIN sales s ON s.id = sret.sale_id
+                WHERE sr.refund_date >= :fromTimestamp
+                  AND sr.refund_date < :toTimestamp
+                  AND sr.payment_method <> 'CREDIT'
+                  AND s.status = 'COMPLETED'
+                """;
+
+        BigDecimal refundTotal = jdbc.queryForObject(refundSql, params, BigDecimal.class);
+        if (refundTotal == null) refundTotal = BigDecimal.ZERO;
+        BigDecimal netCollectionTotal = payments.total().subtract(refundTotal);
+
         return new SalesSummary(
                 invoices.invoiceCount(),
                 invoices.invoiceTotal(),
                 invoices.paidTotal(),
                 invoices.outstandingTotal(),
                 payments.total(),
+                refundTotal,
+                netCollectionTotal,
                 payments.cash(),
                 payments.upi(),
                 payments.card(),

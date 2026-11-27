@@ -83,4 +83,39 @@ public interface InventoryRepository {
             LocalDate fromDate,
             LocalDate toDate
     );
+
+    com.autoparts.erp.inventory.dto.InventorySummaryResponse getInventorySummary();
+
+    List<InventoryStock> findStockPaged(
+        int offset,
+        int limit,
+        String search,
+        String stockStatus,
+        String sortBy,
+        String sortDir
+    );
+
+    long countStockPaged(String search, String stockStatus);
+
+    List<InventoryMovement> findMovements(
+            UUID productUuid,
+            InventoryMovementType movementType,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String search,
+            int limit,
+            int offset
+    );
+
+    long countMovements(
+            UUID productUuid,
+            InventoryMovementType movementType,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String search
+    );
+
+    Optional<InventoryMovement> findMovementByUuid(UUID movementUuid);
+
+    void addQuarantineOrScrapQuantity(Long productId, BigDecimal quantity, boolean scrap);
 }

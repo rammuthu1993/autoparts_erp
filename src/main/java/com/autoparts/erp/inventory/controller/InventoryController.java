@@ -7,7 +7,9 @@ import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.inventory.dto.InventoryMovementResponse;
 import com.autoparts.erp.inventory.dto.InventoryPageResponse;
 import com.autoparts.erp.inventory.dto.InventoryStockResponse;
+import com.autoparts.erp.inventory.dto.InventorySummaryResponse;
 import com.autoparts.erp.inventory.dto.StockAdjustmentRequest;
+import com.autoparts.erp.inventory.dto.StockReconciliationRequest;
 import com.autoparts.erp.inventory.enums.InventoryMovementType;
 import com.autoparts.erp.inventory.service.InventoryService;
 
@@ -56,6 +58,12 @@ public class InventoryController {
         return inventoryService.findAllStock();
     }
 
+    @RequiresPermission("INVENTORY.VIEW")
+    @GetMapping("/summary")
+    public InventorySummaryResponse getSummary() {
+        return inventoryService.getInventorySummary();
+    }
+
     /**
      * Get stock for all active Products with pagination.
      */
@@ -65,10 +73,11 @@ public class InventoryController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String stockStatus,
             @RequestParam(defaultValue = "productName") String sortBy,
             @RequestParam(defaultValue = "asc") String sortDir
     ) {
-        return inventoryService.findStockPaged(page, size, search, sortBy, sortDir);
+        return inventoryService.findStockPaged(page, size, search, stockStatus, sortBy, sortDir);
     }
 
     /**
@@ -123,6 +132,9 @@ public class InventoryController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
             LocalDate toDate,
 
+            @RequestParam(required = false)
+            String search,
+
             @RequestParam(defaultValue = "0")
             int page,
 
@@ -135,9 +147,26 @@ public class InventoryController {
                 movementType,
                 fromDate,
                 toDate,
+                search,
                 page,
                 size
         );
+    }
+
+    @RequiresPermission("INVENTORY.VIEW")
+    @GetMapping("/movements/{movementUuid}")
+    public InventoryMovementResponse findMovementByUuid(@PathVariable UUID movementUuid) {
+        return inventoryService.findMovementByUuid(movementUuid);
+    }
+
+    @PostMapping("/products/{productUuid}/reconcile")
+    @AdminOrManager
+    @RequiresPermission("INVENTORY.RECONCILE")
+    public InventoryStockResponse reconcileStock(
+            @PathVariable UUID productUuid,
+            @Valid @RequestBody StockReconciliationRequest request
+    ) {
+        return inventoryService.reconcileStock(productUuid, request);
     }
 
     /**

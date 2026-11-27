@@ -32,7 +32,7 @@ public class SalesLedgerRepositoryImpl implements SalesLedgerRepository {
     private static final String LEDGER_CTE = """
         WITH ledger_entries AS (
 
-            -- Completed sales increase the amount receivable from the customer.
+            -- Completed sales (and cancelled issued invoices) increase the amount receivable from the customer.
             SELECT
                 s.id AS sale_id,
                 s.sale_date AS transaction_date,
@@ -45,7 +45,10 @@ public class SalesLedgerRepositoryImpl implements SalesLedgerRepository {
                 s.grand_total AS debit,
                 0::NUMERIC(14,2) AS credit
             FROM sales s
-            WHERE s.status = 'COMPLETED'
+            WHERE (s.status = 'COMPLETED'
+                   OR (s.status = 'CANCELLED' AND EXISTS (
+                       SELECT 1 FROM sales_invoice_cancellations sic WHERE sic.sale_id = s.id
+                   )))
               AND s.customer_id = :customerId
 
             UNION ALL
@@ -64,7 +67,10 @@ public class SalesLedgerRepositoryImpl implements SalesLedgerRepository {
                 sp.amount AS credit
             FROM sales_payments sp
             INNER JOIN sales s ON s.id = sp.sale_id
-            WHERE s.status = 'COMPLETED'
+            WHERE (s.status = 'COMPLETED'
+                   OR (s.status = 'CANCELLED' AND EXISTS (
+                       SELECT 1 FROM sales_invoice_cancellations sic WHERE sic.sale_id = s.id
+                   )))
               AND s.customer_id = :customerId
 
             UNION ALL
@@ -83,7 +89,10 @@ public class SalesLedgerRepositoryImpl implements SalesLedgerRepository {
                 sr.total_return_amount AS credit
             FROM sales_returns sr
             INNER JOIN sales s ON s.id = sr.sale_id
-            WHERE s.status = 'COMPLETED'
+            WHERE (s.status = 'COMPLETED'
+                   OR (s.status = 'CANCELLED' AND EXISTS (
+                       SELECT 1 FROM sales_invoice_cancellations sic WHERE sic.sale_id = s.id
+                   )))
               AND s.customer_id = :customerId
 
             UNION ALL
@@ -103,8 +112,51 @@ public class SalesLedgerRepositoryImpl implements SalesLedgerRepository {
             FROM sales_refunds sf
             INNER JOIN sales_returns sr ON sr.id = sf.sales_return_id
             INNER JOIN sales s ON s.id = sr.sale_id
-            WHERE s.status = 'COMPLETED'
+            WHERE (s.status = 'COMPLETED'
+                   OR (s.status = 'CANCELLED' AND EXISTS (
+                       SELECT 1 FROM sales_invoice_cancellations sic WHERE sic.sale_id = s.id
+                   )))
               AND s.customer_id = :customerId
+
+            UNION ALL
+
+            -- Full-invoice cancellation reverses the remaining unreturned invoice receivable.
+            SELECT
+                s.id AS sale_id,
+                sic.cancelled_at::DATE AS transaction_date,
+                5 AS entry_order,
+                sic.id AS entry_id,
+                'INVOICE_CANCELLATION'::VARCHAR AS transaction_type,
+                s.invoice_number,
+                s.customer_name,
+                ('Invoice cancelled: ' || sic.cancellation_reason)::VARCHAR AS description,
+                0::NUMERIC(14,2) AS debit,
+                sic.cancelled_invoice_amount AS credit
+            FROM sales_invoice_cancellations sic
+            INNER JOIN sales s ON s.id = sic.sale_id
+            WHERE s.status = 'CANCELLED'
+              AND s.customer_id = :customerId
+              AND sic.cancelled_invoice_amount > 0
+
+            UNION ALL
+
+            -- Cancellation refund settles the customer credit created by invoice cancellation.
+            SELECT
+                s.id AS sale_id,
+                scr.refund_date::DATE AS transaction_date,
+                6 AS entry_order,
+                scr.id AS entry_id,
+                'CANCELLATION_REFUND'::VARCHAR AS transaction_type,
+                s.invoice_number,
+                s.customer_name,
+                ('Cancellation refund - ' || scr.payment_method)::VARCHAR AS description,
+                scr.amount AS debit,
+                0::NUMERIC(14,2) AS credit
+            FROM sales_cancellation_refunds scr
+            INNER JOIN sales s ON s.id = scr.sale_id
+            WHERE s.status = 'CANCELLED'
+              AND s.customer_id = :customerId
+              AND scr.status NOT IN ('FAILED', 'REVERSED')
         ),
 
         balanced_entries AS (

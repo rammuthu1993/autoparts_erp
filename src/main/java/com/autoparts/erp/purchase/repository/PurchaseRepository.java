@@ -73,4 +73,46 @@ public interface PurchaseRepository {
 
     boolean markReceived(UUID purchaseUuid);
 
+    boolean existsBySupplierInvoiceNoExcludingPurchase(
+        Long supplierId,
+        String invoiceNo,
+        UUID excludePurchaseUuid
+    );
+
+    void updateDraftPurchase(
+        UUID purchaseUuid,
+        Long supplierId,
+        String supplierInvoiceNo,
+        java.time.LocalDate purchaseDate,
+        String notes
+    );
+
+    void deleteProductsByPurchaseId(Long purchaseId);
+
+    boolean cancelDraft(UUID purchaseUuid);
+
+    List<Purchase> findPaged(
+        int offset,
+        int limit,
+        String search,
+        String status,
+        String paymentStatus,
+        UUID supplierUuid,
+        java.time.LocalDate fromDate,
+        java.time.LocalDate toDate,
+        boolean onlyOutstanding,
+        String sortBy,
+        String sortDir
+    );
+
+    long countPaged(
+        String search,
+        String status,
+        String paymentStatus,
+        UUID supplierUuid,
+        java.time.LocalDate fromDate,
+        java.time.LocalDate toDate,
+        boolean onlyOutstanding
+    );
+
 }

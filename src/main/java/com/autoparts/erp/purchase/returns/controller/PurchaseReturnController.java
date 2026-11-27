@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -30,6 +31,15 @@ public class PurchaseReturnController {
             @Valid @RequestBody PurchaseReturnRequest request
     ) {
         return service.createReturn(purchaseUuid, request);
+    }
+
+    // List all return documents for an original purchase.
+    @GetMapping("/purchases/{purchaseUuid}/returns")
+    @RequiresPermission("PURCHASE_RETURNS.VIEW")
+    public List<PurchaseReturnResponse> findReturnsByPurchase(
+            @PathVariable UUID purchaseUuid
+    ) {
+        return service.findReturnsByPurchaseUuid(purchaseUuid);
     }
 
     // Get purchase return details.

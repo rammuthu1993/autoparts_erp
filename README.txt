@@ -1,19 +1,26 @@
-Dynamic Sales Status Backend Patch
+Industry-standard sales and purchase returns improvements
 
-Copy the included src/ files over the matching paths in the backend project.
-Flyway migration V44 creates sales_statuses and sales_payment_statuses, seeds the
-requested status/payment values, replaces the old CHECK constraints with foreign
-keys, and preserves existing sales rows.
+Copy the included src/ files into the backend project.
 
-New read endpoints:
-- GET /api/v1/sales/status-options
-- GET /api/v1/sales/payment-status-options
+Changes:
+- SalesReturnResponse now includes a human-readable returnNumber (SR-yyyyMMdd-000001)
+  while retaining UUID for API identity.
+- Added GET /api/v1/purchases/{purchaseUuid}/returns to retrieve the purchase's
+  return documents with line-level details and supplier credit information.
+- Added a non-locking purchase lookup for the read-only history endpoint.
 
-Both endpoints require SALES.VIEW.
+No database migration is required.
 
-Draft balance is now grand_total - paid_amount and its payment status is calculated.
-Backend creation/completion/cancellation/payment logic checks that the applicable
-status code exists and is active in the corresponding master table.
+Frontend changes:
+- Sales return form shows sold, previously returned, remaining, and return-now quantities.
+- Purchase return form shows received, previously returned, remaining, and return-now quantities.
+- Inputs are disabled while history loads or when remaining quantity is zero.
+- Previous sales and purchase returns are listed and open with line-item details.
+- Sales invoice list shows No Returns / Partially Returned / Fully Returned without
+  hiding or changing the original invoice.
+- Product master has a View Details modal using GET /api/v1/products/{uuid}.
+- Action buttons in the touched screens use icons and black tooltips.
 
-The lifecycle transition rules remain enforced by the sales service; the lookup
-tables drive the available status values and labels exposed to the UI.
+Important:
+- Return quantities remain validated by the backend; the frontend is not the authority.
+- Existing accepted returns are aggregated by original invoice-line UUID.

@@ -116,6 +116,25 @@ public class PurchaseReturnRepositoryImpl
     }
 
     @Override
+    public Optional<PurchaseInfo> findPurchaseByUuid(UUID uuid) {
+        return jdbcTemplate.query("""
+            SELECT id, uuid, supplier_id, status, purchase_number, grand_total
+            FROM purchases
+            WHERE uuid = :uuid
+            """,
+            new MapSqlParameterSource("uuid", uuid),
+            (rs, rowNum) -> new PurchaseInfo(
+                rs.getLong("id"),
+                rs.getObject("uuid", UUID.class),
+                rs.getLong("supplier_id"),
+                rs.getString("status"),
+                rs.getString("purchase_number"),
+                rs.getBigDecimal("grand_total")
+            )
+        ).stream().findFirst();
+    }
+
+    @Override
     public Optional<PurchaseInfo> findPurchaseByUuidForUpdateForCredit(
             UUID uuid
     ) {
@@ -280,6 +299,19 @@ public class PurchaseReturnRepositoryImpl
             new MapSqlParameterSource("uuid", uuid),
             returnMapper
         ).stream().findFirst();
+    }
+
+    @Override
+    public List<PurchaseReturn> findReturnsByPurchaseId(Long purchaseId) {
+        return jdbcTemplate.query("""
+            SELECT *
+            FROM purchase_returns
+            WHERE purchase_id = :purchaseId
+            ORDER BY return_date DESC, id DESC
+            """,
+            new MapSqlParameterSource("purchaseId", purchaseId),
+            returnMapper
+        );
     }
 
     @Override

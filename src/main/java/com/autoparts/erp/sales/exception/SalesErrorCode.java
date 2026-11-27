@@ -43,7 +43,21 @@ public enum SalesErrorCode implements ApiErrorCodeDefinition {
 	SALES_REFUND_EXCEEDS_RETURN_AMOUNT(HttpStatus.BAD_REQUEST,
 			"Refund amount cannot exceed the remaining refundable amount"),
 
-	SALES_REFUND_NOT_ALLOWED(HttpStatus.CONFLICT, "Refund is not allowed for this sales return");
+	SALES_REFUND_NOT_ALLOWED(HttpStatus.CONFLICT, "Refund is not allowed for this sales return"),
+
+	INVALID_CANCELLATION_REASON(HttpStatus.BAD_REQUEST, "Cancellation reason is required"),
+
+	SALES_CANCELLATION_NOT_FOUND(HttpStatus.NOT_FOUND, "Sales invoice cancellation record not found"),
+
+	SALES_CANCELLATION_CONFLICT(HttpStatus.CONFLICT,
+			"Sales invoice has invalid or inconsistent financial records for cancellation"),
+
+	SALES_CANCELLATION_REFUND_INVALID(HttpStatus.BAD_REQUEST, "Invalid cancellation refund request"),
+
+	SALES_CANCELLATION_REFUND_NOT_FOUND(HttpStatus.NOT_FOUND, "Cancellation refund record not found"),
+
+	SALES_CANCELLATION_PERIOD_LOCKED(HttpStatus.CONFLICT,
+			"Cannot cancel invoice in a closed accounting period");
 	
 
 	private final HttpStatus status;

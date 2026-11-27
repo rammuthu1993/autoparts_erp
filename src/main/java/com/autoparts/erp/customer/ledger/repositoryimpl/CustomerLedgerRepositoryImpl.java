@@ -81,7 +81,10 @@ public class CustomerLedgerRepositoryImpl
                     SELECT s.grand_total AS transaction_amount
                     FROM sales s
                     WHERE s.customer_id = :customerId
-                      AND s.status = 'COMPLETED'
+                      AND (s.status = 'COMPLETED'
+                           OR (s.status = 'CANCELLED' AND EXISTS (
+                               SELECT 1 FROM sales_invoice_cancellations sic WHERE sic.sale_id = s.id
+                           )))
                       AND s.sale_date < :fromDate
 
                     UNION ALL
@@ -91,7 +94,10 @@ public class CustomerLedgerRepositoryImpl
                     FROM sales_payments sp
                     JOIN sales s ON s.id = sp.sale_id
                     WHERE s.customer_id = :customerId
-                      AND s.status = 'COMPLETED'
+                      AND (s.status = 'COMPLETED'
+                           OR (s.status = 'CANCELLED' AND EXISTS (
+                               SELECT 1 FROM sales_invoice_cancellations sic WHERE sic.sale_id = s.id
+                           )))
                       AND CAST(sp.payment_date AS DATE) < :fromDate
 
                     UNION ALL
@@ -101,13 +107,51 @@ public class CustomerLedgerRepositoryImpl
                     FROM sales_returns sr
                     JOIN sales s ON s.id = sr.sale_id
                     WHERE s.customer_id = :customerId
-                      AND s.status = 'COMPLETED'
+                      AND (s.status = 'COMPLETED'
+                           OR (s.status = 'CANCELLED' AND EXISTS (
+                               SELECT 1 FROM sales_invoice_cancellations sic WHERE sic.sale_id = s.id
+                           )))
                       AND sr.status IN (
                           'ACCEPTED',
                           'PARTIALLY_REFUNDED',
                           'REFUNDED'
                       )
                       AND CAST(sr.return_date AS DATE) < :fromDate
+
+                    UNION ALL
+
+                    -- Sales return refunds
+                    SELECT sf.amount AS transaction_amount
+                    FROM sales_refunds sf
+                    JOIN sales_returns sr ON sr.id = sf.sales_return_id
+                    JOIN sales s ON s.id = sr.sale_id
+                    WHERE s.customer_id = :customerId
+                      AND (s.status = 'COMPLETED'
+                           OR (s.status = 'CANCELLED' AND EXISTS (
+                               SELECT 1 FROM sales_invoice_cancellations sic WHERE sic.sale_id = s.id
+                           )))
+                      AND CAST(sf.refund_date AS DATE) < :fromDate
+
+                    UNION ALL
+
+                    -- Issued invoice cancellations
+                    SELECT -sic.cancelled_invoice_amount AS transaction_amount
+                    FROM sales_invoice_cancellations sic
+                    JOIN sales s ON s.id = sic.sale_id
+                    WHERE s.customer_id = :customerId
+                      AND s.status = 'CANCELLED'
+                      AND CAST(sic.cancelled_at AS DATE) < :fromDate
+
+                    UNION ALL
+
+                    -- Cancellation refunds
+                    SELECT scr.amount AS transaction_amount
+                    FROM sales_cancellation_refunds scr
+                    JOIN sales s ON s.id = scr.sale_id
+                    WHERE s.customer_id = :customerId
+                      AND s.status = 'CANCELLED'
+                      AND scr.status NOT IN ('FAILED', 'REVERSED')
+                      AND CAST(scr.refund_date AS DATE) < :fromDate
 
                 ) transactions
                 """;
@@ -153,7 +197,10 @@ public class CustomerLedgerRepositoryImpl
                         0::numeric AS sales_return_amount
                     FROM sales s
                     WHERE s.customer_id = :customerId
-                      AND s.status = 'COMPLETED'
+                      AND (s.status = 'COMPLETED'
+                           OR (s.status = 'CANCELLED' AND EXISTS (
+                               SELECT 1 FROM sales_invoice_cancellations sic WHERE sic.sale_id = s.id
+                           )))
                       AND (CAST(:fromDate AS DATE) IS NULL OR s.sale_date >= CAST(:fromDate AS DATE))
                       AND (CAST(:toDate AS DATE) IS NULL OR s.sale_date <= CAST(:toDate AS DATE))
 
@@ -167,7 +214,10 @@ public class CustomerLedgerRepositoryImpl
                     FROM sales_payments sp
                     JOIN sales s ON s.id = sp.sale_id
                     WHERE s.customer_id = :customerId
-                      AND s.status = 'COMPLETED'
+                      AND (s.status = 'COMPLETED'
+                           OR (s.status = 'CANCELLED' AND EXISTS (
+                               SELECT 1 FROM sales_invoice_cancellations sic WHERE sic.sale_id = s.id
+                           )))
                       AND (CAST(:fromDate AS DATE) IS NULL OR CAST(sp.payment_date AS DATE) >= CAST(:fromDate AS DATE))
                       AND (CAST(:toDate AS DATE) IS NULL OR CAST(sp.payment_date AS DATE) <= CAST(:toDate AS DATE))
 
@@ -181,7 +231,10 @@ public class CustomerLedgerRepositoryImpl
                     FROM sales_returns sr
                     JOIN sales s ON s.id = sr.sale_id
                     WHERE s.customer_id = :customerId
-                      AND s.status = 'COMPLETED'
+                      AND (s.status = 'COMPLETED'
+                           OR (s.status = 'CANCELLED' AND EXISTS (
+                               SELECT 1 FROM sales_invoice_cancellations sic WHERE sic.sale_id = s.id
+                           )))
                       AND sr.status IN (
                           'ACCEPTED',
                           'PARTIALLY_REFUNDED',
@@ -189,6 +242,54 @@ public class CustomerLedgerRepositoryImpl
                       )
                       AND (CAST(:fromDate AS DATE) IS NULL OR CAST(sr.return_date AS DATE) >= CAST(:fromDate AS DATE))
                       AND (CAST(:toDate AS DATE) IS NULL OR CAST(sr.return_date AS DATE) <= CAST(:toDate AS DATE))
+
+                    UNION ALL
+
+                    -- Sales return refunds
+                    SELECT
+                        sf.amount AS sales_amount,
+                        0::numeric AS payment_amount,
+                        0::numeric AS sales_return_amount
+                    FROM sales_refunds sf
+                    JOIN sales_returns sr ON sr.id = sf.sales_return_id
+                    JOIN sales s ON s.id = sr.sale_id
+                    WHERE s.customer_id = :customerId
+                      AND (s.status = 'COMPLETED'
+                           OR (s.status = 'CANCELLED' AND EXISTS (
+                               SELECT 1 FROM sales_invoice_cancellations sic WHERE sic.sale_id = s.id
+                           )))
+                      AND (CAST(:fromDate AS DATE) IS NULL OR CAST(sf.refund_date AS DATE) >= CAST(:fromDate AS DATE))
+                      AND (CAST(:toDate AS DATE) IS NULL OR CAST(sf.refund_date AS DATE) <= CAST(:toDate AS DATE))
+
+                    UNION ALL
+
+                    -- Issued invoice cancellations
+                    SELECT
+                        0::numeric AS sales_amount,
+                        0::numeric AS payment_amount,
+                        sic.cancelled_invoice_amount AS sales_return_amount
+                    FROM sales_invoice_cancellations sic
+                    JOIN sales s ON s.id = sic.sale_id
+                    WHERE s.customer_id = :customerId
+                      AND s.status = 'CANCELLED'
+                      AND sic.cancelled_invoice_amount > 0
+                      AND (CAST(:fromDate AS DATE) IS NULL OR CAST(sic.cancelled_at AS DATE) >= CAST(:fromDate AS DATE))
+                      AND (CAST(:toDate AS DATE) IS NULL OR CAST(sic.cancelled_at AS DATE) <= CAST(:toDate AS DATE))
+
+                    UNION ALL
+
+                    -- Cancellation refunds
+                    SELECT
+                        scr.amount AS sales_amount,
+                        0::numeric AS payment_amount,
+                        0::numeric AS sales_return_amount
+                    FROM sales_cancellation_refunds scr
+                    JOIN sales s ON s.id = scr.sale_id
+                    WHERE s.customer_id = :customerId
+                      AND s.status = 'CANCELLED'
+                      AND scr.status NOT IN ('FAILED', 'REVERSED')
+                      AND (CAST(:fromDate AS DATE) IS NULL OR CAST(scr.refund_date AS DATE) >= CAST(:fromDate AS DATE))
+                      AND (CAST(:toDate AS DATE) IS NULL OR CAST(scr.refund_date AS DATE) <= CAST(:toDate AS DATE))
 
                 ) transactions
                 """;
@@ -259,7 +360,10 @@ public class CustomerLedgerRepositoryImpl
                         s.id AS sort_id
                     FROM sales s
                     WHERE s.customer_id = :customerId
-                      AND s.status = 'COMPLETED'
+                      AND (s.status = 'COMPLETED'
+                           OR (s.status = 'CANCELLED' AND EXISTS (
+                               SELECT 1 FROM sales_invoice_cancellations sic WHERE sic.sale_id = s.id
+                           )))
 
                     UNION ALL
 
@@ -281,7 +385,10 @@ public class CustomerLedgerRepositoryImpl
                     FROM sales_payments sp
                     JOIN sales s ON s.id = sp.sale_id
                     WHERE s.customer_id = :customerId
-                      AND s.status = 'COMPLETED'
+                      AND (s.status = 'COMPLETED'
+                           OR (s.status = 'CANCELLED' AND EXISTS (
+                               SELECT 1 FROM sales_invoice_cancellations sic WHERE sic.sale_id = s.id
+                           )))
 
                     UNION ALL
 
@@ -300,12 +407,78 @@ public class CustomerLedgerRepositoryImpl
                     FROM sales_returns sr
                     JOIN sales s ON s.id = sr.sale_id
                     WHERE s.customer_id = :customerId
-                      AND s.status = 'COMPLETED'
+                      AND (s.status = 'COMPLETED'
+                           OR (s.status = 'CANCELLED' AND EXISTS (
+                               SELECT 1 FROM sales_invoice_cancellations sic WHERE sic.sale_id = s.id
+                           )))
                       AND sr.status IN (
                           'ACCEPTED',
                           'PARTIALLY_REFUNDED',
                           'REFUNDED'
                       )
+
+                    UNION ALL
+
+                    -- Sales return refunds
+                    SELECT
+                        sf.uuid AS transaction_uuid,
+                        'SALES_REFUND' AS transaction_type,
+                        COALESCE(sf.reference_number, s.invoice_number) AS reference_number,
+                        CAST(sf.refund_date AS DATE) AS transaction_date,
+                        sf.amount AS sales_amount,
+                        0::numeric AS payment_amount,
+                        0::numeric AS sales_return_amount,
+                        sf.amount AS signed_amount,
+                        4 AS sort_order,
+                        sf.id AS sort_id
+                    FROM sales_refunds sf
+                    JOIN sales_returns sr ON sr.id = sf.sales_return_id
+                    JOIN sales s ON s.id = sr.sale_id
+                    WHERE s.customer_id = :customerId
+                      AND (s.status = 'COMPLETED'
+                           OR (s.status = 'CANCELLED' AND EXISTS (
+                               SELECT 1 FROM sales_invoice_cancellations sic WHERE sic.sale_id = s.id
+                           )))
+
+                    UNION ALL
+
+                    -- Issued invoice cancellations
+                    SELECT
+                        sic.uuid AS transaction_uuid,
+                        'INVOICE_CANCELLATION' AS transaction_type,
+                        s.invoice_number AS reference_number,
+                        CAST(sic.cancelled_at AS DATE) AS transaction_date,
+                        0::numeric AS sales_amount,
+                        0::numeric AS payment_amount,
+                        sic.cancelled_invoice_amount AS sales_return_amount,
+                        -sic.cancelled_invoice_amount AS signed_amount,
+                        5 AS sort_order,
+                        sic.id AS sort_id
+                    FROM sales_invoice_cancellations sic
+                    JOIN sales s ON s.id = sic.sale_id
+                    WHERE s.customer_id = :customerId
+                      AND s.status = 'CANCELLED'
+                      AND sic.cancelled_invoice_amount > 0
+
+                    UNION ALL
+
+                    -- Cancellation refunds
+                    SELECT
+                        scr.uuid AS transaction_uuid,
+                        'CANCELLATION_REFUND' AS transaction_type,
+                        COALESCE(scr.reference_number, s.invoice_number) AS reference_number,
+                        CAST(scr.refund_date AS DATE) AS transaction_date,
+                        scr.amount AS sales_amount,
+                        0::numeric AS payment_amount,
+                        0::numeric AS sales_return_amount,
+                        scr.amount AS signed_amount,
+                        6 AS sort_order,
+                        scr.id AS sort_id
+                    FROM sales_cancellation_refunds scr
+                    JOIN sales s ON s.id = scr.sale_id
+                    WHERE s.customer_id = :customerId
+                      AND s.status = 'CANCELLED'
+                      AND scr.status NOT IN ('FAILED', 'REVERSED')
                 ),
 
                 period_transactions AS (

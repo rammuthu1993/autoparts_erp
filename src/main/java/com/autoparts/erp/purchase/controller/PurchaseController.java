@@ -12,8 +12,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import org.springframework.format.annotation.DateTimeFormat;
 
 @RestController
 @RequestMapping("/api/v1/purchases")
@@ -60,12 +63,41 @@ public class PurchaseController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String paymentStatus,
+            @RequestParam(required = false) UUID supplierUuid,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(defaultValue = "false") boolean onlyOutstanding,
             @RequestParam(defaultValue = "id") String sortBy,
             @RequestParam(defaultValue = "asc") String sortDir
     ) {
         return ResponseEntity.ok(
-                purchaseService.findPaged(page, size, search, status, sortBy, sortDir)
+                purchaseService.findPaged(
+                        page, size, search, status, paymentStatus, supplierUuid,
+                        fromDate, toDate, onlyOutstanding, sortBy, sortDir
+                )
         );
+    }
+
+    @AdminOrManager
+    @RequiresPermission("PURCHASES.UPDATE")
+    @PutMapping("/{uuid}")
+    public ResponseEntity<PurchaseResponse> updateDraft(
+            @PathVariable UUID uuid,
+            @Valid @RequestBody PurchaseCreateRequest request
+    ) {
+        return ResponseEntity.ok(purchaseService.updateDraft(uuid, request));
+    }
+
+    @AdminOrManager
+    @RequiresPermission("PURCHASES.CANCEL")
+    @PostMapping("/{uuid}/cancel")
+    public ResponseEntity<PurchaseResponse> cancelDraft(
+            @PathVariable UUID uuid,
+            @RequestBody(required = false) Map<String, String> body
+    ) {
+        String reason = body != null ? body.get("reason") : null;
+        return ResponseEntity.ok(purchaseService.cancelDraft(uuid, reason));
     }
 
     @RequiresPermission("PURCHASES.VIEW")

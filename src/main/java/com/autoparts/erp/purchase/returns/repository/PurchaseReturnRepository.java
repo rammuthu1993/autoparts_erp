@@ -13,6 +13,8 @@ public interface PurchaseReturnRepository {
 
     Optional<PurchaseInfo> findPurchaseByUuidForUpdate(UUID uuid);
 
+    Optional<PurchaseInfo> findPurchaseByUuid(UUID uuid);
+
     List<OriginalPurchaseProduct> findPurchaseProducts(Long purchaseId);
 
     BigDecimal getPreviouslyReturnedQuantity(Long purchaseProductId);
@@ -27,6 +29,8 @@ public interface PurchaseReturnRepository {
     void createReturnProduct(PurchaseReturnProduct product);
 
     Optional<PurchaseReturn> findReturnByUuid(UUID uuid);
+
+    List<PurchaseReturn> findReturnsByPurchaseId(Long purchaseId);
 
     List<PurchaseReturnProduct> findReturnProducts(Long returnId);
 

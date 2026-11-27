@@ -248,6 +248,25 @@ public class PurchaseServiceImpl implements PurchaseService {
             String sortBy,
             String sortDir
     ) {
+        return findPaged(page, size, search, status, null, null, null, null, false, sortBy, sortDir);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @RequiresPermission("PURCHASES.VIEW")
+    public PageResponse<PurchaseResponse> findPaged(
+            int page,
+            int size,
+            String search,
+            String status,
+            String paymentStatus,
+            UUID supplierUuid,
+            java.time.LocalDate fromDate,
+            java.time.LocalDate toDate,
+            boolean onlyOutstanding,
+            String sortBy,
+            String sortDir
+    ) {
         int safePage = Math.max(0, page);
         int safeSize = Math.max(1, Math.min(size, 100));
         int offset = PaginationUtils.calculateOffsetForNormalized(safePage, safeSize);
@@ -257,12 +276,136 @@ public class PurchaseServiceImpl implements PurchaseService {
                 safeSize,
                 search,
                 status,
+                paymentStatus,
+                supplierUuid,
+                fromDate,
+                toDate,
+                onlyOutstanding,
                 sortBy,
                 sortDir
         ).stream().map(this::toResponse).toList();
 
-        long total = repository.countPaged(search, status);
+        long total = repository.countPaged(
+                search, status, paymentStatus, supplierUuid, fromDate, toDate, onlyOutstanding
+        );
         return PageResponse.of(content, safePage, safeSize, total);
+    }
+
+    @Override
+    @AdminOrManager
+    @Transactional
+    @RequiresPermission("PURCHASES.UPDATE")
+    public PurchaseResponse updateDraft(UUID uuid, PurchaseCreateRequest request) {
+        Purchase existing = repository.findByUuidForUpdate(uuid)
+                .orElseThrow(() -> new ApiException(PurchaseErrorCode.PURCHASE_NOT_FOUND));
+
+        if (existing.status() != PurchaseStatus.DRAFT) {
+            throw new ApiException(PurchaseErrorCode.PURCHASE_ALREADY_RECEIVED);
+        }
+
+        validateUniqueProducts(request.products());
+
+        if (!repository.supplierExistsAndActive(request.supplierId())) {
+            throw new ApiException(PurchaseErrorCode.SUPPLIER_NOT_FOUND);
+        }
+
+        String invoiceNo = request.supplierInvoiceNo().trim();
+        if (repository.existsBySupplierInvoiceNoExcludingPurchase(request.supplierId(), invoiceNo, uuid)) {
+            throw new ApiException(PurchaseErrorCode.PURCHASE_ALREADY_EXISTS);
+        }
+
+        for (PurchaseProductRequest product : request.products()) {
+            if (!repository.productExistsAndActive(product.productId())) {
+                throw new ApiException(PurchaseErrorCode.PRODUCT_NOT_FOUND);
+            }
+        }
+
+        BigDecimal subtotal = BigDecimal.ZERO;
+        BigDecimal discountTotal = BigDecimal.ZERO;
+        BigDecimal taxTotal = BigDecimal.ZERO;
+        BigDecimal grandTotal = BigDecimal.ZERO;
+
+        for (PurchaseProductRequest product : request.products()) {
+            BigDecimal gross = product.quantity().multiply(product.purchasePrice()).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal discount = money(product.discountAmount());
+            if (discount.compareTo(gross) > 0) {
+                throw new ApiException(PurchaseErrorCode.INVALID_PURCHASE_DATA);
+            }
+            BigDecimal taxable = gross.subtract(discount);
+            BigDecimal tax = taxable.multiply(product.taxPercent()).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+            subtotal = subtotal.add(gross);
+            discountTotal = discountTotal.add(discount);
+            taxTotal = taxTotal.add(tax);
+            grandTotal = grandTotal.add(taxable).add(tax);
+        }
+
+        repository.updateDraftPurchase(uuid, request.supplierId(), invoiceNo, request.purchaseDate(), clean(request.notes()));
+        repository.deleteProductsByPurchaseId(existing.id());
+
+        for (PurchaseProductRequest product : request.products()) {
+            BigDecimal gross = product.quantity().multiply(product.purchasePrice()).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal discount = money(product.discountAmount());
+            BigDecimal taxable = gross.subtract(discount);
+            BigDecimal tax = taxable.multiply(product.taxPercent()).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+            BigDecimal lineTotal = taxable.add(tax);
+            repository.createPurchaseProduct(
+                    UUID.randomUUID(),
+                    uuid,
+                    product.productId(),
+                    product.quantity(),
+                    money(product.purchasePrice()),
+                    discount,
+                    product.taxPercent(),
+                    tax,
+                    lineTotal
+            );
+        }
+
+        repository.updatePurchaseTotals(uuid, subtotal, discountTotal, taxTotal, grandTotal);
+
+        auditLogService.log(
+                "UPDATE",
+                "PURCHASE",
+                existing.purchaseNumber(),
+                "Purchase draft updated",
+                Map.of("grandTotal", existing.grandTotal()),
+                Map.of("grandTotal", grandTotal, "supplierInvoiceNo", invoiceNo)
+        );
+
+        return findByUuid(uuid);
+    }
+
+    @Override
+    @AdminOrManager
+    @Transactional
+    @RequiresPermission("PURCHASES.CANCEL")
+    public PurchaseResponse cancelDraft(UUID uuid, String reason) {
+        Purchase existing = repository.findByUuidForUpdate(uuid)
+                .orElseThrow(() -> new ApiException(PurchaseErrorCode.PURCHASE_NOT_FOUND));
+
+        if (existing.status() != PurchaseStatus.DRAFT) {
+            throw new ApiException(PurchaseErrorCode.PURCHASE_ALREADY_RECEIVED);
+        }
+
+        String trimmedReason = reason != null ? reason.trim() : "";
+        if (trimmedReason.isEmpty()) {
+            throw new ApiException(PurchaseErrorCode.INVALID_PURCHASE_DATA);
+        }
+
+        if (!repository.cancelDraft(uuid)) {
+            throw new ApiException(PurchaseErrorCode.PURCHASE_ALREADY_RECEIVED);
+        }
+
+        auditLogService.log(
+                "CANCEL",
+                "PURCHASE",
+                existing.purchaseNumber(),
+                "Purchase draft cancelled: " + trimmedReason,
+                Map.of("status", existing.status().name()),
+                Map.of("status", PurchaseStatus.CANCELLED.name())
+        );
+
+        return findByUuid(uuid);
     }
 
     // ---------------------------------------------------------

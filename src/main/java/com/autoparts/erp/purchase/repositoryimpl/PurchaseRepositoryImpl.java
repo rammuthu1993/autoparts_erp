@@ -351,6 +351,37 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
             String sortBy,
             String sortDir
     ) {
+    @Override
+    public List<Purchase> findPaged(
+            int offset,
+            int limit,
+            String search,
+            String status,
+            String sortBy,
+            String sortDir
+    ) {
+        return findPaged(offset, limit, search, status, null, null, null, null, false, sortBy, sortDir);
+    }
+
+    @Override
+    public long countPaged(String search, String status) {
+        return countPaged(search, status, null, null, null, null, false);
+    }
+
+    @Override
+    public List<Purchase> findPaged(
+            int offset,
+            int limit,
+            String search,
+            String status,
+            String paymentStatus,
+            UUID supplierUuid,
+            LocalDate fromDate,
+            LocalDate toDate,
+            boolean onlyOutstanding,
+            String sortBy,
+            String sortDir
+    ) {
         StringBuilder sql = new StringBuilder("""
             SELECT p.id, p.uuid, p.purchase_number, p.supplier_id,
                    s.supplier_name, p.supplier_invoice_no,
@@ -363,7 +394,7 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
             """);
         MapSqlParameterSource params = new MapSqlParameterSource();
 
-        applyPurchaseFilters(sql, params, search, status);
+        applyPurchaseFilters(sql, params, search, status, paymentStatus, supplierUuid, fromDate, toDate, onlyOutstanding);
 
         String sortColumn = PURCHASE_SORT_ALLOWLIST.getOrDefault(sortBy, "p.id");
         String direction = "ASC".equalsIgnoreCase(sortDir) ? "ASC" : "DESC";
@@ -385,7 +416,15 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
     }
 
     @Override
-    public long countPaged(String search, String status) {
+    public long countPaged(
+            String search,
+            String status,
+            String paymentStatus,
+            UUID supplierUuid,
+            LocalDate fromDate,
+            LocalDate toDate,
+            boolean onlyOutstanding
+    ) {
         StringBuilder sql = new StringBuilder("""
             SELECT COUNT(*)
             FROM purchases p
@@ -394,7 +433,7 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
             """);
         MapSqlParameterSource params = new MapSqlParameterSource();
 
-        applyPurchaseFilters(sql, params, search, status);
+        applyPurchaseFilters(sql, params, search, status, paymentStatus, supplierUuid, fromDate, toDate, onlyOutstanding);
 
         Long count = jdbcTemplate.queryForObject(sql.toString(), params, Long.class);
         return count != null ? count : 0L;
@@ -404,7 +443,12 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
             StringBuilder sql,
             MapSqlParameterSource params,
             String search,
-            String status
+            String status,
+            String paymentStatus,
+            UUID supplierUuid,
+            LocalDate fromDate,
+            LocalDate toDate,
+            boolean onlyOutstanding
     ) {
         if (search != null && !search.isBlank()) {
             sql.append(" AND (p.purchase_number ILIKE :search OR s.supplier_name ILIKE :search OR p.supplier_invoice_no ILIKE :search)");
@@ -414,6 +458,105 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
             sql.append(" AND p.status = :status");
             params.addValue("status", status.trim().toUpperCase());
         }
+        if (supplierUuid != null) {
+            sql.append(" AND s.uuid = :supplierUuid");
+            params.addValue("supplierUuid", supplierUuid);
+        }
+        if (fromDate != null) {
+            sql.append(" AND p.purchase_date >= :fromDate");
+            params.addValue("fromDate", fromDate);
+        }
+        if (toDate != null) {
+            sql.append(" AND p.purchase_date <= :toDate");
+            params.addValue("toDate", toDate);
+        }
+        String settledExpr = """
+            (
+                COALESCE((SELECT SUM(pp.amount) FROM purchase_payments pp WHERE pp.purchase_id = p.id), 0)
+                + COALESCE((SELECT SUM(sca.amount) FROM supplier_credit_applications sca WHERE sca.purchase_id = p.id), 0)
+            )
+            """;
+        if (onlyOutstanding) {
+            sql.append(" AND (p.grand_total - ").append(settledExpr).append(") > 0.00");
+        }
+        if (paymentStatus != null && !paymentStatus.isBlank()) {
+            String ps = paymentStatus.trim().toUpperCase();
+            if ("UNPAID".equals(ps)) {
+                sql.append(" AND ").append(settledExpr).append(" <= 0");
+            } else if ("PARTIALLY_PAID".equals(ps)) {
+                sql.append(" AND ").append(settledExpr).append(" > 0 AND ").append(settledExpr).append(" < p.grand_total");
+            } else if ("PAID".equals(ps)) {
+                sql.append(" AND ").append(settledExpr).append(" >= p.grand_total");
+            }
+        }
+    }
+
+    @Override
+    public boolean existsBySupplierInvoiceNoExcludingPurchase(Long supplierId, String invoiceNo, UUID excludePurchaseUuid) {
+        String sql = """
+            SELECT EXISTS (
+                SELECT 1
+                FROM purchases
+                WHERE supplier_id = :supplierId
+                  AND LOWER(TRIM(supplier_invoice_no)) = LOWER(TRIM(:invoiceNo))
+                  AND uuid <> :excludeUuid
+            )
+            """;
+        Boolean exists = jdbcTemplate.queryForObject(
+            sql,
+            new MapSqlParameterSource()
+                .addValue("supplierId", supplierId)
+                .addValue("invoiceNo", invoiceNo)
+                .addValue("excludeUuid", excludePurchaseUuid),
+            Boolean.class
+        );
+        return Boolean.TRUE.equals(exists);
+    }
+
+    @Override
+    public void updateDraftPurchase(UUID purchaseUuid, Long supplierId, String supplierInvoiceNo, LocalDate purchaseDate, String notes) {
+        int updated = jdbcTemplate.update(
+            """
+            UPDATE purchases
+            SET supplier_id = :supplierId,
+                supplier_invoice_no = :invoiceNo,
+                purchase_date = :purchaseDate,
+                notes = :notes,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE uuid = :purchaseUuid AND status = 'DRAFT'
+            """,
+            new MapSqlParameterSource()
+                .addValue("purchaseUuid", purchaseUuid)
+                .addValue("supplierId", supplierId)
+                .addValue("invoiceNo", supplierInvoiceNo.trim())
+                .addValue("purchaseDate", purchaseDate)
+                .addValue("notes", notes)
+        );
+        if (updated == 0) {
+            throw new IllegalStateException("Only DRAFT purchases can be updated");
+        }
+    }
+
+    @Override
+    public void deleteProductsByPurchaseId(Long purchaseId) {
+        jdbcTemplate.update(
+            "DELETE FROM purchase_products WHERE purchase_id = :purchaseId",
+            new MapSqlParameterSource("purchaseId", purchaseId)
+        );
+    }
+
+    @Override
+    public boolean cancelDraft(UUID purchaseUuid) {
+        int updated = jdbcTemplate.update(
+            """
+            UPDATE purchases
+            SET status = 'CANCELLED',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE uuid = :purchaseUuid AND status = 'DRAFT'
+            """,
+            new MapSqlParameterSource("purchaseUuid", purchaseUuid)
+        );
+        return updated > 0;
     }
 
     private Purchase mapPurchase(

@@ -75,4 +75,46 @@ public interface InventoryService {
     	    BigDecimal quantity,
     	    Long salesReturnId
     	);
+
+    InventoryStock restoreStockFromSalesCancellation(
+            Long productId,
+            BigDecimal quantity,
+            Long cancellationId,
+            String invoiceNumber
+    );
+
+    com.autoparts.erp.inventory.dto.InventorySummaryResponse getInventorySummary();
+
+    PageResponse<InventoryStockResponse> findStockPaged(
+            int page,
+            int size,
+            String search,
+            String stockStatus,
+            String sortBy,
+            String sortDir
+    );
+
+    InventoryPageResponse<InventoryMovementResponse> findMovements(
+            UUID productUuid,
+            InventoryMovementType movementType,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String search,
+            int page,
+            int size
+    );
+
+    InventoryMovementResponse findMovementByUuid(UUID movementUuid);
+
+    InventoryStockResponse reconcileStock(
+            UUID productUuid,
+            com.autoparts.erp.inventory.dto.StockReconciliationRequest request
+    );
+
+    void recordQuarantineOrScrapReturn(
+            Long productId,
+            BigDecimal quantity,
+            boolean scrap,
+            Long salesReturnId
+    );
 }
