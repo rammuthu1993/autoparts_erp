@@ -2,7 +2,9 @@ package com.autoparts.erp.customer.service;
 
 import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.customer.dto.CustomerCreateRequest;
+import com.autoparts.erp.customer.dto.CustomerDuplicateWarning;
 import com.autoparts.erp.customer.dto.CustomerResponse;
+import com.autoparts.erp.customer.dto.CustomerSummaryResponse;
 import com.autoparts.erp.customer.dto.CustomerUpdateRequest;
 
 import java.util.List;
@@ -14,7 +16,9 @@ public interface CustomerService {
 
     List<CustomerResponse> findAll();
 
-    PageResponse<CustomerResponse> findPaged(
+    List<CustomerResponse> findAllActive();
+
+    default PageResponse<CustomerResponse> findPaged(
             int page,
             int size,
             String search,
@@ -22,9 +26,32 @@ public interface CustomerService {
             String state,
             String sortBy,
             String sortDir
+    ) {
+        return findPaged(page, size, search, "ACTIVE", city, state, null, sortBy, sortDir);
+    }
+
+    PageResponse<CustomerResponse> findPaged(
+            int page,
+            int size,
+            String search,
+            String status,
+            String city,
+            String state,
+            String customerType,
+            String sortBy,
+            String sortDir
     );
 
     CustomerResponse findByUuid(UUID uuid);
+
+    CustomerSummaryResponse getSummary(UUID uuid);
+
+    List<CustomerDuplicateWarning> checkDuplicates(
+            String phone,
+            String email,
+            String gstin,
+            UUID excludeUuid
+    );
 
     CustomerResponse update(
             UUID uuid,
@@ -32,4 +59,6 @@ public interface CustomerService {
     );
 
     void deactivate(UUID uuid);
+
+    CustomerResponse reactivate(UUID uuid);
 }

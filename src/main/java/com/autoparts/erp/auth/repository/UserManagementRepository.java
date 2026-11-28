@@ -12,15 +12,41 @@ public interface UserManagementRepository {
 
     List<ManagedUser> findAll();
 
-    List<ManagedUser> findPaged(
+    default List<ManagedUser> findPaged(
         int offset,
         int limit,
         String search,
         String sortBy,
         String sortDir
+    ) {
+        return findPaged(offset, limit, search, "ALL", null, null, null, sortBy, sortDir);
+    }
+
+    List<ManagedUser> findPaged(
+        int offset,
+        int limit,
+        String search,
+        String status,
+        String role,
+        Boolean emailVerified,
+        Boolean locked,
+        String sortBy,
+        String sortDir
     );
 
-    long countPaged(String search);
+    default long countPaged(String search) {
+        return countPaged(search, "ALL", null, null, null);
+    }
+
+    long countPaged(
+        String search,
+        String status,
+        String role,
+        Boolean emailVerified,
+        Boolean locked
+    );
+
+    Set<String> findAllRoleNames();
 
     Optional<ManagedUser> findByUuid(UUID uuid);
 

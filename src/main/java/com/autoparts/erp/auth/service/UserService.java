@@ -1,4 +1,3 @@
-
 package com.autoparts.erp.auth.service;
 
 import java.util.List;
@@ -18,10 +17,24 @@ public interface UserService {
 
     List<UserResponse> findAll();
 
+    default PageResponse<UserResponse> findPaged(
+        int page,
+        int size,
+        String search,
+        String sortBy,
+        String sortDir
+    ) {
+        return findPaged(page, size, search, "ALL", null, null, null, sortBy, sortDir);
+    }
+
     PageResponse<UserResponse> findPaged(
         int page,
         int size,
         String search,
+        String status,
+        String role,
+        Boolean emailVerified,
+        Boolean locked,
         String sortBy,
         String sortDir
     );
@@ -35,4 +48,6 @@ public interface UserService {
     UserResponse updateRoles(UUID uuid, UserRoleRequest request);
 
     void resetPassword(UUID uuid, UserPasswordResetRequest request);
+
+    UserResponse unlockAccount(UUID uuid);
 }

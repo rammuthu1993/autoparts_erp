@@ -1,4 +1,3 @@
-
 package com.autoparts.erp.supplier.model;
 
 import com.autoparts.erp.common.exception.ApiErrorCodeDefinition;
@@ -31,16 +30,29 @@ public enum SupplierErrorCode implements ApiErrorCodeDefinition {
         "Supplier GSTIN already exists"
     ),
 
+    SUPPLIER_ALREADY_INACTIVE(
+        HttpStatus.CONFLICT,
+        "Supplier is already inactive"
+    ),
+
+    SUPPLIER_ALREADY_ACTIVE(
+        HttpStatus.CONFLICT,
+        "Supplier is already active"
+    ),
+
     INVALID_SUPPLIER_DATA(
         HttpStatus.BAD_REQUEST,
         "Invalid supplier data"
-    ),SUPPLIER_LEDGER_NOT_FOUND(
-            HttpStatus.NOT_FOUND,
-            "Supplier not found"
     ),
+
+    SUPPLIER_LEDGER_NOT_FOUND(
+        HttpStatus.NOT_FOUND,
+        "Supplier not found"
+    ),
+
     INVALID_SUPPLIER_LEDGER_FILTER(
-            HttpStatus.BAD_REQUEST,
-            "Invalid supplier ledger filter"
+        HttpStatus.BAD_REQUEST,
+        "Invalid supplier ledger filter"
     );
 
     private final HttpStatus status;

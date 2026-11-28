@@ -1,10 +1,10 @@
 package com.autoparts.erp.auth.dto;
 
-import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import java.util.Set;
 
 public record AssignRolePermissionsRequest(
-        @NotEmpty(message = "At least one permission must be assigned to the role")
+        @NotNull(message = "Permission codes list must not be null")
         Set<String> permissionCodes
 ) {
 }

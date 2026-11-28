@@ -87,10 +87,19 @@ public class UserController {
 	@GetMapping("/paged")
 	@AdminOnly
 	@RequiresPermission("USERS.VIEW")
-	public ResponseEntity<PageResponse<UserResponse>> findPaged(@RequestParam(defaultValue = "0") int page,
-			@RequestParam(defaultValue = "20") int size, @RequestParam(required = false) String search,
-			@RequestParam(defaultValue = "id") String sortBy, @RequestParam(defaultValue = "asc") String sortDir) {
-		return ResponseEntity.ok(userService.findPaged(page, size, search, sortBy, sortDir));
+	public ResponseEntity<PageResponse<UserResponse>> findPaged(
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size,
+			@RequestParam(required = false) String search,
+			@RequestParam(defaultValue = "ALL") String status,
+			@RequestParam(required = false) String role,
+			@RequestParam(required = false) Boolean emailVerified,
+			@RequestParam(required = false) Boolean locked,
+			@RequestParam(defaultValue = "id") String sortBy,
+			@RequestParam(defaultValue = "asc") String sortDir) {
+		return ResponseEntity.ok(
+				userService.findPaged(page, size, search, status, role, emailVerified, locked, sortBy, sortDir)
+		);
 	}
 
 	// =========================================================
@@ -156,5 +165,12 @@ public class UserController {
 		userService.resetPassword(uuid, request);
 
 		return ResponseEntity.noContent().build();
+	}
+
+	@PostMapping("/{uuid}/unlock")
+	@AdminOnly
+	@RequiresPermission("USERS.STATUS_UPDATE")
+	public ResponseEntity<UserResponse> unlockAccount(@PathVariable UUID uuid) {
+		return ResponseEntity.ok(userService.unlockAccount(uuid));
 	}
 }

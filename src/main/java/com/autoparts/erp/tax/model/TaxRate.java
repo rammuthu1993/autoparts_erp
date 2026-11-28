@@ -1,4 +1,3 @@
-
 package com.autoparts.erp.tax.model;
 
 import java.math.BigDecimal;
@@ -17,6 +16,24 @@ public record TaxRate(
     LocalDate effectiveFrom,
     LocalDate effectiveTo,
     boolean active,
+    String changeReason,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt
-) {}
+) {
+    public TaxRate(
+        Long id,
+        UUID uuid,
+        String taxName,
+        BigDecimal gstRate,
+        BigDecimal cgstRate,
+        BigDecimal sgstRate,
+        BigDecimal igstRate,
+        LocalDate effectiveFrom,
+        LocalDate effectiveTo,
+        boolean active,
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
+    ) {
+        this(id, uuid, taxName, gstRate, cgstRate, sgstRate, igstRate, effectiveFrom, effectiveTo, active, null, createdAt, updatedAt);
+    }
+}

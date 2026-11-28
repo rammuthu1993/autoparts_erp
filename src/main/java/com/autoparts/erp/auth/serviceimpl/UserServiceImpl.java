@@ -38,7 +38,7 @@ import com.autoparts.erp.common.util.PaginationUtils;
 @Service
 public class UserServiceImpl implements UserService {
 
-    private static final Set<String> ALLOWED_ROLES =
+    private static final Set<String> DEFAULT_SYSTEM_ROLES =
             Set.of("ADMIN", "MANAGER", "CASHIER");
 
     private final UserManagementRepository repository;
@@ -162,6 +162,10 @@ public class UserServiceImpl implements UserService {
             int page,
             int size,
             String search,
+            String status,
+            String role,
+            Boolean emailVerified,
+            Boolean locked,
             String sortBy,
             String sortDir
     ) {
@@ -169,15 +173,19 @@ public class UserServiceImpl implements UserService {
         int safeSize = Math.max(1, Math.min(size, 100));
         int offset = PaginationUtils.calculateOffsetForNormalized(safePage, safeSize);
 
-        List<UserResponse> content = repository.findPaged(
-                offset,
-                safeSize,
-                search,
-                sortBy,
-                sortDir
+        boolean defaultQuery = (status == null || status.isBlank() || "ALL".equalsIgnoreCase(status))
+                && (role == null || role.isBlank() || "ALL".equalsIgnoreCase(role))
+                && emailVerified == null
+                && locked == null;
+
+        List<UserResponse> content = (defaultQuery
+                ? repository.findPaged(offset, safeSize, search, sortBy, sortDir)
+                : repository.findPaged(offset, safeSize, search, status, role, emailVerified, locked, sortBy, sortDir)
         ).stream().map(this::toResponse).toList();
 
-        long total = repository.countPaged(search);
+        long total = defaultQuery
+                ? repository.countPaged(search)
+                : repository.countPaged(search, status, role, emailVerified, locked);
         return PageResponse.of(content, safePage, safeSize, total);
     }
 
@@ -210,6 +218,8 @@ public class UserServiceImpl implements UserService {
         ManagedUser existing = getRequiredUser(uuid);
 
         String username = request.username().trim();
+        boolean clearEmailRequested = Boolean.TRUE.equals(request.clearEmail())
+                || (request.email() != null && request.email().isBlank());
         String newEmail = request.email() != null && !request.email().isBlank()
                 ? request.email().trim().toLowerCase(Locale.ROOT)
                 : null;
@@ -222,7 +232,9 @@ public class UserServiceImpl implements UserService {
         }
 
         boolean emailChanged = false;
-        if (newEmail != null && !newEmail.equalsIgnoreCase(existing.email())) {
+        if (clearEmailRequested) {
+            emailChanged = existing.email() != null;
+        } else if (newEmail != null && !newEmail.equalsIgnoreCase(existing.email())) {
             if (repository.existsByEmail(newEmail, uuid)) {
                 throw new ResponseStatusException(
                         HttpStatus.CONFLICT,
@@ -235,7 +247,9 @@ public class UserServiceImpl implements UserService {
         Map<String, Object> oldValues =
                 userAuditValues(toResponse(existing));
 
-        if (newEmail != null) {
+        if (clearEmailRequested) {
+            repository.updateUsernameAndEmail(uuid, username, null, false);
+        } else if (newEmail != null) {
             boolean emailVerified = emailChanged ? false : existing.emailVerified();
             repository.updateUsernameAndEmail(uuid, username, newEmail, emailVerified);
         } else {
@@ -248,7 +262,9 @@ public class UserServiceImpl implements UserService {
                 "UPDATE",
                 "USER",
                 uuid.toString(),
-                emailChanged ? "User profile and email updated" : "Username updated",
+                clearEmailRequested
+                        ? "User profile updated and email cleared"
+                        : (emailChanged ? "User profile and email updated" : "Username updated"),
                 oldValues,
                 userAuditValues(updated)
         );
@@ -470,6 +486,28 @@ public class UserServiceImpl implements UserService {
         );
     }
 
+    @Override
+    @Transactional
+    @RequiresPermission("USERS.STATUS_UPDATE")
+    public UserResponse unlockAccount(UUID uuid) {
+        ManagedUser existing = getRequiredUser(uuid);
+        Map<String, Object> oldValues = userAuditValues(toResponse(existing));
+
+        userRepository.resetFailedLoginAttempts(existing.username());
+        UserResponse updated = findByUuid(uuid);
+
+        auditLogService.log(
+                "UPDATE",
+                "USER",
+                uuid.toString(),
+                "User account unlocked by administrator",
+                oldValues,
+                userAuditValues(updated)
+        );
+
+        return updated;
+    }
+
     // =========================================================
     // HELPERS
     // =========================================================
@@ -493,6 +531,9 @@ public class UserServiceImpl implements UserService {
                 user.email(),
                 user.emailVerified(),
                 user.enabled(),
+                user.failedLoginAttempts(),
+                user.lockedUntil(),
+                user.isLocked(),
                 user.roles(),
                 user.createdAt(),
                 user.updatedAt()
@@ -508,6 +549,11 @@ public class UserServiceImpl implements UserService {
             );
         }
 
+        Set<String> dbRoles = repository.findAllRoleNames();
+        Set<String> allowedRoles = (dbRoles != null && !dbRoles.isEmpty())
+                ? dbRoles
+                : DEFAULT_SYSTEM_ROLES;
+
         Set<String> normalized = new LinkedHashSet<>();
 
         for (String role : roleNames) {
@@ -521,7 +567,7 @@ public class UserServiceImpl implements UserService {
 
             String value = role.trim().toUpperCase(Locale.ROOT);
 
-            if (!ALLOWED_ROLES.contains(value)) {
+            if (!allowedRoles.contains(value)) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
                         "Unsupported role: " + value

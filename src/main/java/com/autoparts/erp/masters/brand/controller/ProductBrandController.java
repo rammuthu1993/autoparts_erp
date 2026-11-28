@@ -7,10 +7,9 @@ import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.masters.brand.dto.BrandCreateRequest;
 import com.autoparts.erp.masters.brand.dto.BrandResponse;
 import com.autoparts.erp.masters.brand.dto.BrandUpdateRequest;
+import com.autoparts.erp.masters.brand.dto.BrandUsageResponse;
 import com.autoparts.erp.masters.brand.service.ProductBrandService;
-
 import jakarta.validation.Valid;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -48,16 +47,23 @@ public class ProductBrandController {
     }
 
     @RequiresPermission("BRANDS.VIEW")
+    @GetMapping("/active")
+    public ResponseEntity<List<BrandResponse>> findAllActive() {
+        return ResponseEntity.ok(service.findAllActive());
+    }
+
+    @RequiresPermission("BRANDS.VIEW")
     @GetMapping("/paged")
     public ResponseEntity<PageResponse<BrandResponse>> findPaged(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "ALL") String status,
             @RequestParam(defaultValue = "id") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir
     ) {
         return ResponseEntity.ok(
-                service.findPaged(page, size, search, sortBy, sortDir)
+                service.findPaged(page, size, search, status, sortBy, sortDir)
         );
     }
 
@@ -67,6 +73,14 @@ public class ProductBrandController {
             @PathVariable UUID uuid
     ) {
         return ResponseEntity.ok(service.findByUuid(uuid));
+    }
+
+    @RequiresPermission("BRANDS.VIEW")
+    @GetMapping("/{uuid}/usage")
+    public ResponseEntity<BrandUsageResponse> getUsage(
+            @PathVariable UUID uuid
+    ) {
+        return ResponseEntity.ok(service.getUsage(uuid));
     }
 
     @AdminOrManager
@@ -87,5 +101,14 @@ public class ProductBrandController {
     ) {
         service.deactivate(uuid);
         return ResponseEntity.noContent().build();
+    }
+
+    @AdminOrManager
+    @RequiresPermission("BRANDS.DEACTIVATE")
+    @PatchMapping("/{uuid}/reactivate")
+    public ResponseEntity<BrandResponse> reactivate(
+            @PathVariable UUID uuid
+    ) {
+        return ResponseEntity.ok(service.reactivate(uuid));
     }
 }

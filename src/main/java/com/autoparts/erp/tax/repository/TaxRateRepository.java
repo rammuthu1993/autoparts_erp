@@ -1,5 +1,6 @@
 package com.autoparts.erp.tax.repository;
 
+import com.autoparts.erp.tax.dto.TaxSummaryResponse;
 import com.autoparts.erp.tax.model.TaxRate;
 
 import java.math.BigDecimal;
@@ -36,17 +37,45 @@ public interface TaxRateRepository {
 
     List<TaxRate> findAll();
 
-    List<TaxRate> findPaged(
+    default List<TaxRate> findPaged(
         int offset,
         int limit,
         String search,
         String sortBy,
         String sortDir
+    ) {
+        return findPaged(offset, limit, search, null, null, null, null, sortBy, sortDir);
+    }
+
+    List<TaxRate> findPaged(
+        int offset,
+        int limit,
+        String search,
+        BigDecimal gstRate,
+        Boolean active,
+        String periodStatus,
+        LocalDate effectiveOn,
+        String sortBy,
+        String sortDir
     );
 
-    long countPaged(String search);
+    default long countPaged(String search) {
+        return countPaged(search, null, null, null, null);
+    }
+
+    long countPaged(
+        String search,
+        BigDecimal gstRate,
+        Boolean active,
+        String periodStatus,
+        LocalDate effectiveOn
+    );
 
     List<TaxRate> findCurrent();
+
+    List<TaxRate> findSelectable(LocalDate effectiveDate);
+
+    TaxSummaryResponse getSummary();
 
     boolean existsByNameAndEffectiveFrom(
         String taxName,
@@ -54,9 +83,20 @@ public interface TaxRateRepository {
         UUID excludeUuid
     );
 
+    default TaxRate update(UUID uuid, String taxName, boolean active) {
+        return update(uuid, taxName, active, null);
+    }
+
     TaxRate update(
         UUID uuid,
         String taxName,
-        boolean active
+        boolean active,
+        String changeReason
+    );
+
+    TaxRate closePeriod(
+        UUID uuid,
+        LocalDate effectiveTo,
+        String changeReason
     );
 }

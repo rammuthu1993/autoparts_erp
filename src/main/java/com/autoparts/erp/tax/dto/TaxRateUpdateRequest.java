@@ -1,4 +1,3 @@
-
 package com.autoparts.erp.tax.dto;
 
 import jakarta.validation.constraints.NotBlank;
@@ -12,6 +11,13 @@ public record TaxRateUpdateRequest(
     String taxName,
 
     @NotNull
-    Boolean active
+    Boolean active,
 
-) {}
+    @Size(max = 500)
+    String changeReason
+
+) {
+    public TaxRateUpdateRequest(String taxName, Boolean active) {
+        this(taxName, active, null);
+    }
+}

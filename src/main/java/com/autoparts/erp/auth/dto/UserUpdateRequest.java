@@ -1,4 +1,3 @@
-
 package com.autoparts.erp.auth.dto;
 
 import jakarta.validation.constraints.Email;
@@ -18,7 +17,9 @@ public record UserUpdateRequest(
 
         @Email(message = "Email format is invalid")
         @Size(max = 254, message = "Email must not exceed 254 characters")
-        String email
+        String email,
+
+        Boolean clearEmail
 ) {
     public UserUpdateRequest {
         if (username != null) {
@@ -30,6 +31,10 @@ public record UserUpdateRequest(
     }
 
     public UserUpdateRequest(String username) {
-        this(username, null);
+        this(username, null, null);
+    }
+
+    public UserUpdateRequest(String username, String email) {
+        this(username, email, null);
     }
 }

@@ -37,6 +37,8 @@ public class UserManagementRepositoryImpl
             u.email,
             u.email_verified,
             u.enabled,
+            u.failed_login_attempts,
+            u.locked_until,
             u.created_at,
             u.updated_at,
             r.name AS role_name
@@ -50,6 +52,7 @@ public class UserManagementRepositoryImpl
             "username", "username",
             "email", "email",
             "createdAt", "created_at",
+            "updatedAt", "updated_at",
             "enabled", "enabled"
     );
 
@@ -63,11 +66,13 @@ public class UserManagementRepositoryImpl
                 u.email,
                 u.email_verified,
                 u.enabled,
+                u.failed_login_attempts,
+                u.locked_until,
                 u.created_at,
                 u.updated_at,
                 r.name AS role_name
             FROM (
-                SELECT id, uuid, username, email, email_verified, enabled, created_at, updated_at
+                SELECT id, uuid, username, email, email_verified, enabled, failed_login_attempts, locked_until, created_at, updated_at
                 FROM users
                 ORDER BY LOWER(username), id ASC
                 LIMIT 501
@@ -83,16 +88,19 @@ public class UserManagementRepositoryImpl
             int offset,
             int limit,
             String search,
+            String status,
+            String role,
+            Boolean emailVerified,
+            Boolean locked,
             String sortBy,
             String sortDir
     ) {
-        StringBuilder userSubquery = new StringBuilder("SELECT id, uuid, username, email, email_verified, enabled, created_at, updated_at FROM users WHERE 1=1 ");
+        StringBuilder userSubquery = new StringBuilder(
+                "SELECT id, uuid, username, email, email_verified, enabled, failed_login_attempts, locked_until, created_at, updated_at FROM users WHERE 1=1 "
+        );
         MapSqlParameterSource params = new MapSqlParameterSource();
 
-        if (search != null && !search.isBlank()) {
-            userSubquery.append(" AND (username ILIKE :search OR email ILIKE :search) ");
-            params.addValue("search", "%" + search.trim() + "%");
-        }
+        appendUserFilters(userSubquery, params, search, status, role, emailVerified, locked);
 
         String sortKey = USER_SORT_ALLOWLIST.getOrDefault(sortBy, "id");
         String sortExpr = "username".equals(sortKey) ? "LOWER(username)" : ("email".equals(sortKey) ? "LOWER(email)" : sortKey);
@@ -115,6 +123,8 @@ public class UserManagementRepositoryImpl
                 u.email,
                 u.email_verified,
                 u.enabled,
+                u.failed_login_attempts,
+                u.locked_until,
                 u.created_at,
                 u.updated_at,
                 r.name AS role_name
@@ -134,17 +144,76 @@ public class UserManagementRepositoryImpl
     }
 
     @Override
-    public long countPaged(String search) {
+    public long countPaged(
+            String search,
+            String status,
+            String role,
+            Boolean emailVerified,
+            Boolean locked
+    ) {
         StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM users WHERE 1=1 ");
         MapSqlParameterSource params = new MapSqlParameterSource();
 
+        appendUserFilters(sql, params, search, status, role, emailVerified, locked);
+
+        Long count = jdbcTemplate.queryForObject(sql.toString(), params, Long.class);
+        return count != null ? count : 0L;
+    }
+
+    private void appendUserFilters(
+            StringBuilder sql,
+            MapSqlParameterSource params,
+            String search,
+            String status,
+            String role,
+            Boolean emailVerified,
+            Boolean locked
+    ) {
         if (search != null && !search.isBlank()) {
             sql.append(" AND (username ILIKE :search OR email ILIKE :search) ");
             params.addValue("search", "%" + search.trim() + "%");
         }
+        if (status != null && !status.isBlank()) {
+            String upper = status.trim().toUpperCase(java.util.Locale.ROOT);
+            if ("ENABLED".equals(upper)) {
+                sql.append(" AND enabled = TRUE ");
+            } else if ("DISABLED".equals(upper)) {
+                sql.append(" AND enabled = FALSE ");
+            }
+        }
+        if (role != null && !role.isBlank() && !"ALL".equalsIgnoreCase(role.trim())) {
+            sql.append("""
+                 AND EXISTS (
+                     SELECT 1
+                     FROM user_roles ur
+                     JOIN roles r ON r.id = ur.role_id
+                     WHERE ur.user_id = users.id
+                       AND UPPER(r.name) = UPPER(:role)
+                 )
+            """);
+            params.addValue("role", role.trim());
+        }
+        if (emailVerified != null) {
+            sql.append(" AND email_verified = :emailVerified ");
+            params.addValue("emailVerified", emailVerified);
+        }
+        if (locked != null) {
+            if (Boolean.TRUE.equals(locked)) {
+                sql.append(" AND locked_until IS NOT NULL AND locked_until > CURRENT_TIMESTAMP ");
+            } else {
+                sql.append(" AND (locked_until IS NULL OR locked_until <= CURRENT_TIMESTAMP) ");
+            }
+        }
+    }
 
-        Long count = jdbcTemplate.queryForObject(sql.toString(), params, Long.class);
-        return count != null ? count : 0L;
+    @Override
+    public Set<String> findAllRoleNames() {
+        List<String> names = jdbcTemplate.query(
+                "SELECT UPPER(name) FROM roles ORDER BY name",
+                new MapSqlParameterSource(),
+                (rs, rowNum) -> rs.getString(1)
+        );
+        return new LinkedHashSet<>(names);
     }
 
     @Override
@@ -209,11 +278,22 @@ public class UserManagementRepositoryImpl
             String email = null;
             boolean emailVerified = false;
             boolean enabled;
+            int failedLoginAttempts = 0;
+            java.time.Instant lockedUntil = null;
             java.time.Instant createdAt;
             java.time.Instant updatedAt;
             String roleName;
 
-            if (row.length >= 9) {
+            if (row.length >= 11) {
+                email = (String) row[3];
+                emailVerified = Boolean.TRUE.equals(row[4]);
+                enabled = Boolean.TRUE.equals(row[5]);
+                failedLoginAttempts = row[6] != null ? ((Number) row[6]).intValue() : 0;
+                lockedUntil = (java.time.Instant) row[7];
+                createdAt = (java.time.Instant) row[8];
+                updatedAt = (java.time.Instant) row[9];
+                roleName = (String) row[10];
+            } else if (row.length >= 9) {
                 email = (String) row[3];
                 emailVerified = Boolean.TRUE.equals(row[4]);
                 enabled = Boolean.TRUE.equals(row[5]);
@@ -230,6 +310,8 @@ public class UserManagementRepositoryImpl
             final String finalEmail = email;
             final boolean finalEmailVerified = emailVerified;
             final boolean finalEnabled = enabled;
+            final int finalFailedLoginAttempts = failedLoginAttempts;
+            final java.time.Instant finalLockedUntil = lockedUntil;
             final java.time.Instant finalCreatedAt = createdAt;
             final java.time.Instant finalUpdatedAt = updatedAt;
 
@@ -242,6 +324,8 @@ public class UserManagementRepositoryImpl
                             finalEmail,
                             finalEmailVerified,
                             finalEnabled,
+                            finalFailedLoginAttempts,
+                            finalLockedUntil,
                             finalCreatedAt,
                             finalUpdatedAt
                     )
@@ -259,7 +343,7 @@ public class UserManagementRepositoryImpl
     }
 
     private Object[] mapRow(ResultSet rs) throws SQLException {
-
+        java.sql.Timestamp lockedTs = rs.getTimestamp("locked_until");
         return new Object[] {
                 rs.getLong("id"),
                 rs.getObject("uuid", UUID.class),
@@ -267,6 +351,8 @@ public class UserManagementRepositoryImpl
                 rs.getString("email"),
                 rs.getBoolean("email_verified"),
                 rs.getBoolean("enabled"),
+                rs.getInt("failed_login_attempts"),
+                lockedTs != null ? lockedTs.toInstant() : null,
                 rs.getTimestamp("created_at").toInstant(),
                 rs.getTimestamp("updated_at").toInstant(),
                 rs.getString("role_name")
@@ -281,6 +367,8 @@ public class UserManagementRepositoryImpl
         private final String email;
         private final boolean emailVerified;
         private final boolean enabled;
+        private final int failedLoginAttempts;
+        private final java.time.Instant lockedUntil;
         private final java.time.Instant createdAt;
         private final java.time.Instant updatedAt;
         private final Set<String> roles = new LinkedHashSet<>();
@@ -292,6 +380,8 @@ public class UserManagementRepositoryImpl
                 String email,
                 boolean emailVerified,
                 boolean enabled,
+                int failedLoginAttempts,
+                java.time.Instant lockedUntil,
                 java.time.Instant createdAt,
                 java.time.Instant updatedAt
         ) {
@@ -301,6 +391,8 @@ public class UserManagementRepositoryImpl
             this.email = email;
             this.emailVerified = emailVerified;
             this.enabled = enabled;
+            this.failedLoginAttempts = failedLoginAttempts;
+            this.lockedUntil = lockedUntil;
             this.createdAt = createdAt;
             this.updatedAt = updatedAt;
         }
@@ -313,6 +405,8 @@ public class UserManagementRepositoryImpl
                     email,
                     emailVerified,
                     enabled,
+                    failedLoginAttempts,
+                    lockedUntil,
                     Set.copyOf(roles),
                     createdAt,
                     updatedAt

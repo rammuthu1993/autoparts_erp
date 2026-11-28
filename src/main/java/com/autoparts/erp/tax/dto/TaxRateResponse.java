@@ -1,4 +1,3 @@
-
 package com.autoparts.erp.tax.dto;
 
 import java.math.BigDecimal;
@@ -16,6 +15,8 @@ public record TaxRateResponse(
     LocalDate effectiveFrom,
     LocalDate effectiveTo,
     boolean active,
+    String periodStatus,
+    String changeReason,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt
 ) {}

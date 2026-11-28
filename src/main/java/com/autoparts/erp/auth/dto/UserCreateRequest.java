@@ -1,4 +1,3 @@
-
 package com.autoparts.erp.auth.dto;
 
 import jakarta.validation.constraints.Email;
@@ -30,10 +29,8 @@ public record UserCreateRequest(
 
         @NotEmpty(message = "At least one role is required")
         Set<
-            @Pattern(
-                regexp = "ADMIN|MANAGER|CASHIER",
-                message = "Unsupported role"
-            )
+            @NotBlank(message = "Role name must not be blank")
+            @Size(max = 50, message = "Role name must not exceed 50 characters")
             String
         > roleNames
 ) {

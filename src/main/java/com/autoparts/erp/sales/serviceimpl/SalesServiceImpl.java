@@ -3,10 +3,14 @@ package com.autoparts.erp.sales.serviceimpl;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -35,9 +39,12 @@ import com.autoparts.erp.sales.dto.SalesPaymentResponse;
 import com.autoparts.erp.sales.dto.SalesProductRequest;
 import com.autoparts.erp.sales.dto.SalesProductResponse;
 import com.autoparts.erp.sales.dto.SalesResponse;
+import com.autoparts.erp.sales.dto.SalesSummaryResponse;
 import com.autoparts.erp.sales.enums.PaymentMethod;
 import com.autoparts.erp.sales.enums.SalesPaymentStatus;
+import com.autoparts.erp.sales.enums.SalesReturnStatus;
 import com.autoparts.erp.sales.enums.SalesStatus;
+import com.autoparts.erp.sales.enums.SupplyType;
 import com.autoparts.erp.sales.exception.SalesErrorCode;
 import com.autoparts.erp.sales.model.Sales;
 import com.autoparts.erp.sales.model.SalesPayment;
@@ -169,6 +176,7 @@ public class SalesServiceImpl implements SalesService {
         );
 
         validateRequest(request);
+        validateInitialPayments(request.payments());
         requireConfiguredSalesStatus(SalesStatus.DRAFT);
 
         UUID saleUuid = UUID.randomUUID();
@@ -176,6 +184,202 @@ public class SalesServiceImpl implements SalesService {
         // Drafts use a temporary identifier. GST invoice numbers are allocated
         // only when the draft is confirmed/completed.
         String invoiceNumber = "DRF-" + saleUuid.toString().substring(0, 8).toUpperCase();
+
+        CalculatedSaleDraft draft = buildCalculatedDraft(request, saleUuid, invoiceNumber);
+
+        Sales createdSale = salesRepository.createSale(draft.sale());
+
+        for (SalesProduct product : draft.products()) {
+            SalesProduct savedProduct = new SalesProduct(
+                null,
+                product.uuid(),
+                createdSale.id(),
+                product.productId(),
+                product.productUuid(),
+                product.productCode(),
+                product.productName(),
+                product.quantity(),
+                product.unit(),
+                product.unitPrice(),
+                product.discountAmount(),
+                product.taxableAmount(),
+                product.hsnCode(),
+                product.gstRate(),
+                product.cgstRate(),
+                product.sgstRate(),
+                product.igstRate(),
+                product.cgstAmount(),
+                product.sgstAmount(),
+                product.igstAmount(),
+                product.totalTaxAmount(),
+                product.lineTotal(),
+                null
+            );
+
+            salesRepository.createSaleProduct(savedProduct);
+        }
+
+        // Save draft payments only.
+        // Cash Register movements are posted when the sale is completed.
+        if (request.payments() != null) {
+            for (var paymentRequest : request.payments()) {
+                SalesPayment payment = new SalesPayment(
+                    null,
+                    UUID.randomUUID(),
+                    createdSale.id(),
+                    paymentRequest.paymentMethod(),
+                    money(paymentRequest.amount()),
+                    paymentRequest.referenceNumber(),
+                    OffsetDateTime.now(),
+                    paymentRequest.notes(),
+                    null
+                );
+                salesRepository.createSalePayment(payment);
+            }
+        }
+
+        logger.info("Sales draft successfully created with invoice number {}", invoiceNumber);
+
+        auditLogService.log(
+            "CREATE",
+            "SALES",
+            createdSale.invoiceNumber(),
+            "Sales draft created",
+            null,
+            Map.of(
+                "saleUuid", createdSale.uuid().toString(),
+                "invoiceNumber", createdSale.invoiceNumber(),
+                "status", createdSale.status().name(),
+                "grandTotal", createdSale.grandTotal(),
+                "paidAmount", createdSale.paidAmount()
+            )
+        );
+
+        return findByUuid(createdSale.uuid());
+    }
+
+    @Override
+    @Transactional
+    @RequiresPermission("SALES.CREATE")
+    public SalesResponse updateDraft(UUID saleUuid, SalesCreateRequest request) {
+        validateRequest(request);
+        validateInitialPayments(request.payments());
+
+        Sales existing = salesRepository.findByUuidForUpdate(saleUuid)
+            .orElseThrow(() -> new ApiException(SalesErrorCode.SALES_NOT_FOUND));
+
+        if (existing.status() == SalesStatus.COMPLETED) {
+            throw new ApiException(SalesErrorCode.SALES_ALREADY_COMPLETED);
+        }
+        if (existing.status() == SalesStatus.CANCELLED) {
+            throw new ApiException(SalesErrorCode.SALES_ALREADY_CANCELLED);
+        }
+
+        CalculatedSaleDraft calculated = buildCalculatedDraft(request, existing.uuid(), existing.invoiceNumber());
+        Sales updatedHeader = new Sales(
+            existing.id(),
+            existing.uuid(),
+            existing.invoiceNumber(),
+            calculated.sale().customerId(),
+            calculated.sale().customerName(),
+            calculated.sale().customerPhone(),
+            calculated.sale().customerGstin(),
+            calculated.sale().supplyType(),
+            calculated.sale().placeOfSupply(),
+            calculated.sale().billingAddress(),
+            calculated.sale().shippingAddress(),
+            calculated.sale().customerReference(),
+            calculated.sale().paymentTerms(),
+            calculated.sale().dueDate(),
+            calculated.sale().saleDate(),
+            calculated.sale().subtotal(),
+            calculated.sale().discountAmount(),
+            calculated.sale().taxableAmount(),
+            calculated.sale().cgstAmount(),
+            calculated.sale().sgstAmount(),
+            calculated.sale().igstAmount(),
+            calculated.sale().totalTaxAmount(),
+            calculated.sale().grandTotal(),
+            calculated.sale().paidAmount(),
+            calculated.sale().balanceAmount(),
+            SalesStatus.DRAFT,
+            calculated.sale().paymentStatus(),
+            calculated.sale().notes(),
+            existing.createdAt(),
+            existing.updatedAt()
+        );
+
+        salesRepository.updateSale(updatedHeader);
+        salesRepository.deleteDraftProducts(existing.id());
+        salesRepository.deleteDraftPayments(existing.id());
+
+        for (SalesProduct product : calculated.products()) {
+            salesRepository.createSaleProduct(new SalesProduct(
+                null,
+                product.uuid(),
+                existing.id(),
+                product.productId(),
+                product.productUuid(),
+                product.productCode(),
+                product.productName(),
+                product.quantity(),
+                product.unit(),
+                product.unitPrice(),
+                product.discountAmount(),
+                product.taxableAmount(),
+                product.hsnCode(),
+                product.gstRate(),
+                product.cgstRate(),
+                product.sgstRate(),
+                product.igstRate(),
+                product.cgstAmount(),
+                product.sgstAmount(),
+                product.igstAmount(),
+                product.totalTaxAmount(),
+                product.lineTotal(),
+                null
+            ));
+        }
+
+        if (request.payments() != null) {
+            for (var paymentRequest : request.payments()) {
+                salesRepository.createSalePayment(new SalesPayment(
+                    null,
+                    UUID.randomUUID(),
+                    existing.id(),
+                    paymentRequest.paymentMethod(),
+                    money(paymentRequest.amount()),
+                    paymentRequest.referenceNumber(),
+                    OffsetDateTime.now(),
+                    paymentRequest.notes(),
+                    null
+                ));
+            }
+        }
+
+        auditLogService.log(
+            "UPDATE",
+            "SALES",
+            existing.invoiceNumber(),
+            "Sales draft updated",
+            Map.of(
+                "grandTotal", existing.grandTotal(),
+                "paidAmount", existing.paidAmount(),
+                "saleDate", existing.saleDate().toString()
+            ),
+            Map.of(
+                "grandTotal", updatedHeader.grandTotal(),
+                "paidAmount", updatedHeader.paidAmount(),
+                "saleDate", updatedHeader.saleDate().toString()
+            )
+        );
+
+        return findByUuid(saleUuid);
+    }
+
+    private record CalculatedSaleDraft(Sales sale, List<SalesProduct> products) {}
+
+    private CalculatedSaleDraft buildCalculatedDraft(SalesCreateRequest request, UUID saleUuid, String invoiceNumber) {
 
         BigDecimal subtotal = BigDecimal.ZERO;
         BigDecimal totalDiscount = BigDecimal.ZERO;
@@ -377,22 +581,24 @@ public class SalesServiceImpl implements SalesService {
         requireConfiguredPaymentStatus(paymentStatus);
 
         Long customerId = null;
-        String customerName = null;
-        String customerPhone = null;
+        String customerName = normalizeOptionalText(request.customerName());
+        String customerPhone = normalizeOptionalText(request.customerPhone());
+        String customerGstin = normalizeOptionalText(request.customerGstin());
+        String billingAddress = normalizeOptionalText(request.billingAddress());
+        String shippingAddress = normalizeOptionalText(request.shippingAddress());
+        String placeOfSupply = normalizeOptionalText(request.placeOfSupply());
 
         if (request.customerUuid() != null) {
-
             Customer customer = customerRepository
                 .findByUuid(request.customerUuid())
-                .orElseThrow(() ->
-                    new ApiException(
-                        CustomerErrorCode.CUSTOMER_NOT_FOUND
-                    )
-                );
+                .orElseThrow(() -> new ApiException(CustomerErrorCode.CUSTOMER_NOT_FOUND));
 
             customerId = customer.id();
             customerName = customer.customerName();
             customerPhone = customer.phone();
+            if (customerGstin == null) customerGstin = normalizeOptionalText(customer.gstin());
+            if (billingAddress == null) billingAddress = normalizeOptionalText(customer.address());
+            if (placeOfSupply == null) placeOfSupply = normalizeOptionalText(customer.state());
         }
 
         Sales sale = new Sales(
@@ -402,6 +608,14 @@ public class SalesServiceImpl implements SalesService {
             customerId,
             customerName,
             customerPhone,
+            customerGstin,
+            request.supplyType(),
+            placeOfSupply,
+            billingAddress,
+            shippingAddress,
+            normalizeOptionalText(request.customerReference()),
+            normalizeOptionalText(request.paymentTerms()),
+            request.dueDate(),
             request.saleDate(),
             subtotal,
             totalDiscount,
@@ -415,87 +629,12 @@ public class SalesServiceImpl implements SalesService {
             balanceAmount,
             SalesStatus.DRAFT,
             paymentStatus,
-            request.notes(),
+            normalizeOptionalText(request.notes()),
             null,
             null
         );
 
-        Sales createdSale = salesRepository.createSale(sale);
-
-        for (SalesProduct product : saleProducts) {
-
-            SalesProduct savedProduct = new SalesProduct(
-                null,
-                product.uuid(),
-                createdSale.id(),
-                product.productId(),
-                product.productUuid(),
-                product.productCode(),
-                product.productName(),
-                product.quantity(),
-                product.unit(),
-                product.unitPrice(),
-                product.discountAmount(),
-                product.taxableAmount(),
-                product.hsnCode(),
-                product.gstRate(),
-                product.cgstRate(),
-                product.sgstRate(),
-                product.igstRate(),
-                product.cgstAmount(),
-                product.sgstAmount(),
-                product.igstAmount(),
-                product.totalTaxAmount(),
-                product.lineTotal(),
-                null
-            );
-
-            salesRepository.createSaleProduct(savedProduct);
-        }
-
-        // Save draft payments only.
-        // Cash Register movements are posted when the sale is completed.
-        if (request.payments() != null) {
-
-            for (var paymentRequest : request.payments()) {
-
-                SalesPayment payment = new SalesPayment(
-                    null,
-                    UUID.randomUUID(),
-                    createdSale.id(),
-                    paymentRequest.paymentMethod(),
-                    money(paymentRequest.amount()),
-                    paymentRequest.referenceNumber(),
-                    OffsetDateTime.now(),
-                    paymentRequest.notes(),
-                    null
-                );
-
-                salesRepository.createSalePayment(payment);
-            }
-        }
-
-        logger.info(
-            "Sales draft successfully created with invoice number {}",
-            invoiceNumber
-        );
-        
-        auditLogService.log(
-                "CREATE",
-                "SALES",
-                createdSale.invoiceNumber(),
-                "Sales draft created",
-                null,
-                Map.of(
-                        "saleUuid", createdSale.uuid().toString(),
-                        "invoiceNumber", createdSale.invoiceNumber(),
-                        "status", createdSale.status().name(),
-                        "grandTotal", grandTotal,
-                        "paidAmount", paidAmount
-                )
-        );
-
-        return findByUuid(createdSale.uuid());
+        return new CalculatedSaleDraft(sale, saleProducts);
     }
 
     // ---------------------------------------------------------
@@ -618,6 +757,14 @@ public class SalesServiceImpl implements SalesService {
             sale.customerId(),
             sale.customerName(),
             sale.customerPhone(),
+            sale.customerGstin(),
+            sale.supplyType(),
+            sale.placeOfSupply(),
+            sale.billingAddress(),
+            sale.shippingAddress(),
+            sale.customerReference(),
+            sale.paymentTerms(),
+            sale.dueDate(),
             sale.saleDate(),
             sale.subtotal(),
             sale.discountAmount(),
@@ -668,14 +815,89 @@ public class SalesServiceImpl implements SalesService {
     @Transactional(readOnly = true)
     @RequiresPermission("SALES.VIEW")
     public SalesResponse findByUuid(UUID saleUuid) {
-
         Sales sale = salesRepository.findByUuid(saleUuid)
-            .orElseThrow(() ->
-                new ApiException(SalesErrorCode.SALES_NOT_FOUND)
-            );
+            .orElseThrow(() -> new ApiException(SalesErrorCode.SALES_NOT_FOUND));
+        return buildResponses(List.of(sale)).get(0);
+    }
 
-        List<SalesProductResponse> productResponses =
-            salesRepository.findProductsBySaleId(sale.id())
+    @Override
+    @Transactional(readOnly = true)
+    @RequiresPermission("SALES.VIEW")
+    public List<SalesResponse> findAll() {
+        return buildResponses(salesRepository.findAll());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @RequiresPermission("SALES.VIEW")
+    public PageResponse<SalesResponse> findPaged(
+        int page,
+        int size,
+        String search,
+        String status,
+        String paymentStatus,
+        LocalDate fromDate,
+        LocalDate toDate,
+        UUID customerUuid,
+        String paymentMethod,
+        String returnStatus,
+        BigDecimal minAmount,
+        BigDecimal maxAmount,
+        String sortBy,
+        String sortDir
+    ) {
+        if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
+            throw new ApiException(SalesErrorCode.INVALID_SALES_AMOUNT);
+        }
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        int offset = PaginationUtils.calculateOffsetForNormalized(safePage, safeSize);
+
+        List<Sales> salesList = salesRepository.findPaged(
+            offset, safeSize, search, status, paymentStatus,
+            fromDate, toDate, customerUuid, paymentMethod, returnStatus,
+            minAmount, maxAmount, sortBy, sortDir
+        );
+
+        List<SalesResponse> content = buildResponses(salesList);
+
+        long total = salesRepository.countPaged(
+            search, status, paymentStatus, fromDate, toDate, customerUuid,
+            paymentMethod, returnStatus, minAmount, maxAmount
+        );
+        return PageResponse.of(content, safePage, safeSize, total);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @RequiresPermission("SALES.VIEW")
+    public SalesSummaryResponse getSummary(LocalDate fromDate, LocalDate toDate) {
+        if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
+            throw new ApiException(SalesErrorCode.INVALID_SALES_AMOUNT);
+        }
+        return salesRepository.getSummary(fromDate, toDate);
+    }
+
+    private List<SalesResponse> buildResponses(List<Sales> salesList) {
+        if (salesList == null || salesList.isEmpty()) {
+            return List.of();
+        }
+        List<Long> saleIds = salesList.stream().map(Sales::id).toList();
+        List<Long> customerIds = salesList.stream()
+            .map(Sales::customerId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+
+        Map<Long, List<SalesProduct>> productsBySale = salesRepository.findProductsBySaleIds(saleIds);
+        Map<Long, List<SalesPayment>> paymentsBySale = salesRepository.findPaymentsBySaleIds(saleIds);
+        Map<Long, String> cancelReasons = salesRepository.findCancellationReasonsBySaleIds(saleIds);
+        Map<Long, UUID> customerUuids = salesRepository.findCustomerUuidsByIds(customerIds);
+        Map<Long, SalesRepository.SaleReturnAggregate> returnAggs = salesRepository.findReturnAggregatesBySaleIds(saleIds);
+
+        return salesList.stream().map(sale -> {
+            List<SalesProductResponse> productResponses = productsBySale
+                .getOrDefault(sale.id(), Collections.emptyList())
                 .stream()
                 .map(product -> new SalesProductResponse(
                     product.uuid(),
@@ -700,8 +922,8 @@ public class SalesServiceImpl implements SalesService {
                 ))
                 .toList();
 
-        List<SalesPaymentResponse> paymentResponses =
-            salesRepository.findPaymentsBySaleId(sale.id())
+            List<SalesPaymentResponse> paymentResponses = paymentsBySale
+                .getOrDefault(sale.id(), Collections.emptyList())
                 .stream()
                 .map(payment -> new SalesPaymentResponse(
                     payment.uuid(),
@@ -713,130 +935,35 @@ public class SalesServiceImpl implements SalesService {
                 ))
                 .toList();
 
-        return toResponse(sale, productResponses, paymentResponses);
-    }
+            SalesRepository.SaleReturnAggregate agg = returnAggs.get(sale.id());
+            SalesReturnStatus retStatus = SalesReturnStatus.NO_RETURNS;
+            BigDecimal returnedAmount = BigDecimal.ZERO.setScale(MONEY_SCALE);
+            BigDecimal refundedAmount = BigDecimal.ZERO.setScale(MONEY_SCALE);
+            BigDecimal outstandingRefund = BigDecimal.ZERO.setScale(MONEY_SCALE);
+            if (agg != null && agg.returnedQuantityLines() > 0) {
+                returnedAmount = money(agg.returnedAmount());
+                refundedAmount = money(agg.refundedAmount());
+                outstandingRefund = money(returnedAmount.subtract(refundedAmount).max(BigDecimal.ZERO));
+                retStatus = (agg.totalLines() > 0 && agg.fullyReturnedLines() >= agg.totalLines())
+                    ? SalesReturnStatus.FULLY_RETURNED
+                    : SalesReturnStatus.PARTIALLY_RETURNED;
+            }
 
-    // ---------------------------------------------------------
-    // FIND ALL SALES
-    // ---------------------------------------------------------
+            UUID customerUuid = sale.customerId() != null ? customerUuids.get(sale.customerId()) : null;
+            String cancellationReason = cancelReasons.get(sale.id());
 
-    @Override
-    @Transactional(readOnly = true)
-    @RequiresPermission("SALES.VIEW")
-    public List<SalesResponse> findAll() {
-
-        return salesRepository.findAll()
-            .stream()
-            .map(sale -> toResponse(
+            return toResponse(
                 sale,
-                salesRepository.findProductsBySaleId(sale.id())
-                    .stream()
-                    .map(product -> new SalesProductResponse(
-                        product.uuid(),
-                        product.productUuid(),
-                        product.productCode(),
-                        product.productName(),
-                        product.quantity(),
-                        product.unit(),
-                        product.unitPrice(),
-                        product.discountAmount(),
-                        product.taxableAmount(),
-                        product.hsnCode(),
-                        product.gstRate(),
-                        product.cgstRate(),
-                        product.sgstRate(),
-                        product.igstRate(),
-                        product.cgstAmount(),
-                        product.sgstAmount(),
-                        product.igstAmount(),
-                        product.totalTaxAmount(),
-                        product.lineTotal()
-                    ))
-                    .toList(),
-                salesRepository.findPaymentsBySaleId(sale.id())
-                    .stream()
-                    .map(payment -> new SalesPaymentResponse(
-                        payment.uuid(),
-                        payment.paymentMethod(),
-                        payment.amount(),
-                        payment.referenceNumber(),
-                        payment.paymentDate(),
-                        payment.notes()
-                    ))
-                    .toList()
-            ))
-            .toList();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    @RequiresPermission("SALES.VIEW")
-    public PageResponse<SalesResponse> findPaged(
-            int page,
-            int size,
-            String search,
-            String status,
-            String paymentStatus,
-            String sortBy,
-            String sortDir
-    ) {
-        int safePage = Math.max(0, page);
-        int safeSize = Math.max(1, Math.min(size, 100));
-        int offset = PaginationUtils.calculateOffsetForNormalized(safePage, safeSize);
-
-        List<Sales> salesList = salesRepository.findPaged(
-                offset,
-                safeSize,
-                search,
-                status,
-                paymentStatus,
-                sortBy,
-                sortDir
-        );
-
-        List<SalesResponse> content = salesList.stream()
-                .map(sale -> toResponse(
-                        sale,
-                        salesRepository.findProductsBySaleId(sale.id())
-                                .stream()
-                                .map(product -> new SalesProductResponse(
-                                        product.uuid(),
-                                        product.productUuid(),
-                                        product.productCode(),
-                                        product.productName(),
-                                        product.quantity(),
-                                        product.unit(),
-                                        product.unitPrice(),
-                                        product.discountAmount(),
-                                        product.taxableAmount(),
-                                        product.hsnCode(),
-                                        product.gstRate(),
-                                        product.cgstRate(),
-                                        product.sgstRate(),
-                                        product.igstRate(),
-                                        product.cgstAmount(),
-                                        product.sgstAmount(),
-                                        product.igstAmount(),
-                                        product.totalTaxAmount(),
-                                        product.lineTotal()
-                                ))
-                                .toList(),
-                        salesRepository.findPaymentsBySaleId(sale.id())
-                                .stream()
-                                .map(payment -> new SalesPaymentResponse(
-                                        payment.uuid(),
-                                        payment.paymentMethod(),
-                                        payment.amount(),
-                                        payment.referenceNumber(),
-                                        payment.paymentDate(),
-                                        payment.notes()
-                                ))
-                                .toList()
-                ))
-                .toList();
-
-        long total = salesRepository.countPaged(search, status, paymentStatus);
-        return PageResponse.of(content, safePage, safeSize, total);
+                customerUuid,
+                cancellationReason,
+                retStatus,
+                returnedAmount,
+                refundedAmount,
+                outstandingRefund,
+                productResponses,
+                paymentResponses
+            );
+        }).toList();
     }
 
     // ---------------------------------------------------------
@@ -910,6 +1037,14 @@ public class SalesServiceImpl implements SalesService {
             sale.customerId(),
             sale.customerName(),
             sale.customerPhone(),
+            sale.customerGstin(),
+            sale.supplyType(),
+            sale.placeOfSupply(),
+            sale.billingAddress(),
+            sale.shippingAddress(),
+            sale.customerReference(),
+            sale.paymentTerms(),
+            sale.dueDate(),
             sale.saleDate(),
             sale.subtotal(),
             sale.discountAmount(),
@@ -1118,6 +1253,14 @@ public class SalesServiceImpl implements SalesService {
             sale.customerId(),
             sale.customerName(),
             sale.customerPhone(),
+            sale.customerGstin(),
+            sale.supplyType(),
+            sale.placeOfSupply(),
+            sale.billingAddress(),
+            sale.shippingAddress(),
+            sale.customerReference(),
+            sale.paymentTerms(),
+            sale.dueDate(),
             sale.saleDate(),
             sale.subtotal(),
             sale.discountAmount(),
@@ -1640,15 +1783,29 @@ public class SalesServiceImpl implements SalesService {
 
     private SalesResponse toResponse(
         Sales sale,
+        UUID customerUuid,
+        String cancellationReason,
+        SalesReturnStatus returnStatus,
+        BigDecimal returnedAmount,
+        BigDecimal refundedAmount,
+        BigDecimal outstandingRefundAmount,
         List<SalesProductResponse> products,
         List<SalesPaymentResponse> payments
     ) {
-
         return new SalesResponse(
             sale.uuid(),
             sale.invoiceNumber(),
+            customerUuid,
             sale.customerName(),
             sale.customerPhone(),
+            sale.customerGstin(),
+            sale.supplyType(),
+            sale.placeOfSupply(),
+            sale.billingAddress(),
+            sale.shippingAddress(),
+            sale.customerReference(),
+            sale.paymentTerms(),
+            sale.dueDate(),
             sale.saleDate(),
             sale.subtotal(),
             sale.discountAmount(),
@@ -1663,13 +1820,29 @@ public class SalesServiceImpl implements SalesService {
             sale.status() == SalesStatus.CANCELLED ? BigDecimal.ZERO.setScale(MONEY_SCALE) : sale.balanceAmount(),
             sale.status(),
             sale.status() == SalesStatus.CANCELLED ? null : sale.paymentStatus(),
+            returnStatus,
+            returnedAmount,
+            refundedAmount,
+            outstandingRefundAmount,
             sale.notes(),
-            salesRepository.findCancellationReason(sale.id()).orElse(null),
+            cancellationReason,
             products,
             payments,
             sale.createdAt(),
             sale.updatedAt()
         );
+    }
+
+    private void validateInitialPayments(List<SalesPaymentRequest> payments) {
+        if (payments == null || payments.isEmpty()) return;
+        for (SalesPaymentRequest p : payments) {
+            if (p.paymentMethod() == null || p.paymentMethod() == PaymentMethod.CREDIT) {
+                throw new ApiException(SalesErrorCode.INVALID_SALES_PAYMENT);
+            }
+            if (p.amount() == null || p.amount().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new ApiException(SalesErrorCode.INVALID_SALES_PAYMENT);
+            }
+        }
     }
 
     // ---------------------------------------------------------
@@ -1809,7 +1982,7 @@ public class SalesServiceImpl implements SalesService {
             );
         }
 
-        if (request.paymentMethod() == null) {
+        if (request.paymentMethod() == null || request.paymentMethod() == PaymentMethod.CREDIT) {
             throw new ApiException(
                 SalesErrorCode.INVALID_SALES_PAYMENT
             );
@@ -1876,6 +2049,14 @@ public class SalesServiceImpl implements SalesService {
             sale.customerId(),
             sale.customerName(),
             sale.customerPhone(),
+            sale.customerGstin(),
+            sale.supplyType(),
+            sale.placeOfSupply(),
+            sale.billingAddress(),
+            sale.shippingAddress(),
+            sale.customerReference(),
+            sale.paymentTerms(),
+            sale.dueDate(),
             sale.saleDate(),
             sale.subtotal(),
             sale.discountAmount(),

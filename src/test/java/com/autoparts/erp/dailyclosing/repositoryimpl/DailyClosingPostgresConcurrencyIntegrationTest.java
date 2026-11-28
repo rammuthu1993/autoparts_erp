@@ -209,4 +209,14 @@ class DailyClosingPostgresConcurrencyIntegrationTest extends BaseRepositoryInteg
             executor.awaitTermination(5, TimeUnit.SECONDS);
         }
     }
+
+    @Test
+    void previewBusinessDateExecutesAgainstRealPostgres() {
+        var preview = service.previewBusinessDate(testBusinessDate);
+        assertNotNull(preview);
+        assertEquals(testBusinessDate, preview.businessDate());
+        assertNotNull(preview.summary());
+        assertNotNull(preview.cashRegisters());
+        assertNotNull(preview.validationErrors());
+    }
 }

@@ -66,11 +66,22 @@ public class AuditLogController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String action,
             @RequestParam(required = false) String entityType,
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String entityId,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate toDate,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir
     ) {
         return ResponseEntity.ok(
-                auditLogService.findPaged(page, size, search, action, entityType, sortBy, sortDir)
+                auditLogService.findPaged(page, size, search, action, entityType, username, entityId, fromDate, toDate, sortBy, sortDir)
         );
+    }
+
+    @GetMapping("/metadata")
+    @AdminOnly
+    @RequiresPermission("AUDIT_LOGS.VIEW")
+    public ResponseEntity<com.autoparts.erp.audit.dto.AuditMetadataResponse> getMetadata() {
+        return ResponseEntity.ok(auditLogService.getMetadata());
     }
 }

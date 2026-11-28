@@ -1,19 +1,30 @@
 package com.autoparts.erp.sales.dto;
 
+import com.autoparts.erp.sales.enums.SalesPaymentStatus;
+import com.autoparts.erp.sales.enums.SalesReturnStatus;
+import com.autoparts.erp.sales.enums.SalesStatus;
+import com.autoparts.erp.sales.enums.SupplyType;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
-import com.autoparts.erp.sales.dto.SalesProductResponse;
-import com.autoparts.erp.sales.enums.SalesPaymentStatus;
-import com.autoparts.erp.sales.enums.SalesStatus;
 
 public record SalesResponse(
     UUID uuid,
     String invoiceNumber,
+    UUID customerUuid,
     String customerName,
     String customerPhone,
+    String customerGstin,
+    SupplyType supplyType,
+    String placeOfSupply,
+    String billingAddress,
+    String shippingAddress,
+    String customerReference,
+    String paymentTerms,
+    LocalDate dueDate,
     LocalDate saleDate,
     BigDecimal subtotal,
     BigDecimal discountAmount,
@@ -28,6 +39,10 @@ public record SalesResponse(
     BigDecimal balanceAmount,
     SalesStatus status,
     SalesPaymentStatus paymentStatus,
+    SalesReturnStatus returnStatus,
+    BigDecimal returnedAmount,
+    BigDecimal refundedAmount,
+    BigDecimal outstandingRefundAmount,
     String notes,
     String cancellationReason,
     List<SalesProductResponse> products,

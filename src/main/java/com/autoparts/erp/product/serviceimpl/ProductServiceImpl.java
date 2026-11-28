@@ -16,10 +16,16 @@ import com.autoparts.erp.product.model.ProductErrorCode;
 import com.autoparts.erp.product.repository.ProductRepository;
 import com.autoparts.erp.product.service.ProductService;
 import com.autoparts.erp.tax.dto.ProductTaxMappingCreateRequest;
+import com.autoparts.erp.tax.model.TaxErrorCode;
+import com.autoparts.erp.tax.repository.TaxRateRepository;
 import com.autoparts.erp.tax.service.ProductTaxMappingService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -35,15 +41,27 @@ public class ProductServiceImpl implements ProductService {
     private final ProductRepository repository;
     private final AuditLogService auditLogService;
     private final ProductTaxMappingService productTaxMappingService;
+    private final TaxRateRepository taxRateRepository;
 
     public ProductServiceImpl(
             ProductRepository repository,
             AuditLogService auditLogService,
             ProductTaxMappingService productTaxMappingService
     ) {
+        this(repository, auditLogService, productTaxMappingService, null);
+    }
+
+    @Autowired
+    public ProductServiceImpl(
+            ProductRepository repository,
+            AuditLogService auditLogService,
+            ProductTaxMappingService productTaxMappingService,
+            TaxRateRepository taxRateRepository
+    ) {
         this.repository = repository;
         this.auditLogService = auditLogService;
         this.productTaxMappingService = productTaxMappingService;
+        this.taxRateRepository = taxRateRepository;
     }
 
     @Override
@@ -98,14 +116,21 @@ public class ProductServiceImpl implements ProductService {
                     BARCODE_TYPE_CODE_128
             );
 
-            // Every new product receives an effective tax mapping immediately.
-            // If no tax rate is selected, the mapping service uses the current 18% rate.
+            // Explicit default policy for product creation: if no taxRateUuid is supplied,
+            // resolve the current standard 18% GST rate before creating the initial mapping.
+            LocalDate effectiveFrom = LocalDate.now();
+            UUID resolvedTaxRateUuid = request.taxRateUuid() != null
+                    ? request.taxRateUuid()
+                    : taxRateRepository.findCurrentByGstRate(new BigDecimal("18.00"), effectiveFrom)
+                            .orElseThrow(() -> new ApiException(TaxErrorCode.TAX_RATE_NOT_FOUND))
+                            .uuid();
+
             productTaxMappingService.create(
                     product.uuid(),
                     new ProductTaxMappingCreateRequest(
-                            request.taxRateUuid(),
+                            resolvedTaxRateUuid,
                             request.hsnCode(),
-                            java.time.LocalDate.now(),
+                            effectiveFrom,
                             null
                     )
             );

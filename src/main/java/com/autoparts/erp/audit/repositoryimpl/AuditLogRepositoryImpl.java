@@ -2,6 +2,7 @@ package com.autoparts.erp.audit.repositoryimpl;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -115,6 +116,10 @@ public class AuditLogRepositoryImpl implements AuditLogRepository {
             String search,
             String action,
             String entityType,
+            String username,
+            String entityId,
+            LocalDate fromDate,
+            LocalDate toDate,
             String sortBy,
             String sortDir
     ) {
@@ -136,7 +141,7 @@ public class AuditLogRepositoryImpl implements AuditLogRepository {
             """);
         MapSqlParameterSource params = new MapSqlParameterSource();
 
-        applyAuditFilters(sql, params, search, action, entityType);
+        applyAuditFilters(sql, params, search, action, entityType, username, entityId, fromDate, toDate);
 
         String sortColumn = AUDIT_SORT_ALLOWLIST.getOrDefault(sortBy, "created_at");
         String direction = "ASC".equalsIgnoreCase(sortDir) ? "ASC" : "DESC";
@@ -153,14 +158,31 @@ public class AuditLogRepositoryImpl implements AuditLogRepository {
     }
 
     @Override
-    public long countPaged(String search, String action, String entityType) {
+    public long countPaged(
+            String search,
+            String action,
+            String entityType,
+            String username,
+            String entityId,
+            LocalDate fromDate,
+            LocalDate toDate
+    ) {
         StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM audit_logs WHERE 1=1 ");
         MapSqlParameterSource params = new MapSqlParameterSource();
 
-        applyAuditFilters(sql, params, search, action, entityType);
+        applyAuditFilters(sql, params, search, action, entityType, username, entityId, fromDate, toDate);
 
         Long count = jdbcTemplate.queryForObject(sql.toString(), params, Long.class);
         return count != null ? count : 0L;
+    }
+
+    @Override
+    public List<String> findDistinctEntityTypes() {
+        return jdbcTemplate.queryForList(
+                "SELECT DISTINCT entity_type FROM audit_logs WHERE entity_type IS NOT NULL ORDER BY entity_type",
+                new MapSqlParameterSource(),
+                String.class
+        );
     }
 
     private void applyAuditFilters(
@@ -168,7 +190,11 @@ public class AuditLogRepositoryImpl implements AuditLogRepository {
             MapSqlParameterSource params,
             String search,
             String action,
-            String entityType
+            String entityType,
+            String username,
+            String entityId,
+            LocalDate fromDate,
+            LocalDate toDate
     ) {
         if (search != null && !search.isBlank()) {
             sql.append(" AND (description ILIKE :search OR username ILIKE :search OR entity_id ILIKE :search)");
@@ -181,6 +207,22 @@ public class AuditLogRepositoryImpl implements AuditLogRepository {
         if (entityType != null && !entityType.isBlank()) {
             sql.append(" AND entity_type = :entityType");
             params.addValue("entityType", entityType.trim().toUpperCase());
+        }
+        if (username != null && !username.isBlank()) {
+            sql.append(" AND username ILIKE :usernameFilter");
+            params.addValue("usernameFilter", "%" + username.trim() + "%");
+        }
+        if (entityId != null && !entityId.isBlank()) {
+            sql.append(" AND entity_id = :entityIdFilter");
+            params.addValue("entityIdFilter", entityId.trim());
+        }
+        if (fromDate != null) {
+            sql.append(" AND CAST(created_at AS DATE) >= :fromDate");
+            params.addValue("fromDate", fromDate);
+        }
+        if (toDate != null) {
+            sql.append(" AND CAST(created_at AS DATE) <= :toDate");
+            params.addValue("toDate", toDate);
         }
     }
 

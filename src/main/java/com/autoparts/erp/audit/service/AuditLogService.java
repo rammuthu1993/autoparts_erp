@@ -42,7 +42,7 @@ public interface AuditLogService {
 
     List<AuditLog> getRecentLogs(int limit, int offset);
 
-    PageResponse<AuditLog> findPaged(
+    default PageResponse<AuditLog> findPaged(
         int page,
         int size,
         String search,
@@ -50,5 +50,38 @@ public interface AuditLogService {
         String entityType,
         String sortBy,
         String sortDir
+    ) {
+        return findPaged(page, size, search, action, entityType, null, null, null, sortBy, sortDir);
+    }
+
+    default PageResponse<AuditLog> findPaged(
+        int page,
+        int size,
+        String search,
+        String action,
+        String entityType,
+        String username,
+        java.time.LocalDate fromDate,
+        java.time.LocalDate toDate,
+        String sortBy,
+        String sortDir
+    ) {
+        return findPaged(page, size, search, action, entityType, username, null, fromDate, toDate, sortBy, sortDir);
+    }
+
+    PageResponse<AuditLog> findPaged(
+        int page,
+        int size,
+        String search,
+        String action,
+        String entityType,
+        String username,
+        String entityId,
+        java.time.LocalDate fromDate,
+        java.time.LocalDate toDate,
+        String sortBy,
+        String sortDir
     );
+
+    com.autoparts.erp.audit.dto.AuditMetadataResponse getMetadata();
 }

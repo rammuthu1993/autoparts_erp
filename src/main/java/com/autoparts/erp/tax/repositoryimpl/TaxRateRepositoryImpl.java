@@ -1,5 +1,6 @@
 package com.autoparts.erp.tax.repositoryimpl;
 
+import com.autoparts.erp.tax.dto.TaxSummaryResponse;
 import com.autoparts.erp.tax.model.TaxRate;
 import com.autoparts.erp.tax.repository.TaxRateRepository;
 import org.springframework.jdbc.core.RowMapper;
@@ -30,10 +31,7 @@ public class TaxRateRepositoryImpl implements TaxRateRepository {
 
     private final RowMapper<TaxRate> taxRateRowMapper = this::mapTaxRate;
 
-    private TaxRate mapTaxRate(
-        ResultSet rs,
-        int rowNum
-    ) throws SQLException {
+    private TaxRate mapTaxRate(ResultSet rs, int rowNum) throws SQLException {
         return new TaxRate(
             rs.getLong("id"),
             rs.getObject("uuid", UUID.class),
@@ -45,6 +43,7 @@ public class TaxRateRepositoryImpl implements TaxRateRepository {
             rs.getObject("effective_from", LocalDate.class),
             rs.getObject("effective_to", LocalDate.class),
             rs.getBoolean("active"),
+            rs.getString("change_reason"),
             rs.getObject("created_at", OffsetDateTime.class),
             rs.getObject("updated_at", OffsetDateTime.class)
         );
@@ -62,10 +61,20 @@ public class TaxRateRepositoryImpl implements TaxRateRepository {
             effective_from,
             effective_to,
             active,
+            change_reason,
             created_at,
             updated_at
         FROM tax_rates
         """;
+
+    private static final Map<String, String> TAX_RATE_SORT_ALLOWLIST = Map.of(
+        "id", "id",
+        "taxName", "tax_name",
+        "gstRate", "gst_rate",
+        "effectiveFrom", "effective_from",
+        "effectiveTo", "effective_to",
+        "createdAt", "created_at"
+    );
 
     @Override
     public void lockTaxRateConfiguration() {
@@ -106,12 +115,7 @@ public class TaxRateRepositoryImpl implements TaxRateRepository {
             .addValue("effectiveFrom", effectiveFrom)
             .addValue("effectiveTo", effectiveTo);
 
-        Boolean exists = jdbcTemplate.queryForObject(
-            sql,
-            params,
-            Boolean.class
-        );
-
+        Boolean exists = jdbcTemplate.queryForObject(sql, params, Boolean.class);
         return Boolean.TRUE.equals(exists);
     }
 
@@ -136,12 +140,7 @@ public class TaxRateRepositoryImpl implements TaxRateRepository {
             .addValue("effectiveFrom", effectiveFrom)
             .addValue("excludeUuid", excludeUuid);
 
-        Boolean exists = jdbcTemplate.queryForObject(
-            sql,
-            params,
-            Boolean.class
-        );
-
+        Boolean exists = jdbcTemplate.queryForObject(sql, params, Boolean.class);
         return Boolean.TRUE.equals(exists);
     }
 
@@ -190,11 +189,7 @@ public class TaxRateRepositoryImpl implements TaxRateRepository {
             .addValue("effectiveFrom", effectiveFrom)
             .addValue("effectiveTo", effectiveTo);
 
-        return jdbcTemplate.queryForObject(
-            sql,
-            params,
-            taxRateRowMapper
-        );
+        return jdbcTemplate.queryForObject(sql, params, taxRateRowMapper);
     }
 
     @Override
@@ -207,9 +202,11 @@ public class TaxRateRepositoryImpl implements TaxRateRepository {
             ORDER BY effective_from DESC, id DESC
             LIMIT 1
             """;
-        return jdbcTemplate.query(sql, new MapSqlParameterSource()
-            .addValue("gstRate", gstRate)
-            .addValue("onDate", onDate), taxRateRowMapper).stream().findFirst();
+        return jdbcTemplate.query(
+            sql,
+            new MapSqlParameterSource().addValue("gstRate", gstRate).addValue("onDate", onDate),
+            taxRateRowMapper
+        ).stream().findFirst();
     }
 
     @Override
@@ -217,22 +214,9 @@ public class TaxRateRepositoryImpl implements TaxRateRepository {
         String sql = SELECT_COLUMNS + """
             WHERE uuid = :uuid
             """;
-
-        return jdbcTemplate.query(
-            sql,
-            new MapSqlParameterSource("uuid", uuid),
-            taxRateRowMapper
-        ).stream().findFirst();
+        return jdbcTemplate.query(sql, new MapSqlParameterSource("uuid", uuid), taxRateRowMapper)
+            .stream().findFirst();
     }
-
-    private static final Map<String, String> TAX_RATE_SORT_ALLOWLIST = Map.of(
-        "id", "id",
-        "taxName", "tax_name",
-        "gstRate", "gst_rate",
-        "effectiveFrom", "effective_from",
-        "effectiveTo", "effective_to",
-        "createdAt", "created_at"
-    );
 
     @Override
     public List<TaxRate> findAll() {
@@ -240,12 +224,7 @@ public class TaxRateRepositoryImpl implements TaxRateRepository {
             ORDER BY effective_from DESC, tax_name, id DESC
             LIMIT 101
             """;
-
-        return jdbcTemplate.query(
-            sql,
-            EmptySqlParameterSource.INSTANCE,
-            taxRateRowMapper
-        );
+        return jdbcTemplate.query(sql, EmptySqlParameterSource.INSTANCE, taxRateRowMapper);
     }
 
     @Override
@@ -253,40 +232,77 @@ public class TaxRateRepositoryImpl implements TaxRateRepository {
         int offset,
         int limit,
         String search,
+        BigDecimal gstRate,
+        Boolean active,
+        String periodStatus,
+        LocalDate effectiveOn,
         String sortBy,
         String sortDir
     ) {
         String sortColumn = TAX_RATE_SORT_ALLOWLIST.getOrDefault(sortBy, "effective_from");
         String direction = "asc".equalsIgnoreCase(sortDir) ? "ASC" : "DESC";
 
-        StringBuilder sql = new StringBuilder(SELECT_COLUMNS);
         MapSqlParameterSource params = new MapSqlParameterSource()
             .addValue("limit", limit)
             .addValue("offset", offset);
 
-        if (search != null && !search.isBlank()) {
-            sql.append(" WHERE LOWER(tax_name) LIKE :search ");
-            params.addValue("search", "%" + search.trim().toLowerCase() + "%");
-        }
+        String whereClause = buildFilterClause(search, gstRate, active, periodStatus, effectiveOn, params);
+        String sql = SELECT_COLUMNS + whereClause
+            + " ORDER BY " + sortColumn + " " + direction + ", id DESC LIMIT :limit OFFSET :offset";
 
-        sql.append(" ORDER BY ").append(sortColumn).append(" ").append(direction).append(", id DESC ");
-        sql.append(" LIMIT :limit OFFSET :offset ");
-
-        return jdbcTemplate.query(sql.toString(), params, taxRateRowMapper);
+        return jdbcTemplate.query(sql, params, taxRateRowMapper);
     }
 
     @Override
-    public long countPaged(String search) {
-        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM tax_rates");
+    public long countPaged(
+        String search,
+        BigDecimal gstRate,
+        Boolean active,
+        String periodStatus,
+        LocalDate effectiveOn
+    ) {
         MapSqlParameterSource params = new MapSqlParameterSource();
+        String whereClause = buildFilterClause(search, gstRate, active, periodStatus, effectiveOn, params);
+        Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM tax_rates" + whereClause, params, Long.class);
+        return count != null ? count : 0L;
+    }
 
+    private String buildFilterClause(
+        String search,
+        BigDecimal gstRate,
+        Boolean active,
+        String periodStatus,
+        LocalDate effectiveOn,
+        MapSqlParameterSource params
+    ) {
+        StringBuilder where = new StringBuilder(" WHERE 1=1");
         if (search != null && !search.isBlank()) {
-            sql.append(" WHERE LOWER(tax_name) LIKE :search");
+            where.append(" AND LOWER(tax_name) LIKE :search");
             params.addValue("search", "%" + search.trim().toLowerCase() + "%");
         }
-
-        Long count = jdbcTemplate.queryForObject(sql.toString(), params, Long.class);
-        return count != null ? count : 0L;
+        if (gstRate != null) {
+            where.append(" AND gst_rate = :gstRate");
+            params.addValue("gstRate", gstRate);
+        }
+        if (active != null) {
+            where.append(" AND active = :active");
+            params.addValue("active", active);
+        }
+        if (effectiveOn != null) {
+            where.append(" AND effective_from <= CAST(:effectiveOn AS DATE)")
+                 .append(" AND (effective_to IS NULL OR effective_to > CAST(:effectiveOn AS DATE))");
+            params.addValue("effectiveOn", effectiveOn);
+        }
+        if (periodStatus != null && !periodStatus.isBlank()) {
+            switch (periodStatus.trim().toUpperCase()) {
+                case "CURRENT" -> where.append(" AND active = TRUE AND effective_from <= CURRENT_DATE AND (effective_to IS NULL OR effective_to > CURRENT_DATE)");
+                case "UPCOMING" -> where.append(" AND active = TRUE AND effective_from > CURRENT_DATE");
+                case "EXPIRED" -> where.append(" AND effective_to IS NOT NULL AND effective_to <= CURRENT_DATE");
+                case "INACTIVE" -> where.append(" AND active = FALSE");
+                default -> { }
+            }
+        }
+        return where.toString();
     }
 
     @Override
@@ -300,11 +316,59 @@ public class TaxRateRepositoryImpl implements TaxRateRepository {
               )
             ORDER BY gst_rate, tax_name
             """;
+        return jdbcTemplate.query(sql, EmptySqlParameterSource.INSTANCE, taxRateRowMapper);
+    }
 
-        return jdbcTemplate.query(
-            sql,
-            EmptySqlParameterSource.INSTANCE,
-            taxRateRowMapper
+    @Override
+    public List<TaxRate> findSelectable(LocalDate effectiveDate) {
+        LocalDate target = effectiveDate != null ? effectiveDate : LocalDate.now();
+        String sql = SELECT_COLUMNS + """
+            WHERE active = TRUE
+              AND effective_from <= CAST(:targetDate AS DATE)
+              AND (effective_to IS NULL OR effective_to > CAST(:targetDate AS DATE))
+            ORDER BY gst_rate, tax_name, effective_from DESC
+            """;
+        return jdbcTemplate.query(sql, new MapSqlParameterSource("targetDate", target), taxRateRowMapper);
+    }
+
+    @Override
+    public TaxSummaryResponse getSummary() {
+        String sql = """
+            SELECT
+                (SELECT COUNT(*) FROM tax_rates
+                 WHERE active = TRUE AND effective_from <= CURRENT_DATE AND (effective_to IS NULL OR effective_to > CURRENT_DATE)) AS current_rates,
+                (SELECT COUNT(*) FROM tax_rates
+                 WHERE active = TRUE AND effective_from > CURRENT_DATE) AS upcoming_rates,
+                (SELECT COUNT(*) FROM tax_rates
+                 WHERE effective_to IS NOT NULL AND effective_to <= CURRENT_DATE) AS expired_rates,
+                (SELECT COUNT(*) FROM tax_rates WHERE active = FALSE) AS inactive_rates,
+                (SELECT COUNT(DISTINCT p.id) FROM products p
+                 JOIN product_tax_mapping ptm ON ptm.product_id = p.id
+                 WHERE p.active = TRUE
+                   AND ptm.effective_from <= CURRENT_DATE
+                   AND (ptm.effective_to IS NULL OR ptm.effective_to > CURRENT_DATE)) AS products_with_current,
+                (SELECT COUNT(*) FROM products p
+                 WHERE p.active = TRUE
+                   AND NOT EXISTS (
+                       SELECT 1 FROM product_tax_mapping ptm
+                       WHERE ptm.product_id = p.id
+                         AND ptm.effective_from <= CURRENT_DATE
+                         AND (ptm.effective_to IS NULL OR ptm.effective_to > CURRENT_DATE)
+                   )) AS products_missing,
+                (SELECT COUNT(DISTINCT p.id) FROM products p
+                 JOIN product_tax_mapping ptm ON ptm.product_id = p.id
+                 WHERE p.active = TRUE AND ptm.effective_from > CURRENT_DATE) AS products_with_upcoming
+            """;
+        return jdbcTemplate.queryForObject(sql, EmptySqlParameterSource.INSTANCE, (rs, rowNum) ->
+            new TaxSummaryResponse(
+                rs.getLong("current_rates"),
+                rs.getLong("upcoming_rates"),
+                rs.getLong("expired_rates"),
+                rs.getLong("inactive_rates"),
+                rs.getLong("products_with_current"),
+                rs.getLong("products_missing"),
+                rs.getLong("products_with_upcoming")
+            )
         );
     }
 
@@ -312,12 +376,14 @@ public class TaxRateRepositoryImpl implements TaxRateRepository {
     public TaxRate update(
         UUID uuid,
         String taxName,
-        boolean active
+        boolean active,
+        String changeReason
     ) {
         String sql = """
             UPDATE tax_rates
             SET tax_name = :taxName,
                 active = :active,
+                change_reason = COALESCE(:changeReason, change_reason),
                 updated_at = CURRENT_TIMESTAMP
             WHERE uuid = :uuid
             RETURNING *
@@ -326,12 +392,32 @@ public class TaxRateRepositoryImpl implements TaxRateRepository {
         MapSqlParameterSource params = new MapSqlParameterSource()
             .addValue("uuid", uuid)
             .addValue("taxName", taxName.trim())
-            .addValue("active", active);
+            .addValue("active", active)
+            .addValue("changeReason", changeReason != null && !changeReason.isBlank() ? changeReason.trim() : null);
 
-        return jdbcTemplate.queryForObject(
-            sql,
-            params,
-            taxRateRowMapper
-        );
+        return jdbcTemplate.queryForObject(sql, params, taxRateRowMapper);
+    }
+
+    @Override
+    public TaxRate closePeriod(
+        UUID uuid,
+        LocalDate effectiveTo,
+        String changeReason
+    ) {
+        String sql = """
+            UPDATE tax_rates
+            SET effective_to = :effectiveTo,
+                change_reason = :changeReason,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE uuid = :uuid
+            RETURNING *
+            """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+            .addValue("uuid", uuid)
+            .addValue("effectiveTo", effectiveTo)
+            .addValue("changeReason", changeReason.trim());
+
+        return jdbcTemplate.queryForObject(sql, params, taxRateRowMapper);
     }
 }

@@ -7,10 +7,9 @@ import com.autoparts.erp.common.dto.PageResponse;
 import com.autoparts.erp.masters.category.dto.CategoryCreateRequest;
 import com.autoparts.erp.masters.category.dto.CategoryResponse;
 import com.autoparts.erp.masters.category.dto.CategoryUpdateRequest;
+import com.autoparts.erp.masters.category.dto.CategoryUsageResponse;
 import com.autoparts.erp.masters.category.service.ProductCategoryService;
-
 import jakarta.validation.Valid;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -48,16 +47,23 @@ public class ProductCategoryController {
     }
 
     @RequiresPermission("CATEGORIES.VIEW")
+    @GetMapping("/active")
+    public ResponseEntity<List<CategoryResponse>> findAllActive() {
+        return ResponseEntity.ok(service.findAllActive());
+    }
+
+    @RequiresPermission("CATEGORIES.VIEW")
     @GetMapping("/paged")
     public ResponseEntity<PageResponse<CategoryResponse>> findPaged(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "ALL") String status,
             @RequestParam(defaultValue = "id") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir
     ) {
         return ResponseEntity.ok(
-                service.findPaged(page, size, search, sortBy, sortDir)
+                service.findPaged(page, size, search, status, sortBy, sortDir)
         );
     }
 
@@ -65,6 +71,12 @@ public class ProductCategoryController {
     @GetMapping("/{uuid}")
     public ResponseEntity<CategoryResponse> findByUuid(@PathVariable UUID uuid) {
         return ResponseEntity.ok(service.findByUuid(uuid));
+    }
+
+    @RequiresPermission("CATEGORIES.VIEW")
+    @GetMapping("/{uuid}/usage")
+    public ResponseEntity<CategoryUsageResponse> getUsage(@PathVariable UUID uuid) {
+        return ResponseEntity.ok(service.getUsage(uuid));
     }
 
     @AdminOrManager
@@ -85,5 +97,14 @@ public class ProductCategoryController {
     ) {
         service.deactivate(uuid);
         return ResponseEntity.noContent().build();
+    }
+
+    @AdminOrManager
+    @RequiresPermission("CATEGORIES.DEACTIVATE")
+    @PatchMapping("/{uuid}/reactivate")
+    public ResponseEntity<CategoryResponse> reactivate(
+            @PathVariable UUID uuid
+    ) {
+        return ResponseEntity.ok(service.reactivate(uuid));
     }
 }

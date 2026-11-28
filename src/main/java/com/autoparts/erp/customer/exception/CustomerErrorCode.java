@@ -11,14 +11,34 @@ public enum CustomerErrorCode implements ApiErrorCodeDefinition {
     ),
 
     CUSTOMER_ALREADY_INACTIVE(
-            HttpStatus.BAD_REQUEST,
+            HttpStatus.CONFLICT,
             "Customer is already inactive"
-    ),CUSTOMER_LEDGER_NOT_FOUND(
-    		HttpStatus.NOT_FOUND,
-            "Customer ledger found"),
+    ),
+
+    CUSTOMER_ALREADY_ACTIVE(
+            HttpStatus.CONFLICT,
+            "Customer is already active"
+    ),
+
+    CUSTOMER_GSTIN_ALREADY_EXISTS(
+            HttpStatus.CONFLICT,
+            "A customer with this GSTIN already exists"
+    ),
+
+    INVALID_CUSTOMER_DATA(
+            HttpStatus.BAD_REQUEST,
+            "Invalid customer data"
+    ),
+
+    CUSTOMER_LEDGER_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "Customer ledger not found"
+    ),
+
     INVALID_CUSTOMER_LEDGER_FILTER(
-    		HttpStatus.NOT_FOUND,
-            "Invalid customer ledger");
+            HttpStatus.BAD_REQUEST,
+            "Invalid customer ledger filter"
+    );
 
     private final HttpStatus status;
     private final String message;
