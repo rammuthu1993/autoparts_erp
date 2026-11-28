@@ -741,4 +741,99 @@ public class PurchaseReturnRepositoryImpl
             )
         ).stream().findFirst();
     }
+
+    @Override
+    public List<PurchaseReturn> findReturnsPaged(
+            String search,
+            String creditStatus,
+            java.time.LocalDate fromDate,
+            java.time.LocalDate toDate,
+            int offset,
+            int limit
+    ) {
+        StringBuilder sql = new StringBuilder("""
+            SELECT pr.*
+            FROM purchase_returns pr
+            JOIN purchases p ON p.id = pr.purchase_id
+            JOIN suppliers s ON s.id = p.supplier_id
+            LEFT JOIN supplier_credits sc ON sc.purchase_return_id = pr.id
+            WHERE 1=1
+            """);
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        applyReturnFilters(sql, params, search, creditStatus, fromDate, toDate);
+        sql.append(" ORDER BY pr.return_date DESC, pr.id DESC LIMIT :limit OFFSET :offset");
+        params.addValue("limit", Math.max(1, Math.min(limit, 100)));
+        params.addValue("offset", Math.max(0, offset));
+
+        return jdbcTemplate.query(sql.toString(), params, (rs, rowNum) -> new PurchaseReturn(
+            rs.getLong("id"),
+            rs.getObject("uuid", UUID.class),
+            rs.getString("return_number"),
+            rs.getLong("purchase_id"),
+            rs.getObject("return_date", java.time.OffsetDateTime.class),
+            rs.getString("reason"),
+            rs.getString("notes"),
+            rs.getBigDecimal("subtotal"),
+            rs.getBigDecimal("discount_total"),
+            rs.getBigDecimal("tax_total"),
+            rs.getBigDecimal("total_return_amount"),
+            rs.getObject("created_at", java.time.OffsetDateTime.class),
+            rs.getObject("updated_at", java.time.OffsetDateTime.class)
+        ));
+    }
+
+    @Override
+    public long countReturnsPaged(
+            String search,
+            String creditStatus,
+            java.time.LocalDate fromDate,
+            java.time.LocalDate toDate
+    ) {
+        StringBuilder sql = new StringBuilder("""
+            SELECT COUNT(*)
+            FROM purchase_returns pr
+            JOIN purchases p ON p.id = pr.purchase_id
+            JOIN suppliers s ON s.id = p.supplier_id
+            LEFT JOIN supplier_credits sc ON sc.purchase_return_id = pr.id
+            WHERE 1=1
+            """);
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        applyReturnFilters(sql, params, search, creditStatus, fromDate, toDate);
+        Long count = jdbcTemplate.queryForObject(sql.toString(), params, Long.class);
+        return count != null ? count : 0L;
+    }
+
+    private void applyReturnFilters(
+            StringBuilder sql,
+            MapSqlParameterSource params,
+            String search,
+            String creditStatus,
+            java.time.LocalDate fromDate,
+            java.time.LocalDate toDate
+    ) {
+        if (search != null && !search.isBlank()) {
+            sql.append("""
+                AND (
+                    pr.return_number ILIKE :search
+                    OR p.purchase_number ILIKE :search
+                    OR p.supplier_invoice_no ILIKE :search
+                    OR s.supplier_name ILIKE :search
+                    OR pr.reason ILIKE :search
+                )
+                """);
+            params.addValue("search", "%" + search.trim() + "%");
+        }
+        if (creditStatus != null && !creditStatus.isBlank()) {
+            sql.append(" AND sc.status = :creditStatus");
+            params.addValue("creditStatus", creditStatus.trim().toUpperCase());
+        }
+        if (fromDate != null) {
+            sql.append(" AND pr.return_date >= CAST(:fromDate AS DATE)");
+            params.addValue("fromDate", fromDate);
+        }
+        if (toDate != null) {
+            sql.append(" AND pr.return_date < CAST(:toDate AS DATE) + INTERVAL '1 day'");
+            params.addValue("toDate", toDate);
+        }
+    }
 }

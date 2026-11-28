@@ -351,15 +351,6 @@ public class PurchaseRepositoryImpl implements PurchaseRepository {
             String sortBy,
             String sortDir
     ) {
-    @Override
-    public List<Purchase> findPaged(
-            int offset,
-            int limit,
-            String search,
-            String status,
-            String sortBy,
-            String sortDir
-    ) {
         return findPaged(offset, limit, search, status, null, null, null, null, false, sortBy, sortDir);
     }
 

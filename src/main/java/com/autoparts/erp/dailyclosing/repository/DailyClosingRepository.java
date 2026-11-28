@@ -45,4 +45,17 @@ public interface DailyClosingRepository {
         LocalDate fromDate,
         LocalDate toDate
     );
+
+    com.autoparts.erp.dailyclosing.dto.DailyClosingSummary previewSummary(
+        LocalDate businessDate,
+        OffsetDateTime start,
+        OffsetDateTime end
+    );
+
+    List<com.autoparts.erp.dailyclosing.dto.CashRegisterClosingResponse> previewRegisterClosings(
+        OffsetDateTime start,
+        OffsetDateTime end
+    );
+
+    long countOpenSessions(OffsetDateTime end);
 }

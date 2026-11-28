@@ -53,6 +53,14 @@ public class DailyClosingController {
     }
 
     @RequiresPermission("DAILY_CLOSING.VIEW")
+    @GetMapping("/preview")
+    public ResponseEntity<com.autoparts.erp.dailyclosing.dto.DailyClosingPreviewResponse> previewBusinessDate(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate businessDate
+    ) {
+        return ResponseEntity.ok(service.previewBusinessDate(businessDate));
+    }
+
+    @RequiresPermission("DAILY_CLOSING.VIEW")
     @GetMapping("/date/{businessDate}")
     public ResponseEntity<DailyClosingResponse> findByBusinessDate(
 

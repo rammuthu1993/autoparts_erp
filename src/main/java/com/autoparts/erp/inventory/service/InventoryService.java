@@ -61,6 +61,7 @@ public interface InventoryService {
             InventoryMovementType movementType,
             LocalDate fromDate,
             LocalDate toDate,
+            String search,
             int page,
             int size
     );
@@ -94,15 +95,6 @@ public interface InventoryService {
             String sortDir
     );
 
-    InventoryPageResponse<InventoryMovementResponse> findMovements(
-            UUID productUuid,
-            InventoryMovementType movementType,
-            LocalDate fromDate,
-            LocalDate toDate,
-            String search,
-            int page,
-            int size
-    );
 
     InventoryMovementResponse findMovementByUuid(UUID movementUuid);
 

@@ -20,6 +20,15 @@ public interface PurchaseReturnService {
 
     List<PurchaseReturnResponse> findReturnsByPurchaseUuid(UUID purchaseUuid);
 
+    com.autoparts.erp.common.dto.PageResponse<PurchaseReturnResponse> findReturnsPaged(
+        String search,
+        String creditStatus,
+        java.time.LocalDate fromDate,
+        java.time.LocalDate toDate,
+        int page,
+        int size
+    );
+
     SupplierCreditResponse recordRefund(
         UUID creditUuid,
         SupplierRefundRequest request

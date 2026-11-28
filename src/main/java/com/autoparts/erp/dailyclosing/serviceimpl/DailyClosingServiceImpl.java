@@ -236,6 +236,53 @@ public class DailyClosingServiceImpl
         return PageResponse.of(content, safePage, safeSize, total);
     }
 
+    @Override
+    @AuthenticatedUser
+    @RequiresPermission("DAILY_CLOSING.VIEW")
+    public com.autoparts.erp.dailyclosing.dto.DailyClosingPreviewResponse previewBusinessDate(
+            LocalDate businessDate
+    ) {
+        if (businessDate == null) {
+            throw badRequest("Business date is required");
+        }
+
+        LocalDate today = LocalDate.now(businessZone);
+        List<String> errors = new java.util.ArrayList<>();
+
+        if (businessDate.isAfter(today)) {
+            errors.add("Future business dates cannot be closed.");
+        }
+
+        boolean alreadyClosed = repository.existsByBusinessDate(businessDate);
+        if (alreadyClosed) {
+            errors.add("Daily closing already exists for " + businessDate + ".");
+        }
+
+        OffsetDateTime start = businessDate.atStartOfDay(businessZone).toOffsetDateTime();
+        OffsetDateTime end = businessDate.plusDays(1).atStartOfDay(businessZone).toOffsetDateTime();
+
+        long openSessionCount = repository.countOpenSessions(end);
+        boolean hasOpenSessions = openSessionCount > 0;
+        if (hasOpenSessions) {
+            errors.add(openSessionCount + " open cash register session(s) must be closed before daily closing.");
+        }
+
+        var summary = repository.previewSummary(businessDate, start, end);
+        var cashRegisters = repository.previewRegisterClosings(start, end);
+        boolean canClose = errors.isEmpty();
+
+        return new com.autoparts.erp.dailyclosing.dto.DailyClosingPreviewResponse(
+                businessDate,
+                alreadyClosed,
+                canClose,
+                hasOpenSessions,
+                openSessionCount,
+                summary,
+                cashRegisters,
+                errors
+        );
+    }
+
     // ---------------------------------------------------------
     // BAD REQUEST EXCEPTION
     // ---------------------------------------------------------

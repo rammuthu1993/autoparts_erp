@@ -296,6 +296,7 @@ public class InventoryServiceImpl implements InventoryService {
             InventoryMovementType movementType,
             java.time.LocalDate fromDate,
             java.time.LocalDate toDate,
+            String search,
             int page,
             int size
     ) {
@@ -318,6 +319,7 @@ public class InventoryServiceImpl implements InventoryService {
                                 movementType,
                                 fromDate,
                                 toDate,
+                                search,
                                 size,
                                 offset
                         )
@@ -329,7 +331,8 @@ public class InventoryServiceImpl implements InventoryService {
                 productUuid,
                 movementType,
                 fromDate,
-                toDate
+                toDate,
+                search
         );
 
         int totalPages = totalElements == 0
@@ -664,31 +667,6 @@ public class InventoryServiceImpl implements InventoryService {
                 cancellationId,
                 notes
         );
-    }
-
-    @Override
-    @AuthenticatedUser
-    @RequiresPermission("INVENTORY.VIEW")
-    public InventoryPageResponse<InventoryMovementResponse> findMovements(
-            UUID productUuid,
-            InventoryMovementType movementType,
-            LocalDate fromDate,
-            LocalDate toDate,
-            String search,
-            int page,
-            int size
-    ) {
-        int safePage = Math.max(0, page);
-        int safeSize = Math.max(1, Math.min(size, 100));
-        int offset = PaginationUtils.calculateOffsetForNormalized(safePage, safeSize);
-
-        List<InventoryMovementResponse> content = repository.findMovements(
-                productUuid, movementType, fromDate, toDate, search, safeSize, offset
-        ).stream().map(this::toMovementResponse).toList();
-
-        long total = repository.countMovements(productUuid, movementType, fromDate, toDate, search);
-        int totalPages = safeSize == 0 ? 0 : (int) Math.ceil((double) total / safeSize);
-        return new InventoryPageResponse<>(content, safePage, safeSize, total, totalPages);
     }
 
     @Override

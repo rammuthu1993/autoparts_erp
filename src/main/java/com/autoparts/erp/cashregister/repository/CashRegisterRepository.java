@@ -11,6 +11,10 @@ import com.autoparts.erp.cashregister.model.CashRegisterSession;
 
 public interface CashRegisterRepository {
 
+    void lockRegisterSetup();
+
+    long countActiveRegisters();
+
     CashRegister createRegister(CashRegister register);
 
     Optional<CashRegister> findRegisterByUuid(UUID uuid);
@@ -70,4 +74,32 @@ public interface CashRegisterRepository {
         String sourceType,
         UUID sourceUuid
     );
+
+    void updateSessionOpeningNotes(Long sessionId, String openingNotes);
+
+    void updateSessionClosingMetadata(
+        Long sessionId,
+        int d500, int d200, int d100, int d50, int d20, int d10,
+        BigDecimal coinsAmount,
+        boolean denominationsUsed,
+        String differenceReason
+    );
+
+    List<CashRegisterSession> findSessionsPaged(
+        UUID registerUuid,
+        String status,
+        java.time.LocalDate fromDate,
+        java.time.LocalDate toDate,
+        int offset,
+        int limit
+    );
+
+    long countSessionsPaged(
+        UUID registerUuid,
+        String status,
+        java.time.LocalDate fromDate,
+        java.time.LocalDate toDate
+    );
+
+    Optional<CashRegisterSession> findOpenSessionForUser(Long userId);
 }

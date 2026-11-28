@@ -121,4 +121,20 @@ public interface PurchaseReturnRepository {
     Optional<PurchaseInfo> findPurchaseById(Long purchaseId);
     
     Optional<SupplierCredit> findCreditByUuid(UUID creditUuid);
+
+    List<PurchaseReturn> findReturnsPaged(
+        String search,
+        String creditStatus,
+        java.time.LocalDate fromDate,
+        java.time.LocalDate toDate,
+        int offset,
+        int limit
+    );
+
+    long countReturnsPaged(
+        String search,
+        String creditStatus,
+        java.time.LocalDate fromDate,
+        java.time.LocalDate toDate
+    );
 }

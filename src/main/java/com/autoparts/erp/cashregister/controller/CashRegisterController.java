@@ -65,10 +65,12 @@ public class CashRegisterController {
 
     @RequiresPermission("CASH_REGISTER.VIEW")
     @GetMapping("/{registerUuid}/sessions/latest")
-    public CashSessionResponse findLatestSession(
+    public ResponseEntity<CashSessionResponse> findLatestSession(
         @PathVariable UUID registerUuid
     ) {
-        return cashRegisterService.findLatestSession(registerUuid);
+        return cashRegisterService.findLatestSession(registerUuid)
+            .map(ResponseEntity::ok)
+            .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @RequiresPermission("CASH_REGISTER.OPEN")
@@ -101,5 +103,28 @@ public class CashRegisterController {
             @RequestParam(defaultValue = "desc") String sortDir
     ) {
         return ResponseEntity.ok(cashRegisterService.findMovementsPaged(sessionUuid, page, size, sortBy, sortDir));
+    }
+
+    @RequiresPermission("CASH_REGISTER.VIEW")
+    @GetMapping("/sessions/paged")
+    public ResponseEntity<PageResponse<CashSessionResponse>> findSessionsPaged(
+            @RequestParam(required = false) UUID registerUuid,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate toDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return ResponseEntity.ok(
+            cashRegisterService.findSessionsPaged(registerUuid, status, fromDate, toDate, page, size)
+        );
+    }
+
+    @RequiresPermission("CASH_REGISTER.VIEW")
+    @GetMapping("/sessions/active/me")
+    public ResponseEntity<CashSessionResponse> findMyActiveSession() {
+        return cashRegisterService.findMyActiveSession()
+            .map(ResponseEntity::ok)
+            .orElseGet(() -> ResponseEntity.noContent().build());
     }
 }

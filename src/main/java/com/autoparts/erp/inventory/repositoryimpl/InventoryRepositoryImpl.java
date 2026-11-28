@@ -396,6 +396,7 @@ public class InventoryRepositoryImpl implements InventoryRepository {
             InventoryMovementType movementType,
             LocalDate fromDate,
             LocalDate toDate,
+            String search,
             int limit,
             int offset
     ) {
@@ -404,11 +405,19 @@ public class InventoryRepositoryImpl implements InventoryRepository {
                 .addValue("movementType", movementType == null ? null : movementType.name())
                 .addValue("fromDate", fromDate)
                 .addValue("toDate", toDate)
+                .addValue("search", search == null || search.isBlank() ? null : "%" + search.trim() + "%")
                 .addValue("limit", limit)
                 .addValue("offset", offset);
 
         return jdbcTemplate.query(
                 MOVEMENT_SELECT + """
+                        AND (
+                            CAST(:search AS VARCHAR) IS NULL
+                            OR p.product_code ILIKE CAST(:search AS VARCHAR)
+                            OR p.part_no ILIKE CAST(:search AS VARCHAR)
+                            OR p.name ILIKE CAST(:search AS VARCHAR)
+                            OR COALESCE(im.notes, '') ILIKE CAST(:search AS VARCHAR)
+                        )
                         ORDER BY im.created_at DESC, im.id DESC
                         LIMIT :limit OFFSET :offset
                         """,
@@ -422,13 +431,15 @@ public class InventoryRepositoryImpl implements InventoryRepository {
             UUID productUuid,
             InventoryMovementType movementType,
             LocalDate fromDate,
-            LocalDate toDate
+            LocalDate toDate,
+            String search
     ) {
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("productUuid", productUuid)
                 .addValue("movementType", movementType == null ? null : movementType.name())
                 .addValue("fromDate", fromDate)
-                .addValue("toDate", toDate);
+                .addValue("toDate", toDate)
+                .addValue("search", search == null || search.isBlank() ? null : "%" + search.trim() + "%");
 
         Long count = jdbcTemplate.queryForObject(
                 """
@@ -447,6 +458,13 @@ public class InventoryRepositoryImpl implements InventoryRepository {
                   AND (
                         CAST(:toDate AS DATE) IS NULL
                         OR im.created_at < CAST(:toDate AS DATE) + INTERVAL '1 day'
+                      )
+                  AND (
+                        CAST(:search AS VARCHAR) IS NULL
+                        OR p.product_code ILIKE CAST(:search AS VARCHAR)
+                        OR p.part_no ILIKE CAST(:search AS VARCHAR)
+                        OR p.name ILIKE CAST(:search AS VARCHAR)
+                        OR COALESCE(im.notes, '') ILIKE CAST(:search AS VARCHAR)
                       )
                 """,
                 params,
@@ -529,90 +547,6 @@ public class InventoryRepositoryImpl implements InventoryRepository {
             case "OUT_OF_STOCK" -> sql.append(" AND p.qty <= 0 ");
             default -> { }
         }
-    }
-
-    @Override
-    public List<InventoryMovement> findMovements(
-            UUID productUuid,
-            InventoryMovementType movementType,
-            LocalDate fromDate,
-            LocalDate toDate,
-            String search,
-            int limit,
-            int offset
-    ) {
-        String searchPattern = search != null && !search.isBlank() ? "%" + search.trim() + "%" : null;
-        MapSqlParameterSource params = new MapSqlParameterSource()
-                .addValue("productUuid", productUuid)
-                .addValue("movementType", movementType == null ? null : movementType.name())
-                .addValue("fromDate", fromDate)
-                .addValue("toDate", toDate)
-                .addValue("searchPattern", searchPattern)
-                .addValue("limit", limit)
-                .addValue("offset", offset);
-
-        return jdbcTemplate.query(
-                MOVEMENT_SELECT + """
-                          AND (
-                                CAST(:searchPattern AS VARCHAR) IS NULL
-                                OR p.name ILIKE CAST(:searchPattern AS VARCHAR)
-                                OR p.product_code ILIKE CAST(:searchPattern AS VARCHAR)
-                                OR COALESCE(im.notes, '') ILIKE CAST(:searchPattern AS VARCHAR)
-                              )
-                        ORDER BY im.created_at DESC, im.id DESC
-                        LIMIT :limit OFFSET :offset
-                        """,
-                params,
-                movementRowMapper
-        );
-    }
-
-    @Override
-    public long countMovements(
-            UUID productUuid,
-            InventoryMovementType movementType,
-            LocalDate fromDate,
-            LocalDate toDate,
-            String search
-    ) {
-        String searchPattern = search != null && !search.isBlank() ? "%" + search.trim() + "%" : null;
-        MapSqlParameterSource params = new MapSqlParameterSource()
-                .addValue("productUuid", productUuid)
-                .addValue("movementType", movementType == null ? null : movementType.name())
-                .addValue("fromDate", fromDate)
-                .addValue("toDate", toDate)
-                .addValue("searchPattern", searchPattern);
-
-        Long count = jdbcTemplate.queryForObject(
-                """
-                SELECT COUNT(*)
-                FROM inventory_movements im
-                JOIN products p ON p.id = im.product_id
-                WHERE (CAST(:productUuid AS UUID) IS NULL OR p.uuid = CAST(:productUuid AS UUID))
-                  AND (
-                        CAST(:movementType AS VARCHAR) IS NULL
-                        OR im.movement_type = CAST(:movementType AS VARCHAR)
-                      )
-                  AND (
-                        CAST(:fromDate AS DATE) IS NULL
-                        OR im.created_at >= CAST(:fromDate AS DATE)
-                      )
-                  AND (
-                        CAST(:toDate AS DATE) IS NULL
-                        OR im.created_at < CAST(:toDate AS DATE) + INTERVAL '1 day'
-                      )
-                  AND (
-                        CAST(:searchPattern AS VARCHAR) IS NULL
-                        OR p.name ILIKE CAST(:searchPattern AS VARCHAR)
-                        OR p.product_code ILIKE CAST(:searchPattern AS VARCHAR)
-                        OR COALESCE(im.notes, '') ILIKE CAST(:searchPattern AS VARCHAR)
-                      )
-                """,
-                params,
-                Long.class
-        );
-
-        return count == null ? 0L : count;
     }
 
     @Override

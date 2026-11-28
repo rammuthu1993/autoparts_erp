@@ -42,6 +42,20 @@ public class PurchaseReturnController {
         return service.findReturnsByPurchaseUuid(purchaseUuid);
     }
 
+    // Get paginated purchase returns register.
+    @GetMapping("/purchase-returns/paged")
+    @RequiresPermission("PURCHASE_RETURNS.VIEW")
+    public com.autoparts.erp.common.dto.PageResponse<PurchaseReturnResponse> findReturnsPaged(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String creditStatus,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate toDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return service.findReturnsPaged(search, creditStatus, fromDate, toDate, page, size);
+    }
+
     // Get purchase return details.
     @GetMapping("/purchase-returns/{returnUuid}")
     @RequiresPermission("PURCHASE_RETURNS.VIEW")

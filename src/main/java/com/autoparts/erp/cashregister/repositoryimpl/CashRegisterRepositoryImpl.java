@@ -75,6 +75,19 @@ public class CashRegisterRepositoryImpl implements CashRegisterRepository {
         );
 
     @Override
+    public void lockRegisterSetup() {
+        // Serialize initial register setup across concurrent requests.
+        jdbcTemplate.getJdbcTemplate().execute("SELECT pg_advisory_xact_lock(781234, 1)");
+    }
+
+    @Override
+    public long countActiveRegisters() {
+        Long count = jdbcTemplate.getJdbcTemplate().queryForObject(
+            "SELECT COUNT(*) FROM cash_registers WHERE active = TRUE", Long.class);
+        return count == null ? 0L : count;
+    }
+
+    @Override
     public CashRegister createRegister(CashRegister register) {
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("uuid", register.uuid())
@@ -526,5 +539,126 @@ public class CashRegisterRepositoryImpl implements CashRegisterRepository {
         );
 
         return movements.stream().findFirst();
+    }
+
+    @Override
+    public void updateSessionOpeningNotes(Long sessionId, String openingNotes) {
+        jdbcTemplate.update(
+            "UPDATE cash_register_sessions SET opening_notes = :openingNotes WHERE id = :sessionId",
+            new MapSqlParameterSource().addValue("openingNotes", openingNotes).addValue("sessionId", sessionId)
+        );
+    }
+
+    @Override
+    public void updateSessionClosingMetadata(
+            Long sessionId,
+            int d500, int d200, int d100, int d50, int d20, int d10,
+            BigDecimal coinsAmount,
+            boolean denominationsUsed,
+            String differenceReason
+    ) {
+        jdbcTemplate.update(
+            """
+            UPDATE cash_register_sessions
+            SET denomination_500 = :d500,
+                denomination_200 = :d200,
+                denomination_100 = :d100,
+                denomination_50 = :d50,
+                denomination_20 = :d20,
+                denomination_10 = :d10,
+                coins_amount = :coinsAmount,
+                denominations_used = :denominationsUsed,
+                difference_reason = :differenceReason
+            WHERE id = :sessionId
+            """,
+            new MapSqlParameterSource()
+                .addValue("sessionId", sessionId)
+                .addValue("d500", d500)
+                .addValue("d200", d200)
+                .addValue("d100", d100)
+                .addValue("d50", d50)
+                .addValue("d20", d20)
+                .addValue("d10", d10)
+                .addValue("coinsAmount", coinsAmount != null ? coinsAmount : BigDecimal.ZERO)
+                .addValue("denominationsUsed", denominationsUsed)
+                .addValue("differenceReason", differenceReason)
+        );
+    }
+
+    @Override
+    public List<CashRegisterSession> findSessionsPaged(
+            UUID registerUuid,
+            String status,
+            java.time.LocalDate fromDate,
+            java.time.LocalDate toDate,
+            int offset,
+            int limit
+    ) {
+        StringBuilder sql = new StringBuilder(SESSION_SELECT).append(" WHERE 1=1 ");
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        applySessionFilters(sql, params, registerUuid, status, fromDate, toDate);
+        sql.append(" ORDER BY s.opened_at DESC, s.id DESC LIMIT :limit OFFSET :offset");
+        params.addValue("limit", Math.max(1, Math.min(limit, 100)));
+        params.addValue("offset", Math.max(0, offset));
+        return jdbcTemplate.query(sql.toString(), params, sessionMapper);
+    }
+
+    @Override
+    public long countSessionsPaged(
+            UUID registerUuid,
+            String status,
+            java.time.LocalDate fromDate,
+            java.time.LocalDate toDate
+    ) {
+        StringBuilder sql = new StringBuilder("""
+            SELECT COUNT(*)
+            FROM cash_register_sessions s
+            JOIN cash_registers r ON r.id = s.cash_register_id
+            WHERE 1=1
+            """);
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        applySessionFilters(sql, params, registerUuid, status, fromDate, toDate);
+        Long count = jdbcTemplate.queryForObject(sql.toString(), params, Long.class);
+        return count != null ? count : 0L;
+    }
+
+    private void applySessionFilters(
+            StringBuilder sql,
+            MapSqlParameterSource params,
+            UUID registerUuid,
+            String status,
+            java.time.LocalDate fromDate,
+            java.time.LocalDate toDate
+    ) {
+        if (registerUuid != null) {
+            sql.append(" AND r.uuid = :registerUuid");
+            params.addValue("registerUuid", registerUuid);
+        }
+        if (status != null && !status.isBlank()) {
+            sql.append(" AND s.status = :status");
+            params.addValue("status", status.trim().toUpperCase());
+        }
+        if (fromDate != null) {
+            sql.append(" AND s.opened_at >= CAST(:fromDate AS DATE)");
+            params.addValue("fromDate", fromDate);
+        }
+        if (toDate != null) {
+            sql.append(" AND s.opened_at < CAST(:toDate AS DATE) + INTERVAL '1 day'");
+            params.addValue("toDate", toDate);
+        }
+    }
+
+    @Override
+    public Optional<CashRegisterSession> findOpenSessionForUser(Long userId) {
+        return jdbcTemplate.query(
+            SESSION_SELECT + """
+                WHERE s.opened_by = :userId
+                  AND s.status = 'OPEN'
+                ORDER BY s.opened_at DESC
+                LIMIT 1
+                """,
+            new MapSqlParameterSource("userId", userId),
+            sessionMapper
+        ).stream().findFirst();
     }
 }

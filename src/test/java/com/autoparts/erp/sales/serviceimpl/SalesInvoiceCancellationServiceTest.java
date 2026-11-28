@@ -99,7 +99,7 @@ class SalesInvoiceCancellationServiceTest {
         );
         lenient().when(salesRepository.isSalesStatusConfigured(anyString())).thenReturn(true);
         lenient().when(salesRepository.isSalesPaymentStatusConfigured(anyString())).thenReturn(true);
-        lenient().when(permissionService.hasPermission(any(), eq("SALES.CANCEL_ISSUED"))).thenReturn(true);
+        lenient().when(permissionService.hasPermission(any(org.springframework.security.core.Authentication.class), eq("SALES.CANCEL_ISSUED"))).thenReturn(true);
         lenient().when(currentUserService.getCurrentUserId()).thenReturn(42L);
         lenient().when(salesCancellationRepository.createCancellation(any())).thenAnswer(inv -> {
             SalesInvoiceCancellation c = inv.getArgument(0);
@@ -244,7 +244,7 @@ class SalesInvoiceCancellationServiceTest {
             new BigDecimal("3000.00"), BigDecimal.ZERO, new BigDecimal("2542.37"), new BigDecimal("228.81"),
             new BigDecimal("228.82"), BigDecimal.ZERO, new BigDecimal("457.63"), new BigDecimal("3000.00"),
             SalesReturnStatus.PARTIALLY_REFUNDED, null, null);
-        SalesReturnProduct prevReturnItem = new SalesReturnProduct(1L, UUID.randomUUID(), 1L, 103L, 504L, "PART-04", "Part 04",
+        SalesReturnProduct prevReturnItem = new SalesReturnProduct(1L, UUID.randomUUID(), 1L, 103L, 504L, UUID.randomUUID(), UUID.randomUUID(), "PART-04", "Part 04",
             new BigDecimal("3.000"), "PCS", new BigDecimal("1000.00"), BigDecimal.ZERO, new BigDecimal("2542.37"), "8708",
             new BigDecimal("18.00"), new BigDecimal("9.00"), new BigDecimal("9.00"), BigDecimal.ZERO,
             new BigDecimal("228.81"), new BigDecimal("228.82"), BigDecimal.ZERO, new BigDecimal("457.63"), new BigDecimal("3000.00"), null);
@@ -289,7 +289,7 @@ class SalesInvoiceCancellationServiceTest {
             new BigDecimal("2000.00"), BigDecimal.ZERO, new BigDecimal("1694.92"), new BigDecimal("152.54"),
             new BigDecimal("152.54"), BigDecimal.ZERO, new BigDecimal("305.08"), new BigDecimal("2000.00"),
             SalesReturnStatus.REFUNDED, null, null);
-        SalesReturnProduct fullReturnItem = new SalesReturnProduct(2L, UUID.randomUUID(), 2L, 104L, 505L, "PART-05", "Part 05",
+        SalesReturnProduct fullReturnItem = new SalesReturnProduct(2L, UUID.randomUUID(), 2L, 104L, 505L, UUID.randomUUID(), UUID.randomUUID(), "PART-05", "Part 05",
             new BigDecimal("2.000"), "PCS", new BigDecimal("1000.00"), BigDecimal.ZERO, new BigDecimal("1694.92"), "8708",
             new BigDecimal("18.00"), new BigDecimal("9.00"), new BigDecimal("9.00"), BigDecimal.ZERO,
             new BigDecimal("152.54"), new BigDecimal("152.54"), BigDecimal.ZERO, new BigDecimal("305.08"), new BigDecimal("2000.00"), null);
@@ -325,7 +325,9 @@ class SalesInvoiceCancellationServiceTest {
         ReflectionTestUtils.setField(service, "blockClosedDailyPeriod", true);
         Sales issued = sampleSale(16L, saleUuid, "GAS/2026-27/00007", SalesStatus.COMPLETED, new BigDecimal("500.00"), BigDecimal.ZERO, new BigDecimal("500.00"));
         when(salesRepository.findByUuidForUpdate(saleUuid)).thenReturn(Optional.of(issued));
-        when(dailyClosingRepository.findByBusinessDate(issued.saleDate())).thenReturn(Optional.of(mock(DailyClosingResponse.class)));
+        when(dailyClosingRepository.findByBusinessDate(issued.saleDate())).thenReturn(Optional.of(
+            new DailyClosingResponse(UUID.randomUUID(), issued.saleDate(), 1L, OffsetDateTime.now(), null, null, List.of())
+        ));
         ApiException periodEx = assertThrows(ApiException.class, () -> service.cancel(saleUuid, new SalesCancelRequest("Closed day")));
         assertEquals(SalesErrorCode.SALES_CANCELLATION_PERIOD_LOCKED, periodEx.getError());
     }
@@ -380,14 +382,14 @@ class SalesInvoiceCancellationServiceTest {
         UUID saleUuid = UUID.randomUUID();
         Sales issued = sampleSale(19L, saleUuid, "GAS/2026-27/00010", SalesStatus.COMPLETED, new BigDecimal("500.00"), BigDecimal.ZERO, new BigDecimal("500.00"));
         when(salesRepository.findByUuidForUpdate(saleUuid)).thenReturn(Optional.of(issued));
-        when(permissionService.hasPermission(any(), eq("SALES.CANCEL_ISSUED"))).thenReturn(false);
+        when(permissionService.hasPermission(any(org.springframework.security.core.Authentication.class), eq("SALES.CANCEL_ISSUED"))).thenReturn(false);
 
         assertThrows(AccessDeniedException.class, () ->
             service.cancel(saleUuid, new SalesCancelRequest("Unauthorized attempt"))
         );
 
         // Now test confirming a pending UPI refund
-        when(permissionService.hasPermission(any(), eq("SALES.CANCEL_ISSUED"))).thenReturn(true);
+        lenient().when(permissionService.hasPermission(any(org.springframework.security.core.Authentication.class), eq("SALES.CANCEL_ISSUED"))).thenReturn(true);
         UUID refundUuid = UUID.randomUUID();
         Sales cancelled = sampleSale(19L, saleUuid, "GAS/2026-27/00010", SalesStatus.CANCELLED, new BigDecimal("500.00"), new BigDecimal("500.00"), BigDecimal.ZERO);
         SalesInvoiceCancellation cancellation = new SalesInvoiceCancellation(

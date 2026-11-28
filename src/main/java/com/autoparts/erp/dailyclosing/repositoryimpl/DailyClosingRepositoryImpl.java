@@ -69,8 +69,7 @@ public class DailyClosingRepositoryImpl
             SELECT EXISTS (
                 SELECT 1
                 FROM cash_register_sessions
-                WHERE opened_at >= :start
-                  AND opened_at < :end
+                WHERE opened_at < :end
                   AND status = 'OPEN'
             )
             """,
@@ -937,4 +936,67 @@ public class DailyClosingRepositoryImpl
         BigDecimal actual,
         BigDecimal difference
     ) {}
+
+    @Override
+    public DailyClosingSummary previewSummary(
+            LocalDate businessDate,
+            OffsetDateTime start,
+            OffsetDateTime end
+    ) {
+        return calculateSummary(businessDate, start, end);
+    }
+
+    @Override
+    public List<CashRegisterClosingResponse> previewRegisterClosings(
+            OffsetDateTime start,
+            OffsetDateTime end
+    ) {
+        return jdbcTemplate.query(
+            """
+            SELECT
+                r.uuid AS register_uuid,
+                r.name AS register_name,
+                s.uuid AS session_uuid,
+                s.opened_at,
+                s.closed_at,
+                s.opening_balance,
+                COALESCE(SUM(CASE WHEN m.movement_type = 'IN' THEN m.amount ELSE 0 END), 0) AS cash_in_total,
+                COALESCE(SUM(CASE WHEN m.movement_type = 'OUT' THEN m.amount ELSE 0 END), 0) AS cash_out_total,
+                COALESCE(s.expected_closing_balance, s.opening_balance) AS expected_closing_balance,
+                COALESCE(s.actual_closing_balance, 0) AS actual_closing_balance,
+                COALESCE(s.difference_amount, 0) AS difference_amount
+            FROM cash_register_sessions s
+            JOIN cash_registers r ON r.id = s.cash_register_id
+            LEFT JOIN cash_register_movements m ON m.session_id = s.id
+            WHERE s.status = 'CLOSED'
+              AND s.closed_at >= :start
+              AND s.closed_at < :end
+            GROUP BY r.uuid, r.name, s.uuid, s.opened_at, s.closed_at,
+                     s.opening_balance, s.expected_closing_balance,
+                     s.actual_closing_balance, s.difference_amount
+            ORDER BY s.closed_at ASC
+            """,
+            new MapSqlParameterSource().addValue("start", start).addValue("end", end),
+            (rs, rowNum) -> new CashRegisterClosingResponse(
+                rs.getObject("session_uuid", UUID.class),
+                rs.getString("register_name"),
+                rs.getBigDecimal("opening_balance"),
+                rs.getBigDecimal("cash_in_total"),
+                rs.getBigDecimal("cash_out_total"),
+                rs.getBigDecimal("expected_closing_balance"),
+                rs.getBigDecimal("actual_closing_balance"),
+                rs.getBigDecimal("difference_amount")
+            )
+        );
+    }
+
+    @Override
+    public long countOpenSessions(OffsetDateTime end) {
+        Long count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM cash_register_sessions WHERE opened_at < :end AND status = 'OPEN'",
+            new MapSqlParameterSource("end", end),
+            Long.class
+        );
+        return count != null ? count : 0L;
+    }
 }

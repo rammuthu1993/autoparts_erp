@@ -329,6 +329,36 @@ public class PurchaseReturnServiceImpl implements PurchaseReturnService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    @AuthenticatedUser
+    @RequiresPermission("PURCHASE_RETURNS.VIEW")
+    public com.autoparts.erp.common.dto.PageResponse<PurchaseReturnResponse> findReturnsPaged(
+            String search,
+            String creditStatus,
+            java.time.LocalDate fromDate,
+            java.time.LocalDate toDate,
+            int page,
+            int size
+    ) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        int offset = com.autoparts.erp.common.util.PaginationUtils.calculateOffsetForNormalized(safePage, safeSize);
+
+        List<PurchaseReturn> rows = repository.findReturnsPaged(search, creditStatus, fromDate, toDate, offset, safeSize);
+        long total = repository.countReturnsPaged(search, creditStatus, fromDate, toDate);
+
+        List<PurchaseReturnResponse> content = rows.stream()
+            .map(ret -> {
+                PurchaseInfo purchase = repository.findPurchaseById(ret.purchaseId())
+                    .orElseThrow(() -> notFound("Purchase not found"));
+                return buildResponse(ret, purchase);
+            })
+            .toList();
+
+        return com.autoparts.erp.common.dto.PageResponse.of(content, safePage, safeSize, total);
+    }
+
+    @Override
     @Transactional
     @AdminOrManager
     @RequiresPermission("PURCHASE_RETURNS.CREATE")

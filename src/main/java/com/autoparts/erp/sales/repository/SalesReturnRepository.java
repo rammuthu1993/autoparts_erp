@@ -38,4 +38,28 @@ public interface SalesReturnRepository {
     BigDecimal getRefundedAmount(Long returnId);
 
     BigDecimal getTotalRefundedAmountBySaleId(Long saleId);
+
+    void updateReturnProductDisposition(
+        Long returnId,
+        Long salesProductId,
+        String disposition,
+        String conditionNotes,
+        String inspectionNotes
+    );
+
+    List<SalesReturn> findReturnsPaged(
+        String search,
+        String status,
+        java.time.LocalDate fromDate,
+        java.time.LocalDate toDate,
+        int offset,
+        int limit
+    );
+
+    long countReturnsPaged(
+        String search,
+        String status,
+        java.time.LocalDate fromDate,
+        java.time.LocalDate toDate
+    );
 }

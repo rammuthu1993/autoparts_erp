@@ -67,6 +67,14 @@ public class CashRegisterServiceImpl implements CashRegisterService {
             CreateCashRegisterRequest request
     ) {
 
+        cashRegisterRepository.lockRegisterSetup();
+        if (cashRegisterRepository.countActiveRegisters() > 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "This shop already has an active cash register. Reuse the existing register for each cashier shift."
+            );
+        }
+
         CashRegister register = new CashRegister(
                 null,
                 UUID.randomUUID(),
@@ -176,6 +184,9 @@ public class CashRegisterServiceImpl implements CashRegisterService {
                     currentUserService.getCurrentUserId(),
                     money(request.openingBalance())
             );
+            if (request.openingNotes() != null && !request.openingNotes().isBlank()) {
+                cashRegisterRepository.updateSessionOpeningNotes(session.id(), request.openingNotes().trim());
+            }
 
         } catch (DuplicateKeyException ex) {
 
@@ -228,7 +239,23 @@ public class CashRegisterServiceImpl implements CashRegisterService {
             throw badRequest("Cash session is already closed");
         }
 
-        if (request.actualClosingBalance() == null) {
+        boolean useDenoms = Boolean.TRUE.equals(request.useDenominations());
+        int d500 = request.denomination500() != null ? request.denomination500() : 0;
+        int d200 = request.denomination200() != null ? request.denomination200() : 0;
+        int d100 = request.denomination100() != null ? request.denomination100() : 0;
+        int d50 = request.denomination50() != null ? request.denomination50() : 0;
+        int d20 = request.denomination20() != null ? request.denomination20() : 0;
+        int d10 = request.denomination10() != null ? request.denomination10() : 0;
+        BigDecimal coins = request.coinsAmount() != null ? money(request.coinsAmount()) : BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+
+        BigDecimal resolvedActual = useDenoms
+                ? money(
+                    BigDecimal.valueOf(d500 * 500L + d200 * 200L + d100 * 100L + d50 * 50L + d20 * 20L + d10 * 10L)
+                        .add(coins)
+                  )
+                : (request.actualClosingBalance() != null ? money(request.actualClosingBalance()) : null);
+
+        if (resolvedActual == null) {
             throw badRequest("Actual closing balance is required");
         }
 
@@ -248,13 +275,19 @@ public class CashRegisterServiceImpl implements CashRegisterService {
                         .subtract(cashOut)
         );
 
-        BigDecimal actual = money(request.actualClosingBalance());
+        BigDecimal actual = resolvedActual;
 
         if (actual.compareTo(BigDecimal.ZERO) < 0) {
             throw badRequest("Closing balance cannot be negative");
         }
 
         BigDecimal difference = money(actual.subtract(expected));
+        String diffReason = request.differenceReason() != null && !request.differenceReason().isBlank()
+                ? request.differenceReason().trim()
+                : null;
+        if (difference.compareTo(BigDecimal.ZERO) != 0 && diffReason == null) {
+            throw badRequest("Difference explanation is required when actual cash differs from expected cash");
+        }
 
         boolean closed = cashRegisterRepository.closeSession(
                 session.id(),
@@ -267,6 +300,10 @@ public class CashRegisterServiceImpl implements CashRegisterService {
         if (!closed) {
             throw badRequest("Unable to close cash session");
         }
+
+        cashRegisterRepository.updateSessionClosingMetadata(
+                session.id(), d500, d200, d100, d50, d20, d10, coins, useDenoms, diffReason
+        );
 
         // Audit closing session.
         auditLogService.log(
@@ -299,15 +336,12 @@ public class CashRegisterServiceImpl implements CashRegisterService {
     @Override
     @SalesAccess
     @RequiresPermission("CASH_REGISTER.VIEW")
-    public CashSessionResponse findLatestSession(UUID registerUuid) {
-
-        CashRegisterSession session = cashRegisterRepository
-                .findLatestSession(registerUuid)
-                .orElseThrow(() ->
-                        notFound("No cash session found")
-                );
-
-        return toSessionResponse(session);
+    public java.util.Optional<CashSessionResponse> findLatestSession(UUID registerUuid) {
+        // A register without any session is a normal state, not a missing resource.
+        // Returning Optional allows the controller to respond with HTTP 204 instead of
+        // 404, preventing the global HTTP error interceptor from showing a false alarm.
+        return cashRegisterRepository.findLatestSession(registerUuid)
+                .map(this::toSessionResponse);
     }
 
     // ---------------------------------------------------------
@@ -728,5 +762,34 @@ public class CashRegisterServiceImpl implements CashRegisterService {
                 sourceType,
                 movementAmount
         );
+    }
+
+    @Override
+    @RequiresPermission("CASH_REGISTER.VIEW")
+    public PageResponse<CashSessionResponse> findSessionsPaged(
+            UUID registerUuid,
+            String status,
+            java.time.LocalDate fromDate,
+            java.time.LocalDate toDate,
+            int page,
+            int size
+    ) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        int offset = PaginationUtils.calculateOffsetForNormalized(safePage, safeSize);
+
+        List<CashSessionResponse> content = cashRegisterRepository.findSessionsPaged(
+                registerUuid, status, fromDate, toDate, offset, safeSize
+        ).stream().map(this::toSessionResponse).toList();
+
+        long total = cashRegisterRepository.countSessionsPaged(registerUuid, status, fromDate, toDate);
+        return PageResponse.of(content, safePage, safeSize, total);
+    }
+
+    @Override
+    @RequiresPermission("CASH_REGISTER.VIEW")
+    public java.util.Optional<CashSessionResponse> findMyActiveSession() {
+        Long userId = currentUserService.getCurrentUserId();
+        return cashRegisterRepository.findOpenSessionForUser(userId).map(this::toSessionResponse);
     }
 }

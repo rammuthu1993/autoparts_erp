@@ -512,4 +512,105 @@ public class SalesReturnRepositoryImpl implements SalesReturnRepository {
             BigDecimal.class
         );
     }
+
+    @Override
+    public void updateReturnProductDisposition(
+            Long returnId,
+            Long salesProductId,
+            String disposition,
+            String conditionNotes,
+            String inspectionNotes
+    ) {
+        jdbcTemplate.update(
+            """
+            UPDATE sales_return_products
+            SET disposition = :disposition,
+                condition_notes = :conditionNotes,
+                inspection_notes = :inspectionNotes
+            WHERE sales_return_id = :returnId
+              AND sales_product_id = :salesProductId
+            """,
+            new MapSqlParameterSource()
+                .addValue("returnId", returnId)
+                .addValue("salesProductId", salesProductId)
+                .addValue("disposition", disposition)
+                .addValue("conditionNotes", conditionNotes)
+                .addValue("inspectionNotes", inspectionNotes)
+        );
+    }
+
+    @Override
+    public List<SalesReturn> findReturnsPaged(
+            String search,
+            String status,
+            java.time.LocalDate fromDate,
+            java.time.LocalDate toDate,
+            int offset,
+            int limit
+    ) {
+        StringBuilder sql = new StringBuilder("""
+            SELECT sr.*
+            FROM sales_returns sr
+            JOIN sales s ON s.id = sr.sale_id
+            WHERE 1=1
+            """);
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        applyReturnFilters(sql, params, search, status, fromDate, toDate);
+        sql.append(" ORDER BY sr.return_date DESC, sr.id DESC LIMIT :limit OFFSET :offset");
+        params.addValue("limit", Math.max(1, Math.min(limit, 100)));
+        params.addValue("offset", Math.max(0, offset));
+        return jdbcTemplate.query(sql.toString(), params, returnRowMapper);
+    }
+
+    @Override
+    public long countReturnsPaged(
+            String search,
+            String status,
+            java.time.LocalDate fromDate,
+            java.time.LocalDate toDate
+    ) {
+        StringBuilder sql = new StringBuilder("""
+            SELECT COUNT(*)
+            FROM sales_returns sr
+            JOIN sales s ON s.id = sr.sale_id
+            WHERE 1=1
+            """);
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        applyReturnFilters(sql, params, search, status, fromDate, toDate);
+        Long count = jdbcTemplate.queryForObject(sql.toString(), params, Long.class);
+        return count != null ? count : 0L;
+    }
+
+    private void applyReturnFilters(
+            StringBuilder sql,
+            MapSqlParameterSource params,
+            String search,
+            String status,
+            java.time.LocalDate fromDate,
+            java.time.LocalDate toDate
+    ) {
+        if (search != null && !search.isBlank()) {
+            sql.append("""
+                AND (
+                    CAST(sr.uuid AS VARCHAR) ILIKE :search
+                    OR s.invoice_number ILIKE :search
+                    OR COALESCE(s.customer_name, '') ILIKE :search
+                    OR sr.reason ILIKE :search
+                )
+                """);
+            params.addValue("search", "%" + search.trim() + "%");
+        }
+        if (status != null && !status.isBlank()) {
+            sql.append(" AND sr.status = :status");
+            params.addValue("status", status.trim().toUpperCase());
+        }
+        if (fromDate != null) {
+            sql.append(" AND sr.return_date >= CAST(:fromDate AS DATE)");
+            params.addValue("fromDate", fromDate);
+        }
+        if (toDate != null) {
+            sql.append(" AND sr.return_date < CAST(:toDate AS DATE) + INTERVAL '1 day'");
+            params.addValue("toDate", toDate);
+        }
+    }
 }

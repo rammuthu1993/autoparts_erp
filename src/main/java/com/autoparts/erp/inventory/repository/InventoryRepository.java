@@ -73,6 +73,7 @@ public interface InventoryRepository {
             InventoryMovementType movementType,
             LocalDate fromDate,
             LocalDate toDate,
+            String search,
             int limit,
             int offset
     );
@@ -81,7 +82,8 @@ public interface InventoryRepository {
             UUID productUuid,
             InventoryMovementType movementType,
             LocalDate fromDate,
-            LocalDate toDate
+            LocalDate toDate,
+            String search
     );
 
     com.autoparts.erp.inventory.dto.InventorySummaryResponse getInventorySummary();
@@ -97,23 +99,7 @@ public interface InventoryRepository {
 
     long countStockPaged(String search, String stockStatus);
 
-    List<InventoryMovement> findMovements(
-            UUID productUuid,
-            InventoryMovementType movementType,
-            LocalDate fromDate,
-            LocalDate toDate,
-            String search,
-            int limit,
-            int offset
-    );
 
-    long countMovements(
-            UUID productUuid,
-            InventoryMovementType movementType,
-            LocalDate fromDate,
-            LocalDate toDate,
-            String search
-    );
 
     Optional<InventoryMovement> findMovementByUuid(UUID movementUuid);
 

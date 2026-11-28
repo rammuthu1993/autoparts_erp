@@ -218,12 +218,34 @@ public class SalesReturnServiceImpl implements SalesReturnService {
 
             returnRepository.createReturnProduct(returnProduct);
 
-            // Restore inventory using the original numeric product ID.
-            inventoryService.restoreStockFromSalesReturn(
-                    originalProduct.productId(),
-                    requestedQuantity,
-                    salesReturn.id()
+            var disposition = productRequest.disposition() != null
+                    ? productRequest.disposition()
+                    : com.autoparts.erp.sales.enums.ReturnDisposition.RESTOCK;
+
+            returnRepository.updateReturnProductDisposition(
+                    salesReturn.id(),
+                    originalProduct.id(),
+                    disposition.name(),
+                    productRequest.conditionNotes(),
+                    productRequest.inspectionNotes()
             );
+
+            if (disposition == com.autoparts.erp.sales.enums.ReturnDisposition.RESTOCK) {
+                // Restore sellable inventory using the original numeric product ID.
+                inventoryService.restoreStockFromSalesReturn(
+                        originalProduct.productId(),
+                        requestedQuantity,
+                        salesReturn.id()
+                );
+            } else {
+                // Record quarantine or scrap without increasing sellable inventory.
+                inventoryService.recordQuarantineOrScrapReturn(
+                        originalProduct.productId(),
+                        requestedQuantity,
+                        disposition == com.autoparts.erp.sales.enums.ReturnDisposition.SCRAP,
+                        salesReturn.id()
+                );
+            }
 
             subtotal = subtotal.add(
                     returnProduct.unitPrice().multiply(requestedQuantity)
@@ -447,6 +469,35 @@ public class SalesReturnServiceImpl implements SalesReturnService {
                 .stream()
                 .map(salesReturn -> buildResponse(salesReturn, sale))
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @RequiresPermission("SALES_RETURNS.VIEW")
+    public com.autoparts.erp.common.dto.PageResponse<SalesReturnResponse> findReturnsPaged(
+            String search,
+            String status,
+            java.time.LocalDate fromDate,
+            java.time.LocalDate toDate,
+            int page,
+            int size
+    ) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        int offset = com.autoparts.erp.common.util.PaginationUtils.calculateOffsetForNormalized(safePage, safeSize);
+
+        List<SalesReturn> rows = returnRepository.findReturnsPaged(search, status, fromDate, toDate, offset, safeSize);
+        long total = returnRepository.countReturnsPaged(search, status, fromDate, toDate);
+
+        List<SalesReturnResponse> content = rows.stream()
+                .map(ret -> {
+                    Sales sale = salesRepository.findByUuid(findSaleUuidForReturn(ret))
+                            .orElseThrow(() -> notFound("Sales invoice not found"));
+                    return buildResponse(ret, sale);
+                })
+                .toList();
+
+        return com.autoparts.erp.common.dto.PageResponse.of(content, safePage, safeSize, total);
     }
 
     // ---------------------------------------------------------

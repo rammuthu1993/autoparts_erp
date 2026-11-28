@@ -2,6 +2,7 @@ package com.autoparts.erp.cashregister.service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import com.autoparts.erp.cashregister.dto.CashMovementResponse;
@@ -31,7 +32,7 @@ public interface CashRegisterService {
         CloseCashSessionRequest request
     );
 
-    CashSessionResponse findLatestSession(UUID registerUuid);
+    Optional<CashSessionResponse> findLatestSession(UUID registerUuid);
 
     CashMovementResponse createMovement(
         UUID sessionUuid,
@@ -55,4 +56,15 @@ public interface CashRegisterService {
     	    BigDecimal amount,
     	    String description
     	);
+
+    PageResponse<CashSessionResponse> findSessionsPaged(
+        UUID registerUuid,
+        String status,
+        java.time.LocalDate fromDate,
+        java.time.LocalDate toDate,
+        int page,
+        int size
+    );
+
+    java.util.Optional<CashSessionResponse> findMyActiveSession();
 }

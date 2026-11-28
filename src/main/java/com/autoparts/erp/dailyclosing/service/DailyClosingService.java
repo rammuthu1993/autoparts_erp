@@ -28,4 +28,6 @@ public interface DailyClosingService {
         String sortBy,
         String sortDir
     );
+
+    com.autoparts.erp.dailyclosing.dto.DailyClosingPreviewResponse previewBusinessDate(LocalDate businessDate);
 }
